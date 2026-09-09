@@ -1,0 +1,15 @@
+import { mkdirSync, cpSync, writeFileSync, readFileSync, rmSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+const temp = mkdtempSync(join(tmpdir(), 'afterword-package-'));
+const dir = join(temp, 'afterword-companion');
+mkdirSync(join(dir, 'server'), { recursive: true });
+cpSync('companion', join(dir, 'companion'), { recursive: true });
+for (const f of ['crypto.mjs', 'store.mjs']) cpSync(join('server', f), join(dir, 'server', f));
+for (const f of ['package.json', 'package-lock.json']) cpSync(f, join(dir, f));
+cpSync('docs/COMPANION.md', join(dir, 'README.md'));
+mkdirSync('dist', { recursive: true });
+execFileSync('tar', ['-czf', resolve('dist/afterword-companion.tar.gz'), '-C', temp, 'afterword-companion']);
+rmSync(temp, { recursive: true });
+console.log('Companion package built.');

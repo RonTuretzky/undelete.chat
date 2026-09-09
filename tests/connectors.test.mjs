@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { discordEvent, telegramEvent, signalEvent, whatsappEvent } from '../companion/adapters/normalize.mjs';
+import { openQueue, deliverBatch } from '../companion/queue.mjs';
+import { eventSchema } from '../server/store.mjs';
+const now = Date.now();
+test('Discord normalizes partial content updates and tombstones without inventing history', () => {
+  const d = { id: '123', channel_id: '789', content: 'before', timestamp: new Date(now).toISOString(), author: { id: 'u', username: 'alice' } };
+  assert.equal(discordEvent({ id: d.id, channel_id: d.channel_id }, 'edit'), null);
+  const original = eventSchema.parse(discordEvent(d, 'create'));
+  const deleted = eventSchema.parse(discordEvent({ id: d.id, channel_id: d.channel_id }, 'delete'));
+  assert.equal(deleted.externalId, original.externalId); assert.equal(deleted.scope, original.scope); assert.equal(deleted.text, undefined);
+});
+test('Telegram account-scoped IDs let chat-less deletes match private messages', () => {
+  const privateMessage = eventSchema.parse(telegramEvent({ id: 1, peerId: { userId: 'a' }, message: 'hello', date: Math.floor(now / 1000) }, 'create'));
+  const channelMessage = eventSchema.parse(telegramEvent({ id: 1, peerId: { channelId: 987 }, message: 'hello', date: Math.floor(now / 1000) }, 'create'));
+  assert.equal(privateMessage.scope, 'account'); assert.equal(channelMessage.scope, 'channel:987');
+  assert.equal(telegramEvent({ id: 1, peerId: {}, message: 'expires', date: Math.floor(now / 1000), ttlPeriod: 100 }, 'create').ephemeral, true);
+});
+test('Signal resolves edit chains and remote deletes to the original message', () => {
+  const aliases = new Map(); const resolve = id => aliases.get(id) || id; const remember = (a, b) => aliases.set(a, b);
+  const original = eventSchema.parse(signalEvent({ sourceUuid: 'alice', sourceName: 'Alice', timestamp: now, dataMessage: { timestamp: now, message: 'first', expiresInSeconds: 0 } }));
+  const edit = eventSchema.parse(signalEvent({ sourceUuid: 'alice', timestamp: now + 1, editMessage: { targetSentTimestamp: now, dataMessage: { timestamp: now + 1, message: 'second' } } }, resolve, remember));
+  const edit2 = eventSchema.parse(signalEvent({ sourceUuid: 'alice', timestamp: now + 2, editMessage: { targetSentTimestamp: now + 1, dataMessage: { timestamp: now + 2, message: 'third' } } }, resolve, remember));
+  const deletion = eventSchema.parse(signalEvent({ sourceUuid: 'alice', timestamp: now + 3, dataMessage: { timestamp: now + 3, remoteDelete: { timestamp: now + 2 } } }, resolve, remember));
+  for (const e of [edit, edit2, deletion]) assert.equal(e.externalId, original.externalId);
+  assert.equal(deletion.kind, 'delete'); assert.equal(deletion.text, undefined);
+  const synced = signalEvent({ sourceUuid: 'self', timestamp: now, syncMessage: { sentMessage: { destinationUuid: 'bob', timestamp: now, message: 'sent' } } });
+  assert.equal(synced.chatId, 'bob'); assert.equal(synced.authorName, 'You');
+  assert.equal(signalEvent({ sourceUuid: 'a', dataMessage: { timestamp: now, message: 'secret', viewOnce: true } }).ephemeral, true);
+});
+test('WhatsApp edit wrappers and revoke events keep stable IDs; receipts and ephemeral payloads are skipped', () => {
+  const key = { remoteJid: 'chat@s.whatsapp.net', id: 'abc', fromMe: false };
+  const original = eventSchema.parse(whatsappEvent({ key, messageTimestamp: Math.floor(now / 1000), message: { conversation: 'first' } }));
+  const edited = eventSchema.parse(whatsappEvent({ key, messageTimestamp: Math.floor(now / 1000) + 1, message: { editedMessage: { message: { conversation: 'second' } } } }));
+  assert.equal(edited.kind, 'edit'); assert.equal(edited.externalId, original.externalId); assert.equal(edited.text, 'second');
+  const deletion = eventSchema.parse(whatsappEvent({ key }, 'delete'));
+  assert.equal(deletion.externalId, original.externalId); assert.equal(deletion.text, undefined);
+  assert.equal(whatsappEvent({ key, message: { protocolMessage: { type: 1 } } }), null);
+  assert.equal(whatsappEvent({ key, message: { ephemeralMessage: { message: { conversation: 'secret' } } } }), null);
+  assert.equal(whatsappEvent({ key, message: { imageMessage: { caption: 'secret', contextInfo: { expiration: 86400 } } } }), null);
+});
+test('durable encrypted queue survives a restart and only removes individually acknowledged events', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'afterword-queue-test-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  let queue = openQueue(dir);
+  const sample = { eventId: 'one', kind: 'create', externalId: '1', scope: 'room', text: 'very private queue content', occurredAt: new Date(now).toISOString() };
+  queue.add(sample); queue.add(sample); queue.add({ ...sample, eventId: 'two' });
+  assert.equal(queue.count(), 2); queue.close();
+  assert.equal(readFileSync(join(dir, 'queue.sqlite')).includes(Buffer.from(sample.text)), false);
+  queue = openQueue(dir); t.after(() => queue.close());
+  assert.equal(queue.pending()[0].text, sample.text);
+  await assert.rejects(deliverBatch({ queue, server: 'https://example.invalid', token: 'test', fetcher: async () => { throw new Error('offline'); } }));
+  assert.equal(queue.count(), 2);
+  await deliverBatch({ queue, server: 'https://example.invalid', token: 'test', fetcher: async () => ({ ok: true, json: async () => ({ results: [{ eventId: 'one', id: 'stored' }, { eventId: 'not-sent', id: 'no' }] }) }) });
+  assert.equal(queue.count(), 1); assert.equal(queue.pending()[0].eventId, 'two');
+});

@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: ..
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - archive-data:/data
+    ports:
+      - '127.0.0.1:4318:4318'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+volumes:
+  archive-data:

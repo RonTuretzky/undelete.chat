@@ -1,0 +1,98 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { createStore } from '../server/store.mjs';
+import { createApp } from '../server/app.mjs';
+const event = (kind, id, text, seconds = 0) => ({ kind, eventId: id, externalId: 'message-1', scope: 'chat-1', chatId: 'chat-1', chatName: 'Friends', authorName: 'Alice', text, occurredAt: new Date(Date.now() - 60_000 + seconds * 1000).toISOString() });
+async function fixture(t) {
+  const store = createStore(':memory:', randomBytes(32).toString('hex'));
+  t.after(() => store.close());
+  const user = await store.createUser('alice', 'a-strong-password-123');
+  const connection = store.createConnection(user.id, 'discord', 'Server');
+  const source = store.connectionByToken(connection.token);
+  return { store, user, connection, source };
+}
+test('archives create → edit → delete and keeps both content versions encrypted', async t => {
+  const { store, user, source } = await fixture(t);
+  const original = event('create', 'a', 'meet at seven');
+  const edited = event('edit', 'b', 'meet at eight', 10);
+  store.ingest(source, original); store.ingest(source, edited); store.ingest(source, event('delete', 'c', undefined, 20));
+  const [message] = store.messages(user.id);
+  assert.equal(message.status, 'deleted'); assert.equal(message.text, 'meet at eight');
+  assert.deepEqual(message.versions.map(v => v.text), ['meet at seven', 'meet at eight', undefined]);
+  assert.equal(message.originalMissing, false);
+  const raw = JSON.stringify(store.db.prepare('SELECT payload FROM events').all());
+  assert.equal(raw.includes('meet at'), false); assert.equal(raw.includes('Alice'), false);
+  assert.equal(store.ingest(source, original).duplicate, true);
+  assert.equal(store.messages(user.id)[0].versions.length, 3);
+});
+test('out-of-order deliveries fill gaps without resurrecting a deleted message', async t => {
+  const { store, user, source } = await fixture(t);
+  store.ingest(source, event('delete', 'delete', undefined, 30));
+  store.ingest(source, event('edit', 'edit', 'newer', 20));
+  assert.equal(store.messages(user.id)[0].originalMissing, true);
+  store.ingest(source, event('create', 'create', 'original', 0));
+  store.ingest(source, event('edit', 'older-edit', 'older', 10));
+  const [message] = store.messages(user.id);
+  assert.equal(message.status, 'deleted'); assert.equal(message.text, 'newer');
+  assert.equal(message.originalMissing, false);
+  assert.deepEqual(message.versions.map(v => v.kind), ['create', 'edit', 'edit', 'delete']);
+});
+test('same external IDs are isolated across connections and message scopes', async t => {
+  const { store, user, source } = await fixture(t);
+  const other = await store.createUser('bob', 'a-strong-password-456');
+  const otherSource = store.connectionByToken(store.createConnection(other.id, 'telegram', 'Private').token);
+  store.ingest(source, event('create', 'a', 'alice secret'));
+  store.ingest(otherSource, event('create', 'a', 'bob secret'));
+  store.ingest(source, { ...event('create', 'a2', 'other room'), scope: 'chat-2' });
+  assert.equal(store.messages(user.id).length, 2); assert.equal(store.messages(other.id).length, 1);
+  assert.equal(store.message(store.messages(other.id)[0].id, user.id), null);
+});
+test('paused and ephemeral events are excluded', async t => {
+  const { store, user, source } = await fixture(t);
+  assert.equal(store.ingest({ ...source, paused: 1 }, event('create', 'a', 'paused')).ignored, true);
+  assert.equal(store.ingest(source, { ...event('create', 'b', 'ephemeral'), ephemeral: true }).ignored, true);
+  assert.equal(store.messages(user.id).length, 0);
+});
+test('retention purges saved messages too and prevents replay from restoring them', async t => {
+  const { store, user, source } = await fixture(t);
+  const first = event('create', 'a', 'old'); const { id } = store.ingest(source, first);
+  store.db.prepare('UPDATE messages SET saved=1,first_seen=? WHERE id=?').run(new Date(Date.now() - 91 * 86400_000).toISOString(), id);
+  store.purge(); assert.equal(store.messages(user.id).length, 0);
+  assert.equal(store.ingest(source, first).reason, 'removed');
+});
+test('permanent message deletion removes revisions and suppresses future retries', async t => {
+  const { store, user, source } = await fixture(t);
+  const original = event('create', 'a', 'remove'); const { id } = store.ingest(source, original);
+  store.forgetMessage(id, user.id);
+  assert.equal(store.db.prepare('SELECT count(*) n FROM events').get().n, 0);
+  assert.equal(store.ingest(source, event('edit', 'b', 'also remove')).reason, 'removed');
+});
+test('API enforces session auth, source token scope, CSRF and revocation', async t => {
+  const { store, user, connection } = await fixture(t);
+  const server = createApp(store, { origins: ['http://localhost'] }).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  const request = async (path, method = 'GET', body, headers = {}) => fetch(base + path, { method, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined });
+  assert.equal((await request('/messages')).status, 401);
+  const login = await request('/auth/login', 'POST', { username: 'alice', password: 'a-strong-password-123' });
+  assert.equal(login.status, 200); const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.match(login.headers.get('set-cookie'), /HttpOnly/); assert.match(login.headers.get('set-cookie'), /SameSite=Strict/);
+  assert.equal((await request('/connections', 'GET', undefined, { Cookie: cookie })).status, 200);
+  const list = await (await request('/connections', 'GET', undefined, { Cookie: cookie })).json();
+  assert.equal(JSON.stringify(list).includes(connection.token), false);
+  const events = [event('create', 'a', 'original'), event('edit', 'b', 'new', 10), event('delete', 'c', undefined, 20)];
+  assert.equal((await request('/ingest', 'POST', { events }, { Authorization: `Bearer ${cookie}` })).status, 401);
+  const result = await (await request('/ingest', 'POST', { events }, { Authorization: `Bearer ${connection.token}` })).json();
+  assert.equal(result.results.length, 3); assert.ok(result.results.every(r => r.id));
+  const own = await (await request('/messages?q=original', 'GET', undefined, { Cookie: cookie })).json();
+  assert.equal(own.total, 1); assert.equal(own.messages[0].status, 'deleted');
+  const other = await store.createUser('eve', 'a-strong-password-789'); const otherCookie = `afterword=${store.session(other.id)}`;
+  assert.equal((await request(`/messages/${own.messages[0].id}`, 'GET', undefined, { Cookie: otherCookie })).status, 404);
+  assert.equal((await request('/connections', 'POST', { platform: 'signal', name: 'test' }, { Cookie: cookie, Origin: 'https://evil.invalid' })).status, 403);
+  await request(`/connections/${connection.id}`, 'DELETE', {}, { Cookie: cookie });
+  assert.equal((await request('/ingest', 'POST', { events }, { Authorization: `Bearer ${connection.token}` })).status, 401);
+  await request('/auth/logout', 'POST', {}, { Cookie: cookie });
+  assert.equal((await request('/messages', 'GET', undefined, { Cookie: cookie })).status, 401);
+});
