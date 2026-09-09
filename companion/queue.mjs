@@ -22,6 +22,7 @@ export function openQueue(directory) {
     reject(uid, error) { db.prepare('UPDATE queue SET error=? WHERE uid=?').run(error, uid); },
     get(key) { const r = db.prepare('SELECT value FROM metadata WHERE key=?').get(key); return r ? crypt.open(r.value, key) : undefined; },
     set(key, value) { db.prepare('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, crypt.seal(value, key)); },
+    delete(key) { db.prepare('DELETE FROM metadata WHERE key=?').run(key); },
     close() { db.close(); }
   };
 }

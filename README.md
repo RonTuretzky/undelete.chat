@@ -2,6 +2,12 @@
 
 A hosted message archive with per-account workspaces and a local companion for Discord, Telegram, Signal and WhatsApp. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
 
+## User onboarding and documentation
+
+Open **Help & guides** in the app or visit `/docs` for the public help center. It covers first setup, all four platform integrations, troubleshooting, continuous capture, and privacy. The in-app wizard uses a single-use, ten-minute pairing code; the companion automatically saves its connection key and assigns an isolated profile. It then waits for a real platform heartbeat and first message rather than marking setup complete after a download.
+
+The [user guides](docs/guides/README.md) are generated from `web/guides.mjs`, which also renders the help center. Run `npm run docs` after editing. `npm run package:companion` produces ZIP and tar.gz downloads with a minimal dependency manifest and offline copies of all guides. Existing connections can continue setup without creating another source; re-pairing rotates only that source’s archive token when the new code is redeemed.
+
 ## Run locally
 
 ```sh
@@ -13,7 +19,7 @@ Open http://127.0.0.1:5178. The unauthenticated interface is explicitly labeled 
 
 ```sh
 npm run check
-node deploy/package-companion.mjs
+npm run package:companion
 ```
 
 The production API serves the compiled UI on port 4318. Copy `.env.example` to `.env` for local configuration. In production, set `NODE_ENV=production`, `ARCHIVE_KEY` (32 bytes in hex), and HTTPS `PUBLIC_ORIGIN`. Set `INVITE_CODE` to keep registration private.
@@ -49,6 +55,8 @@ Use `docker compose -f deploy/compose.yaml up -d --build` to update. Do not use 
 
 ## Validation and operating limits
 
-`npm test` exercises the actual encrypted archive, duplicate/out-of-order delivery, tenant isolation, retention, permanent deletion, session security, source-key revocation, all four event normalizers, and queue persistence/retry acknowledgments. `node tests/browser.mjs` runs a local UI walkthrough, real account onboarding, ingestion through the API, search, history, comparison, bookmarks, export, mobile layout, and connection creation. Tests create isolated accounts and delete them afterward.
+`npm test` exercises the actual encrypted archive, duplicate/out-of-order delivery, tenant isolation, retention, permanent deletion, session security, source-key revocation, all four event normalizers, queue persistence, and pairing-code ownership, expiry, replay rejection, and credential rotation. `node tests/browser.mjs` runs a local UI walkthrough, real account onboarding, ingestion through the API, search, history, comparison, bookmarks, export, mobile layout, and connection creation.
+
+`node tests/onboarding-browser.mjs` checks all eight public guides, desktop/mobile layouts, preserving a platform choice through signup, all four connection wizards, Windows commands, resuming unfinished setup, code replacement, ZIP downloads, and first-message verification. It uses simulated collectors against the real API and does not sign into providers or send platform messages. Browser tests create isolated accounts and delete them afterward. Set `TEST_URL` for a deployed instance and `TEST_INVITE_FILE` to a private invitation-code file when registration requires one.
 
 The initial implementation is a single-node private beta. Search decrypts an account's messages in memory; it needs indexing and pagination at the storage layer before serving very large archives. There is no production uptime SLA, external monitoring, high availability, billing, or verified-email recovery. Live platform sign-in and capture must be smoke-tested after the user pairs each account; unit tests cannot prove live compatibility. Invite-only registration is recommended for the initial deployment.

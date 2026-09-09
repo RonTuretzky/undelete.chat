@@ -3,16 +3,29 @@ import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { parseArgs } from 'node:util';
+import { spawnSync } from 'node:child_process';
+import { serverOrigin, redeemCode, savePairedProfile } from './pairing.mjs';
 import { openQueue, deliverBatch } from './queue.mjs';
 import { eventSchema } from '../server/store.mjs';
 
 process.umask(0o077);
-const [command = 'run', profile = 'default'] = process.argv.slice(2);
-if (command === 'help' || command === '--help') {
-  console.log('Afterword companion\n\nsetup [profile]  Pair a platform with your archive\nrun [profile]    Resume an existing connection\nhelp             Show this help\n\nUse one profile per connection, e.g. setup telegram or setup whatsapp.\nLeave each companion process running to capture new messages.'); process.exit(0);
+const { values: flags, positionals } = parseArgs({ allowPositionals: true, options: { server: { type: 'string' }, help: { type: 'boolean' } } });
+const [command = 'run', requestedProfile = 'default'] = positionals;
+let profile = requestedProfile;
+if (command === 'help' || flags.help) {
+  console.log('Afterword companion\n\npair --server URL   Pair using a short code from Connections\nrun PROFILE         Resume a paired connection\ncredentials PROFILE Replace saved platform credentials\nrelink PROFILE      Reset a platform login while keeping your queue\ndoctor              Check your computer\nsetup PROFILE       Advanced: pair with a long-lived connection key\n\nNew here? Open Connections in your archive and follow the guided setup.'); process.exit(0);
 }
-if (!['setup', 'run'].includes(command) || !/^[a-z0-9_-]{1,60}$/i.test(profile)) throw new Error('Use setup or run, followed by a simple profile name.');
+if (command === 'doctor') {
+  console.log(`Node.js ${process.versions.node} — Node 22.13 or newer required.`);
+  const result = spawnSync('signal-cli', ['--version'], { encoding: 'utf8', timeout: 10000 });
+  console.log(result.status === 0 ? 'signal-cli is available.' : 'signal-cli is not available (needed only for Signal).');
+  console.log('Next: open Connections in your archive, choose a platform, and copy its pairing command.'); process.exit(0);
+}
+if (!['setup', 'run', 'pair', 'credentials', 'relink'].includes(command) || !/^[a-z0-9_-]{1,60}$/i.test(profile)) {
+  console.error('Unknown command or profile. Run npm start -- help for instructions.'); process.exit(1);
+}
 let muted = false;
 const output = new Writable({ write(chunk, _encoding, callback) { if (!muted) process.stdout.write(chunk); callback(); } });
 const rl = createInterface({ input: process.stdin, output, terminal: !!process.stdin.isTTY });
@@ -21,22 +34,58 @@ const ask = async (prompt, secret = false) => {
   try { return (await rl.question(secret && process.stdin.isTTY ? '' : prompt)).trim(); }
   finally { muted = false; if (secret && process.stdin.isTTY) process.stdout.write('\n'); }
 };
-const directory = resolve(process.env.AFTERWORD_COMPANION_DIR || join(homedir(), '.afterword'), profile);
+const baseDirectory = resolve(process.env.AFTERWORD_COMPANION_DIR || join(homedir(), '.afterword'));
+if (command === 'pair') {
+  try {
+    console.log('\nPair Afterword with your computer\nKeep the setup page open in your browser.\n');
+    const server = serverOrigin(flags.server || await ask('Archive server URL from Connections: '));
+    const code = await ask('Pairing code from your browser: ', true);
+    const connection = await redeemCode(server, code);
+    savePairedProfile(baseDirectory, server, connection);
+    profile = connection.profile;
+    console.log(`\nPaired with ${connection.name || connection.platform}.\nYour profile: ${profile}\nNext, finish ${connection.platform} sign-in below.\n`);
+  } catch (error) {
+    console.error(error.cause ? 'Could not reach the archive. Check its HTTPS address and your internet connection.' : error.message);
+    console.error('If the code may have been used, generate another one in Connections.'); rl.close(); process.exit(1);
+  }
+}
+const directory = join(baseDirectory, profile);
 mkdirSync(directory, { recursive: true, mode: 0o700 });
 const configFile = join(directory, 'config.json');
 let config = existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) : {};
 const save = patch => { config = { ...config, ...patch }; writeFileSync(configFile, JSON.stringify(config, null, 2), { mode: 0o600 }); };
 console.log(`\nAfterword companion · ${profile}\n`);
-if (command === 'setup' || !config.server || !config.token) {
-  const server = new URL(await ask('Archive server URL: '));
-  if (server.protocol !== 'https:' && !(server.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(server.hostname))) throw new Error('An HTTPS server URL is required (except localhost).');
-  if (server.username || server.password || server.pathname !== '/') throw new Error('Enter only the archive origin, without credentials or a path.');
-  const token = await ask('Connection key from your dashboard: ', true);
-  const res = await fetch(`${server.origin}/api/heartbeat`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ health: 'waiting', detail: 'Companion setup in progress' }), signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) throw new Error(`Connection key could not be verified (HTTP ${res.status}).`);
-  const { platform } = await res.json();
-  if (config.token && config.token !== token) throw new Error('This profile already belongs to a connection. Use a new profile name to avoid mixing queued messages.');
-  save({ server: server.origin, token, platform });
+if (command === 'setup') {
+  try {
+    const server = serverOrigin(await ask('Archive server URL: '));
+    const token = await ask('Connection key from your dashboard: ', true);
+    const res = await fetch(`${server}/api/heartbeat`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ health: 'waiting', detail: 'Companion setup in progress' }), signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`Connection key could not be verified (HTTP ${res.status}).`);
+    const { platform } = await res.json();
+    if (config.token && config.token !== token) throw new Error('This profile already belongs to a connection. Use a new profile name.');
+    save({ server, token, platform });
+  } catch (error) { console.error(error.message); rl.close(); process.exit(1); }
+}
+if (!config.server || !config.token) {
+  console.error('This profile has not been paired. Open Connections in your archive and copy its pairing command.'); rl.close(); process.exit(1);
+}
+if (command === 'credentials') {
+  if (config.platform === 'discord') save({ botToken: await ask('New Discord bot token: ', true) });
+  else if (config.platform === 'telegram') {
+    const apiId = Number(await ask('Telegram application API ID: '));
+    const apiHash = await ask('Telegram application API hash: ', true);
+    if (!Number.isInteger(apiId) || apiId <= 0 || !/^[a-f0-9]{32}$/i.test(apiHash)) { console.error('Invalid API ID/hash. Existing settings are unchanged.'); rl.close(); process.exit(1); }
+    save({ apiId, apiHash });
+  } else { console.log('This platform uses QR pairing. Use relink if its session was revoked.'); rl.close(); process.exit(0); }
+  console.log(`Saved. Resume with: npm start -- run ${profile}`); rl.close(); process.exit(0);
+}
+if (command === 'relink') {
+  if (config.platform === 'discord') { console.log(`Use: npm start -- credentials ${profile}`); rl.close(); process.exit(0); }
+  console.log(`Stop any other companion for ${profile} before continuing. This clears its ${config.platform} login, but preserves your queued events and archive.`);
+  if (await ask('Type RELINK to continue: ') !== 'RELINK') { console.log('No changes made.'); rl.close(); process.exit(0); }
+  if (config.platform === 'telegram') { const q = openQueue(directory); q.delete('telegram-session'); q.close(); }
+  else rmSync(join(directory, `${config.platform}-session`), { recursive: true, force: true });
+  console.log(`Session cleared. Now run: npm start -- run ${profile}`); rl.close(); process.exit(0);
 }
 const queue = openQueue(directory);
 let state = { health: 'waiting', detail: 'Starting companion' }, flushing = false, stopped = false, stopAdapter, heartbeatTimer, flushTimer;
@@ -75,5 +124,5 @@ try {
   const module = await import(`./adapters/${config.platform}.mjs`);
   stopAdapter = await module[adapters[config.platform]](ctx);
   rl.close(); await heartbeat();
-  console.log('Capturing. Keep this process running; Ctrl+C stops it.\nPlatform sessions and encrypted retry data are stored locally.');
+  console.log(`Companion is running. Follow any QR or sign-in prompts above.\nYour browser setup page will confirm the connection.\nKeep this terminal open; Ctrl+C stops capture.\nTo resume later: npm start -- run ${profile}`);
 } catch (error) { console.error(error.message); health('error', 'Setup failed. Check your companion terminal.'); await heartbeat(); await shutdown(1); }

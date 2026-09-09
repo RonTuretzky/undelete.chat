@@ -66,6 +66,17 @@ export function createApp(store, config = {}) {
     if (store.connections(req.user.id).filter(c => !c.revoked).length >= 20) return res.status(409).json({ error: 'Maximum of 20 connections per account.' });
     res.status(201).json({ connection: store.createConnection(req.user.id, input.platform, input.name) });
   });
+  app.post('/api/connections/:id/pairing', auth, (req, res) => {
+    const pairing = store.createPairing(req.params.id, req.user.id);
+    return pairing ? res.json({ pairing }) : res.status(404).json({ error: 'Connection not found.' });
+  });
+  const pairLimit = rateLimit({ windowMs: 15 * 60_000, limit: 15, standardHeaders: 'draft-8', legacyHeaders: false,
+    message: { error: 'Too many pairing attempts. Wait 15 minutes, then generate a new code in Connections.' } });
+  app.post('/api/pair', pairLimit, (req, res) => {
+    const { code } = z.object({ code: z.string().min(1).max(30) }).parse(req.body);
+    const connection = store.redeemPairing(code);
+    return connection ? res.json({ connection }) : res.status(400).json({ error: 'This pairing code is invalid, expired, or already used. Generate a new code in Connections.' });
+  });
   app.patch('/api/connections/:id', auth, (req, res) => {
     const { paused } = z.object({ paused: z.boolean() }).parse(req.body);
     const c = store.connection(req.params.id, req.user.id);
@@ -131,8 +142,8 @@ export function createApp(store, config = {}) {
     store.db.prepare('DELETE FROM users WHERE id=?').run(req.user.id);
     res.clearCookie('afterword', cookieOptions).json({ ok: true });
   });
-  app.get('/api/companion/download', auth, (_req, res) => {
-    const path = resolve('dist/afterword-companion.tar.gz');
+  app.get('/api/companion/download', auth, (req, res) => {
+    const path = resolve(req.query.format === 'zip' ? 'dist/afterword-companion.zip' : 'dist/afterword-companion.tar.gz');
     if (!existsSync(path)) return res.status(503).json({ error: 'Companion package is not available on this build.' });
     res.download(path);
   });

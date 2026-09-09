@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { cipher, hash, token, passwordHash } from './crypto.mjs';
 
@@ -47,8 +47,16 @@ export function createStore(path, encryptionKey) {
     CREATE INDEX IF NOT EXISTS events_message ON events(message_id,occurred_at,id);
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);`);
   db.exec(`CREATE TABLE IF NOT EXISTS forgotten (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE);`);
+  if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'paired_at')) db.exec('ALTER TABLE connections ADD COLUMN paired_at TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS pairing_codes (
+    connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, expires_at TEXT NOT NULL
+  );`);
   const getUser = id => db.prepare('SELECT id,username,created_at,retention_days FROM users WHERE id=?').get(id);
-  const connections = user => db.prepare('SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued FROM connections WHERE user_id=? ORDER BY created_at').all(user);
+  const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,
+    (SELECT count(*) FROM messages WHERE connection_id=connections.id) AS message_count,
+    (SELECT max(last_seen) FROM messages WHERE connection_id=connections.id) AS last_message_at
+    FROM connections WHERE user_id=? ORDER BY created_at`).all(user);
   function details(row) {
     const versions = db.prepare('SELECT * FROM events WHERE message_id=? ORDER BY occurred_at, CASE kind WHEN \'create\' THEN 0 WHEN \'edit\' THEN 1 ELSE 2 END, id').all(row.id)
       .map(e => ({ ...crypt.open(e.payload, `${row.user_id}:${row.id}:${e.event_uid}`), receivedAt: e.received_at, sequence: e.id }));
@@ -92,8 +100,37 @@ export function createStore(path, encryptionKey) {
     db.prepare(`DELETE FROM messages WHERE user_id IN (SELECT id FROM users WHERE retention_days > 0)
       AND first_seen < (SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || retention_days || ' days') FROM users WHERE id=messages.user_id)`).run();
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
+    db.prepare('DELETE FROM pairing_codes WHERE expires_at < ?').run(new Date().toISOString());
   }
   return { db, getUser, connections, ingest, purge,
+    createPairing(connectionId, userId) {
+      const connection = db.prepare('SELECT id FROM connections WHERE id=? AND user_id=? AND revoked=0').get(connectionId, userId);
+      if (!connection) return null;
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      // Ten independent symbols from a 32-character alphabet: 50 bits of entropy.
+      const code = [...randomBytes(10)].map(b => alphabet[b & 31]).join('');
+      const createdAt = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+      db.prepare(`INSERT INTO pairing_codes VALUES (?,?,?,?) ON CONFLICT(connection_id)
+        DO UPDATE SET code_hash=excluded.code_hash,created_at=excluded.created_at,expires_at=excluded.expires_at`).run(connectionId, hash(code), createdAt, expiresAt);
+      return { code: `${code.slice(0, 5)}-${code.slice(5)}`, createdAt, expiresAt };
+    },
+    redeemPairing(input) {
+      const code = String(input).replace(/[\s-]/g, '').toUpperCase();
+      if (!/^[A-HJ-NP-Z2-9]{10}$/.test(code)) return null;
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const c = db.prepare(`SELECT c.* FROM pairing_codes p JOIN connections c ON p.connection_id=c.id
+          WHERE p.code_hash=? AND p.expires_at>? AND c.revoked=0`).get(hash(code), new Date().toISOString());
+        if (!c) { db.exec('COMMIT'); return null; }
+        const secret = `aw_${token()}`, pairedAt = new Date().toISOString();
+        db.prepare("UPDATE connections SET token_hash=?,paired_at=?,last_seen=?,health='waiting',detail='Companion paired. Finish signing in on your computer.' WHERE id=?")
+          .run(hash(secret), pairedAt, pairedAt, c.id);
+        db.prepare('DELETE FROM pairing_codes WHERE connection_id=?').run(c.id);
+        db.exec('COMMIT');
+        return { token: secret, platform: c.platform, connectionId: c.id, name: c.name, profile: `${c.platform}-${c.id.slice(0, 8)}` };
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
+    },
     forgetMessage(id, userId) {
       db.exec('BEGIN IMMEDIATE');
       try {
