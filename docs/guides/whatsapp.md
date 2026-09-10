@@ -1,10 +1,10 @@
-# Connect WhatsApp
+# Connect WhatsApp in the cloud
 
-Pair with a QR code from WhatsApp on your phone.
+Link WhatsApp from your phone and capture in the cloud.
 
 <a id="coverage"></a>
 
-## What this connection covers
+## What gets captured
 
 Captures ordinary messages, edits, and deletions delivered to your linked device. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt capture.
 
@@ -12,70 +12,65 @@ Captures ordinary messages, edits, and deletions delivered to your linked device
 
 <a id="before"></a>
 
-## Before you start
+## Have your phone ready
+
+Use a computer or a second screen to display the code while you scan with your phone. You do not need Node.js, a terminal, an extension, or a computer left running.
 
 - Your phone, signed in to WhatsApp
 - An available linked-device slot
-- A computer that can stay on while you capture
-- Node.js 22.13 or newer on the computer running your companion
-
-- [First time? Prepare your computer](./getting-started.md#computer)
 
 <a id="platform-setup"></a>
 
-## Prepare WhatsApp
+## Link your account
 
-1. Keep the companion terminal open until a QR code appears.
-2. iPhone: open WhatsApp → Settings → Linked devices → Link a device. Android: open WhatsApp → ⋮ → Linked devices → Link a device.
-3. Unlock your phone if asked, then scan the QR code shown on your computer.
+1. In Afterword, choose Connections → WhatsApp, name the account, and authorize hosted capture.
+2. iPhone: WhatsApp → Settings → Linked devices → Link a device. Android: WhatsApp → ⋮ → Linked devices → Link a device.
+3. Unlock your phone if asked, scan the code shown in Afterword, and approve the link. Wait for Connected.
+
+> The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app.
 
 - [WhatsApp: link a device](https://faq.whatsapp.com/1317564962315842/)
 - [Baileys project](https://github.com/WhiskeySockets/Baileys)
 
-<a id="pair"></a>
-
-## Pair with your Afterword workspace
-
-1. In Connections, choose Connect WhatsApp. Review the checklist, name your connection, and continue.
-2. Download and extract the companion ZIP. Open a terminal in its folder, then copy the install and pairing commands from the setup screen.
-3. Enter the short Afterword pairing code in the terminal. The companion selects the right platform automatically; finish the sign-in steps or scan the QR code it displays.
-
-> You do not enter your platform password into the Afterword website. Platform credentials and sessions stay on the computer running your companion.
-
 <a id="verify"></a>
 
-## Check that your first message arrived
+## Verify your first captured message
 
-“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates.
+Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive.
 
-1. In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.
-2. Edit that message. Open its history in Afterword and check that both versions are present.
-3. Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text.
+1. Send a harmless message in your own chat and check that it appears in Afterword.
+2. Edit that message and open its Afterword history to look for both versions.
+3. Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received.
 
-> Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you.
-
-<a id="fixes"></a>
-
-## If WhatsApp does not connect
-
-- QR not visible: keep the terminal wide enough and wait for the companion to finish connecting. If it expires, use the refreshed code.
-- QR scan fails: use WhatsApp’s Linked devices scanner on your primary phone. Make sure both devices have internet access.
-- Logged out or device removed: stop the companion and follow the relinking guide. Repeated failures after an update may need a newer Baileys/companion release.
-
-- [Connection states, retries, and relinking](./troubleshooting.md)
+> Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion.
 
 <a id="keep-running"></a>
 
-## Keep capture running
+## Capture continues in the cloud
 
-Leave the companion terminal open and keep the computer awake and connected to the internet. Closing it, sleeping, or unlinking the device interrupts capture. Messages that change during a gap may never be recoverable.
+Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.
 
-1. To stop, press Ctrl+C in the companion terminal.
-2. To resume, reopen a terminal in the companion folder and run the Resume command shown beside that source in Connections.
-3. For a second account, create another connection and pair it in another terminal. Afterword assigns separate profiles automatically.
+A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
-- [Continuous capture and storage guide](./running.md)
+- [Continuous capture and recovery](./running.md)
 
-Instructions reviewed September 9, 2026. Platform screens may change.
+<a id="fixes"></a>
+
+## If linking needs attention
+
+- If the QR code expires, choose Get a fresh code or Try again. WhatsApp and Telegram refresh their codes automatically during setup.
+- If your phone rejects the link, check that you are scanning with the matching app and have an available device slot.
+- If the platform unlinked your device, open Connection check → Connection options → Relink account, then approve a new code. This clears the old platform login for that source and keeps the archive.
+- A cloud capacity or configuration message means the operator must resolve it. Repeated scanning will not fix that condition.
+
+<a id="privacy"></a>
+
+## Where your data lives
+
+Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
+
+- [Privacy and retention](./privacy.md)
+
+Instructions reviewed September 10, 2026. Platform screens may change.
 
 Generated from `web/guides.mjs`, the same content shown in the public help center.

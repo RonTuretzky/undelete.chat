@@ -1,124 +1,737 @@
-export const platformOrder = ['whatsapp', 'telegram', 'discord', 'signal'];
+export const platformOrder = ['whatsapp', 'telegram', 'signal', 'discord'];
 export const platformGuides = {
-  whatsapp: {
-    name: 'WhatsApp', mode: 'Linked device · unofficial', effort: 'QR code',
-    summary: 'Pair with a QR code from WhatsApp on your phone.',
-    coverage: 'Captures ordinary messages, edits, and deletions delivered to your linked device. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt capture.',
-    needs: ['Your phone, signed in to WhatsApp', 'An available linked-device slot', 'A computer that can stay on while you capture'],
-    finish: ['Keep the companion terminal open until a QR code appears.', 'iPhone: open WhatsApp → Settings → Linked devices → Link a device. Android: open WhatsApp → ⋮ → Linked devices → Link a device.', 'Unlock your phone if asked, then scan the QR code shown on your computer.'],
-    exclusions: 'No view-once or disappearing messages, past deleted content, or attachment file downloads.',
-    resources: [{ label: 'WhatsApp: link a device', url: 'https://faq.whatsapp.com/1317564962315842/' }, { label: 'Baileys project', url: 'https://github.com/WhiskeySockets/Baileys' }]
+  "whatsapp": {
+    "name": "WhatsApp",
+    "mode": "Cloud linked device · unofficial",
+    "effort": "Scan a QR code · cloud capture",
+    "summary": "Link WhatsApp from your phone and capture in the cloud.",
+    "coverage": "Captures ordinary messages, edits, and deletions delivered to your linked device. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt capture.",
+    "needs": [
+      "Your phone, signed in to WhatsApp",
+      "An available linked-device slot"
+    ],
+    "finish": [
+      "In Afterword, choose Connections → WhatsApp, name the account, and authorize hosted capture.",
+      "iPhone: WhatsApp → Settings → Linked devices → Link a device. Android: WhatsApp → ⋮ → Linked devices → Link a device.",
+      "Unlock your phone if asked, scan the code shown in Afterword, and approve the link. Wait for Connected."
+    ],
+    "exclusions": "No view-once or disappearing messages, past deleted content, or attachment file downloads.",
+    "resources": [
+      {
+        "label": "WhatsApp: link a device",
+        "url": "https://faq.whatsapp.com/1317564962315842/"
+      },
+      {
+        "label": "Baileys project",
+        "url": "https://github.com/WhiskeySockets/Baileys"
+      }
+    ]
   },
-  telegram: {
-    name: 'Telegram', mode: 'Personal account', effort: 'Phone sign-in + app credentials',
-    summary: 'Connect your own Telegram cloud chats with a phone sign-in.',
-    coverage: 'Captures ordinary cloud-chat messages, revisions, and deletion events Telegram delivers. Telegram sometimes omits deletion notifications.',
-    needs: ['Your phone, signed in to Telegram', 'Your Telegram application API ID and API hash', 'Your two-step verification password, if enabled'],
-    finish: ['Open my.telegram.org/apps and sign in. Under API development tools, create an application or use your existing one. Keep its API ID and API hash ready.', 'Enter the API ID and API hash in the companion terminal, followed by your phone number with country code.', 'Enter the confirmation code Telegram sends. It may arrive in the Telegram app. If asked, enter your two-step verification password or email verification code.'],
-    exclusions: 'No secret chats, self-destructing messages, historical backfill, or attachment file downloads.',
-    resources: [{ label: 'Get your Telegram app credentials', url: 'https://my.telegram.org/apps' }, { label: 'Telegram: application setup', url: 'https://core.telegram.org/api/obtaining_api_id' }, { label: 'Telegram API terms', url: 'https://core.telegram.org/api/terms' }]
+  "telegram": {
+    "name": "Telegram",
+    "mode": "Personal account · cloud capture",
+    "effort": "Scan a QR code · cloud capture",
+    "summary": "Scan a Telegram QR code. Afterword keeps capturing on its server.",
+    "coverage": "Captures ordinary cloud-chat messages, revisions, and deletion events Telegram delivers. Telegram sometimes omits deletion notifications.",
+    "needs": [
+      "Your phone, signed in to Telegram",
+      "Your two-step verification password, if enabled"
+    ],
+    "finish": [
+      "In Afterword, choose Connections → Telegram, name the account, and authorize hosted capture.",
+      "On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in Afterword.",
+      "If prompted, enter your Telegram two-step verification password in Afterword. Wait for Connected."
+    ],
+    "exclusions": "No secret chats, self-destructing messages, historical backfill, or attachment file downloads.",
+    "resources": [
+      {
+        "label": "Telegram: application setup",
+        "url": "https://core.telegram.org/api/obtaining_api_id"
+      },
+      {
+        "label": "Telegram API terms",
+        "url": "https://core.telegram.org/api/terms"
+      }
+    ]
   },
-  discord: {
-    name: 'Discord', mode: 'Personal account · browser beta', effort: 'Chrome extension · no terminal', available: true,
-    summary: 'Capture DMs and group DMs delivered to your own Discord Web tab.',
-    coverage: 'The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.',
-    needs: ['Chrome 125 or newer on a computer', 'Your own account signed in to Discord Web', 'Permission to load the extension and observe your chosen tab'],
-    finish: ['Download and extract the Afterword Discord extension ZIP.', 'Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.', 'Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.', 'Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active.'],
-    exclusions: 'Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required.',
-    resources: [{ label: 'Open Discord Web', url: 'https://discord.com/channels/@me' }, { label: 'Chrome: load an unpacked extension', url: 'https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked' }, { label: 'Discord platform terms', url: 'https://discord.com/terms' }]
+  "discord": {
+    "name": "Discord",
+    "mode": "Personal account · browser beta",
+    "effort": "Chrome extension · no terminal",
+    "available": true,
+    "summary": "Capture DMs and group DMs delivered to your own Discord Web tab.",
+    "coverage": "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
+    "needs": [
+      "Chrome 125 or newer on a computer",
+      "Your own account signed in to Discord Web",
+      "Permission to load the extension and observe your chosen tab"
+    ],
+    "finish": [
+      "Download and extract the Afterword Discord extension ZIP.",
+      "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
+      "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
+      "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
+    ],
+    "exclusions": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required.",
+    "resources": [
+      {
+        "label": "Open Discord Web",
+        "url": "https://discord.com/channels/@me"
+      },
+      {
+        "label": "Chrome: load an unpacked extension",
+        "url": "https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked"
+      },
+      {
+        "label": "Discord platform terms",
+        "url": "https://discord.com/terms"
+      }
+    ]
   },
-  signal: {
-    name: 'Signal', mode: 'Linked device · unofficial', effort: 'Extra install + QR code',
-    summary: 'Link your phone through the signal-cli companion on your computer.',
-    coverage: 'Captures ordinary incoming messages, synced outgoing messages, edits, and remote deletion events received by the linked device. signal-cli is unofficial and must stay current.',
-    needs: ['Your phone, signed in to Signal', 'signal-cli installed and available in your terminal', 'An available linked-device slot'],
-    finish: ['Install signal-cli before pairing. On macOS with Homebrew, run brew install signal-cli. For Windows and Linux, follow the signal-cli installation guide for your operating system and its Java/runtime requirements.', 'Run signal-cli --version to confirm the terminal can find it. Then start the Afterword companion and wait for its QR code.', 'On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device. Unlock if asked, scan the QR code, and approve the link.'],
-    exclusions: 'No disappearing or view-once messages, existing Signal Desktop database import, or attachment file downloads.',
-    resources: [{ label: 'Install signal-cli', url: 'https://github.com/AsamK/signal-cli#installation' }, { label: 'Homebrew: signal-cli', url: 'https://formulae.brew.sh/formula/signal-cli' }, { label: 'Signal: linked devices', url: 'https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices' }]
+  "signal": {
+    "name": "Signal",
+    "mode": "Cloud linked device · unofficial",
+    "effort": "Scan a QR code · cloud capture",
+    "summary": "Link Signal from your phone; no desktop installation is needed.",
+    "coverage": "Captures ordinary incoming messages, synced outgoing messages, edits, and remote deletion events received by the linked device. signal-cli is unofficial and must stay current.",
+    "needs": [
+      "Your phone, signed in to Signal",
+      "An available linked-device slot"
+    ],
+    "finish": [
+      "In Afterword, choose Connections → Signal, name the account, and authorize hosted capture.",
+      "On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).",
+      "Scan the QR code shown in Afterword and approve the device named Afterword Cloud. Wait for Connected."
+    ],
+    "exclusions": "No disappearing or view-once messages, existing Signal Desktop database import, or attachment file downloads.",
+    "resources": [
+      {
+        "label": "Signal: linked devices",
+        "url": "https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices"
+      }
+    ]
   }
 };
 
-const verify = {
-  id: 'verify', title: 'Check that your first message arrived',
-  paragraphs: ['“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates.'],
-  steps: ['In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.', 'Edit that message. Open its history in Afterword and check that both versions are present.', 'Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text.'],
-  note: 'Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you.'
-};
-const keepRunning = {
-  id: 'keep-running', title: 'Keep capture running',
-  paragraphs: ['Leave the companion terminal open and keep the computer awake and connected to the internet. Closing it, sleeping, or unlinking the device interrupts capture. Messages that change during a gap may never be recoverable.'],
-  steps: ['To stop, press Ctrl+C in the companion terminal.', 'To resume, reopen a terminal in the companion folder and run the Resume command shown beside that source in Connections.', 'For a second account, create another connection and pair it in another terminal. Afterword assigns separate profiles automatically.'],
-  links: [{ label: 'Continuous capture and storage guide', url: '/docs/running' }]
-};
-
 export const guides = {
-  'getting-started': {
-    title: 'Start your first archive', description: 'From a new workspace to your first captured message, one step at a time.', category: 'START HERE',
-    sections: [
-      { id: 'how-it-works', title: 'Two parts, one archive', paragraphs: ['Afterword is your private web archive. The companion is a small program that runs on your computer, receives messages from the accounts you link, and sends captured copies to that archive.', 'You can browse the archive on your phone. Initial setup needs a computer. Discord uses a Chrome extension; Telegram, Signal, and WhatsApp use a terminal companion. There is no phone-only installation or background desktop app in this release.'] },
-      { id: 'account', title: '1. Create your workspace', steps: ['Choose Create your archive and pick a username and a password with at least 12 characters.', 'If asked, enter the invitation code supplied by your Afterword administrator. This is different from the pairing code you generate later.', 'After signing in, open Connections and choose a platform. Check its coverage and prerequisites before continuing. For Discord, follow the browser extension guide; the terminal steps below apply to the other platforms.'], note: 'The signed-out preview contains sample messages. Your own archive starts empty. If you forget your account password, contact the operator of your Afterword instance; self-service email recovery is not available.' },
-      { id: 'computer', title: '2. Prepare your computer', steps: ['Install a current Node.js LTS version (22.13 or newer) from nodejs.org. Choose the installer for your computer, then close and reopen your terminal.', 'In the connection setup screen, download the companion ZIP and extract it. Keep this folder somewhere you can find again.', 'Open a terminal in the extracted afterword-companion folder. It should contain package.json and a companion folder.'], links: [{ label: 'Download Node.js', url: 'https://nodejs.org/en/download' }], note: 'macOS: open Terminal, type cd followed by a space, drag the extracted folder into the window, and press Return. Windows: right-click inside the extracted folder and choose Open in Terminal. If PowerShell blocks npm.ps1, use npm.cmd in the commands below; you do not need to weaken your execution policy. Linux: use your file manager’s Open in Terminal action or cd to the folder.' },
-      { id: 'pair', title: '3. Pair the companion', paragraphs: ['The setup screen provides two commands with your archive server already filled in. Run the install command once, then the pairing command.'], code: 'npm ci --omit=dev\nnpm start -- pair --server https://YOUR-AFTERWORD-SERVER', steps: ['Copy the short pairing code from the browser into the terminal when asked. Codes expire after 10 minutes and work only once.', 'The companion shows the platform and connection name it has paired. Follow its prompts to sign in or scan a platform QR code.', 'Keep the setup screen open. It will advance when the companion reports that the platform is connected.'], note: 'A pairing code gives the companion access to send data to one source. Treat it as private. Do not paste it into platform chats. The long-lived connection key is stored automatically on your computer and does not go into your command history.' },
-      verify, keepRunning,
-      { id: 'next', title: 'You control what stays', paragraphs: ['Open Settings to choose how long messages are retained, export your archive, or change your password. Deleting a connection stops syncing but keeps its captured history. Deleting an archived message removes its saved versions from the server.'], links: [{ label: 'Privacy, retention, and deletion', url: '/docs/privacy' }, { label: 'Something not working?', url: '/docs/troubleshooting' }] }
+  "getting-started": {
+    "title": "Start your cloud archive",
+    "description": "Connect your accounts without installing anything on your computer.",
+    "category": "START HERE",
+    "sections": [
+      {
+        "id": "account",
+        "title": "Create your workspace",
+        "steps": [
+          "Choose Create your archive. Use a username and a unique password of at least 12 characters.",
+          "Enter the invitation code if your Afterword instance requires one.",
+          "Open Connections and choose WhatsApp, Telegram, or Signal. Discord currently has a separate browser-only integration."
+        ],
+        "note": "The signed-out preview contains sample messages. Your own archive starts empty. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key."
+      },
+      {
+        "id": "pair",
+        "title": "Scan once, capture in the cloud",
+        "steps": [
+          "Read the platform’s coverage and authorize Afterword to host your linked session.",
+          "Open Linked devices (or Devices in Telegram) in the phone app and scan the code shown in Afterword.",
+          "Complete any requested password or phone approval. Keep the setup page open until it shows Connected."
+        ],
+        "paragraphs": [
+          "Hosted setup needs no downloads, extension, terminal commands, or personal developer credentials. Initial scanning is easiest with a second screen."
+        ]
+      },
+      {
+        "id": "verify",
+        "title": "Verify your first captured message",
+        "paragraphs": [
+          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+        ],
+        "steps": [
+          "Send a harmless message in your own chat and check that it appears in Afterword.",
+          "Edit that message and open its Afterword history to look for both versions.",
+          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+        ],
+        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+      },
+      {
+        "id": "keep-running",
+        "title": "Capture continues in the cloud",
+        "paragraphs": [
+          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+        ],
+        "links": [
+          {
+            "label": "Continuous capture and recovery",
+            "url": "/docs/running"
+          }
+        ]
+      },
+      {
+        "id": "discord",
+        "title": "Discord availability",
+        "paragraphs": [
+          "The current Discord integration uses a Chrome extension and an open Discord Web tab. It covers personal DMs and group DMs, not server channels. It does not provide continuous cloud capture while your computer is off."
+        ],
+        "links": [
+          {
+            "label": "Discord coverage and setup",
+            "url": "/docs/discord"
+          }
+        ]
+      },
+      {
+        "id": "controls",
+        "title": "Manage what stays",
+        "paragraphs": [
+          "Settings lets you choose retention and export your archive. Pause stops storing new events while the cloud session stays connected. Disconnect removes the saved cloud login and stops capture; your archive remains until you delete it. Account deletion removes the archive and stored sessions."
+        ],
+        "links": [
+          {
+            "label": "Privacy and retention",
+            "url": "/docs/privacy"
+          }
+        ]
+      }
     ]
   },
-  discord: {
-    title: 'Connect your personal Discord', description: platformGuides.discord.summary, category: 'BROWSER EXTENSION · EXPERIMENTAL', platform: 'discord',
-    sections: [
-      { id: 'coverage', title: 'Your DMs, in your own account', paragraphs: [platformGuides.discord.coverage, 'This is a passive browser collector. You sign into Discord normally; Afterword does not request your Discord password or token, install a server bot, send messages, or open another Discord API session.'], note: platformGuides.discord.exclusions },
-      { id: 'before', title: 'Before you start', bullets: platformGuides.discord.needs, note: 'The extension is a downloadable beta, not a Chrome Web Store release. Chrome shows a broad debugging-permission notice: the implementation attaches only to the Discord tab you select and reads incoming Gateway frames. It ignores outgoing frames, HTTP bodies, cookies, and headers. Captured copies upload to your chosen Afterword archive.' },
-      { id: 'platform-setup', title: 'Install and pair the extension', steps: ['In Connections, choose Connect Discord, name the source, and continue.', ...platformGuides.discord.finish], links: platformGuides.discord.resources, note: 'No Node.js, terminal, bot token, server selection, or developer application is needed. Keep the extracted extension folder: Chrome loads the extension from that location. Treat the Afterword pairing code as private.' },
-      verify,
-      { id: 'keep-running', title: 'Keep Discord Web open', paragraphs: ['Keep Chrome running with your selected Discord Web tab open and signed in. Background tabs can receive events, but browser suspension, sleep, network gaps, and canceled debugging can interrupt capture.', 'After restarting Chrome or updating the extension, open it and click Start capturing DMs again. Starting reloads the tab once so the collector sees the new Discord connection.'], bullets: ['Stop capturing detaches from the tab while queued events can still upload.', 'Pausing the source in Afterword discards incoming activity, matching other sources. Resume does not recover paused events.', 'Use a separate Afterword source and Chrome profile for a different Discord account. A detected account switch stops capture to prevent mixing archives.'] },
-      { id: 'storage', title: 'Local copies and your archive', paragraphs: ['The extension keeps its archive key, DM metadata, and retry queue encrypted in its private IndexedDB storage. The encryption key lives in the same browser profile; this does not protect against someone who controls that profile or device.', 'Queued events survive a browser restart and are removed after the server acknowledges them. A queue limit stops capture instead of silently dropping deliveries. Recent message metadata used to merge partial edits expires after seven days or on message deletion. Attachment metadata is stored; files are not downloaded.', 'The hosted archive uses the retention setting in your Afterword workspace. Disconnecting the extension clears its local connection and metadata once the queue is empty. Uninstalling it removes local extension storage; export any required data first.'] },
-      { id: 'fixes', title: 'If messages do not appear', bullets: ['Finish ordinary Discord sign-in in the selected tab and click Start capturing DMs in the extension.', 'Close DevTools for that Discord tab; another debugger can displace capture. Restart if Chrome’s debugging notice was canceled.', 'Check the extension status. Paired only confirms the archive link. Waiting for Discord is not a verified message delivery.', 'Only identified DMs and group DMs are captured. A server message, old message, or event Discord never delivers will not appear.', 'If archive access is down, events remain encrypted locally. Restore access before the queue reaches its 10,000-event limit.', 'Unsupported encoding/compression or an account switch stops capture visibly. Update the extension or create a separate account connection. Do not paste a Discord user token to work around an error.'], links: [{ label: 'Privacy and retention', url: '/docs/privacy' }] }
+  "discord": {
+    "title": "Connect your personal Discord",
+    "description": "Capture DMs and group DMs delivered to your own Discord Web tab.",
+    "category": "BROWSER EXTENSION · EXPERIMENTAL",
+    "platform": "discord",
+    "sections": [
+      {
+        "id": "coverage",
+        "title": "Your DMs, in your own account",
+        "paragraphs": [
+          "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
+          "This is a passive browser collector. You sign into Discord normally; Afterword does not request your Discord password or token, install a server bot, send messages, or open another Discord API session."
+        ],
+        "note": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required."
+      },
+      {
+        "id": "before",
+        "title": "Before you start",
+        "bullets": [
+          "Chrome 125 or newer on a computer",
+          "Your own account signed in to Discord Web",
+          "Permission to load the extension and observe your chosen tab"
+        ],
+        "note": "The extension is a downloadable beta, not a Chrome Web Store release. Chrome shows a broad debugging-permission notice: the implementation attaches only to the Discord tab you select and reads incoming Gateway frames. It ignores outgoing frames, HTTP bodies, cookies, and headers. Captured copies upload to your chosen Afterword archive."
+      },
+      {
+        "id": "platform-setup",
+        "title": "Install and pair the extension",
+        "steps": [
+          "In Connections, choose Connect Discord, name the source, and continue.",
+          "Download and extract the Afterword Discord extension ZIP.",
+          "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
+          "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
+          "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
+        ],
+        "links": [
+          {
+            "label": "Open Discord Web",
+            "url": "https://discord.com/channels/@me"
+          },
+          {
+            "label": "Chrome: load an unpacked extension",
+            "url": "https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked"
+          },
+          {
+            "label": "Discord platform terms",
+            "url": "https://discord.com/terms"
+          }
+        ],
+        "note": "No Node.js, terminal, bot token, server selection, or developer application is needed. Keep the extracted extension folder: Chrome loads the extension from that location. Treat the Afterword pairing code as private."
+      },
+      {
+        "id": "verify",
+        "title": "Check that your first message arrived",
+        "paragraphs": [
+          "“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates."
+        ],
+        "steps": [
+          "In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.",
+          "Edit that message. Open its history in Afterword and check that both versions are present.",
+          "Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text."
+        ],
+        "note": "Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you."
+      },
+      {
+        "id": "keep-running",
+        "title": "Keep Discord Web open",
+        "paragraphs": [
+          "Keep Chrome running with your selected Discord Web tab open and signed in. Background tabs can receive events, but browser suspension, sleep, network gaps, and canceled debugging can interrupt capture.",
+          "After restarting Chrome or updating the extension, open it and click Start capturing DMs again. Starting reloads the tab once so the collector sees the new Discord connection."
+        ],
+        "bullets": [
+          "Stop capturing detaches from the tab while queued events can still upload.",
+          "Pausing the source in Afterword discards incoming activity, matching other sources. Resume does not recover paused events.",
+          "Use a separate Afterword source and Chrome profile for a different Discord account. A detected account switch stops capture to prevent mixing archives."
+        ]
+      },
+      {
+        "id": "storage",
+        "title": "Local copies and your archive",
+        "paragraphs": [
+          "The extension keeps its archive key, DM metadata, and retry queue encrypted in its private IndexedDB storage. The encryption key lives in the same browser profile; this does not protect against someone who controls that profile or device.",
+          "Queued events survive a browser restart and are removed after the server acknowledges them. A queue limit stops capture instead of silently dropping deliveries. Recent message metadata used to merge partial edits expires after seven days or on message deletion. Attachment metadata is stored; files are not downloaded.",
+          "The hosted archive uses the retention setting in your Afterword workspace. Disconnecting the extension clears its local connection and metadata once the queue is empty. Uninstalling it removes local extension storage; export any required data first."
+        ]
+      },
+      {
+        "id": "fixes",
+        "title": "If messages do not appear",
+        "bullets": [
+          "Finish ordinary Discord sign-in in the selected tab and click Start capturing DMs in the extension.",
+          "Close DevTools for that Discord tab; another debugger can displace capture. Restart if Chrome’s debugging notice was canceled.",
+          "Check the extension status. Paired only confirms the archive link. Waiting for Discord is not a verified message delivery.",
+          "Only identified DMs and group DMs are captured. A server message, old message, or event Discord never delivers will not appear.",
+          "If archive access is down, events remain encrypted locally. Restore access before the queue reaches its 10,000-event limit.",
+          "Unsupported encoding/compression or an account switch stops capture visibly. Update the extension or create a separate account connection. Do not paste a Discord user token to work around an error."
+        ],
+        "links": [
+          {
+            "label": "Privacy and retention",
+            "url": "/docs/privacy"
+          }
+        ]
+      }
     ]
   },
-  ...Object.fromEntries(platformOrder.filter(platform => platform !== 'discord').map(platform => {
-    const p = platformGuides[platform];
-    return [platform, {
-      title: `Connect ${p.name}`, description: p.summary, category: 'CONNECTION GUIDE', platform,
-      sections: [
-        { id: 'coverage', title: 'What this connection covers', paragraphs: [p.coverage], note: p.exclusions },
-        { id: 'before', title: 'Before you start', bullets: [...p.needs, 'Node.js 22.13 or newer on the computer running your companion'], links: [{ label: 'First time? Prepare your computer', url: '/docs/getting-started#computer' }] },
-        { id: 'platform-setup', title: `Prepare ${p.name}`, steps: p.finish, links: p.resources },
-        { id: 'pair', title: 'Pair with your Afterword workspace', steps: [`In Connections, choose Connect ${p.name}. Review the checklist, name your connection, and continue.`, 'Download and extract the companion ZIP. Open a terminal in its folder, then copy the install and pairing commands from the setup screen.', 'Enter the short Afterword pairing code in the terminal. The companion selects the right platform automatically; finish the sign-in steps or scan the QR code it displays.'], note: 'You do not enter your platform password into the Afterword website. Platform credentials and sessions stay on the computer running your companion.' },
-        verify,
-        { id: 'fixes', title: `If ${p.name} does not connect`, bullets: platform === 'telegram' ? ['API credentials rejected: the API ID is numeric and the API hash comes from API development tools; neither is a BotFather token.', 'No confirmation code: check the Telegram service conversation on your phone. Do not repeatedly request codes; Telegram can impose a waiting period.', 'Wrong saved app credentials: run the companion’s credentials command for that profile, then resume. If Telegram reports a revoked session, follow the relinking instructions in Troubleshooting.'] : platform === 'signal' ? ['signal-cli not found: install it, reopen the terminal, and confirm signal-cli --version works. Installing Signal Desktop alone does not install signal-cli.', 'QR expires: restart the companion and use the new QR code. Scan using Linked devices on your primary phone, not the camera app.', 'Device limit or revoked session: remove an unused device in Signal, then follow the relinking guide. Update signal-cli when Signal changes its protocol.'] : ['QR not visible: keep the terminal wide enough and wait for the companion to finish connecting. If it expires, use the refreshed code.', 'QR scan fails: use WhatsApp’s Linked devices scanner on your primary phone. Make sure both devices have internet access.', 'Logged out or device removed: stop the companion and follow the relinking guide. Repeated failures after an update may need a newer Baileys/companion release.'], links: [{ label: 'Connection states, retries, and relinking', url: '/docs/troubleshooting' }] },
-        keepRunning
-      ]
-    }];
-  })),
-  troubleshooting: {
-    title: 'Get a connection back on track', description: 'Find the status you see, then take the next step.', category: 'TROUBLESHOOTING',
-    sections: [
-      { id: 'states', title: 'Understand connection status', bullets: ['Ready to pair: a source exists, but the companion has not paired. Choose Continue setup.', 'Finish sign-in: the companion paired with Afterword; complete the platform login or QR scan in the terminal.', 'Capturing messages: the platform session reports connected and the companion checked in recently. Send a test message to verify delivery.', 'Companion offline: Afterword has not heard from the companion for 90 seconds. Check the computer and run the Resume command.', 'Reconnecting: keep the process open while it retries the platform connection.', 'Paused: new events reaching the archive are discarded. Resume to capture new activity; paused events are not recovered afterward.', 'Needs attention: read the terminal and the platform guide. A rejected event remains in the local queue for diagnosis.'], note: 'A green connection status proves the session is running, not that every platform event is guaranteed to arrive.' },
-      { id: 'pairing', title: 'Pairing code expired, used, or lost', steps: ['Open Connections → Continue setup for the same source. You do not need to create another source.', 'Generate a new pairing code. The old unused code stops working.', 'Run the pairing command again and enter the new code. Redemption replaces that source’s previous companion key, so stop its old companion first.'], note: 'A code is valid for ten minutes and one redemption. After repeated incorrect attempts, wait 15 minutes before trying again. If pairing succeeded but the terminal lost the response, generate another code; do not share screenshots containing codes.' },
-      { id: 'terminal', title: 'Terminal and installation errors', bullets: ['“node” or “npm” not found: install Node.js LTS, then reopen the terminal.', 'PowerShell refuses npm.ps1: run npm.cmd ci --omit=dev and npm.cmd start -- … instead. Keep the rest of each command the same.', '“package.json not found”: move into the extracted afterword-companion folder before running the command.', '“Unsupported engine”: update Node.js to 22.13 or newer.', 'Download or dependency install failed: check internet/proxy access and rerun npm ci --omit=dev. Do not run the companion as administrator just to work around permissions.', 'Certificate/network error: confirm the server address opens over HTTPS in a browser. Do not disable TLS certificate checks.'] },
-      { id: 'credentials', title: 'Replace Telegram application credentials', paragraphs: ['Use this when the companion saved a mistyped Telegram API ID/hash. It updates only the platform credentials for the chosen profile; your queue, archive connection, and message history stay intact.'], code: 'npm start -- credentials YOUR-PROFILE\nnpm start -- run YOUR-PROFILE', note: 'Get the exact profile name from the source’s Resume instructions. Phone codes and two-step passwords are requested only when the platform needs them; they are not saved as configuration.' },
-      { id: 'relink', title: 'A platform unlinked your device', paragraphs: ['Archive pairing and platform linking are separate. A new Afterword code cannot repair a WhatsApp or Signal device session the platform revoked. First stop the companion with Ctrl+C.'], steps: ['Open the linked-device/session list in the platform app and remove the old companion session if it is still listed.', 'Use the Relink command below with the exact profile shown in Connections. It clears only the selected platform session after you type RELINK; it preserves the archive key and queued events.', 'Resume that profile and complete the fresh QR scan or Telegram sign-in. No new Afterword source is required.'], code: 'npm start -- relink YOUR-PROFILE\nnpm start -- run YOUR-PROFILE', note: 'Relinking cannot restore edits or deletions missed while the collector was disconnected.' },
-      { id: 'missing', title: 'Connected, but a message is missing', bullets: ['Confirm you are viewing your signed-in archive, not sample data, and clear search/platform filters.', 'Use a new ordinary text message in a covered conversation. Content from before capture started is not backfilled.', 'Check that the computer stayed awake, that the source is not paused, and that the terminal reports no errors.', 'Signal/WhatsApp disappearing or view-once messages and Telegram secret/self-destructing messages are excluded. Discord captures only identified DMs and group DMs delivered to the selected browser tab.', 'If the archive server was down, received events stay queued locally and upload after it recovers. Activity never delivered to the companion is not in that queue.', 'Telegram may omit deletion events. Attachment filenames can appear without downloadable files because this release stores metadata only.'] },
-      { id: 'support', title: 'What to include in a support report', bullets: ['Platform, operating system, Node.js version, and the status shown in Connections.', 'Whether the issue is pairing, platform sign-in, or capturing a new test message.', 'A short description of the error with private information removed.'], note: 'Never include a bot token, pairing code, API hash, session file, queue key, or private conversation text. Contact the operator of your Afterword instance; this release does not have an in-app support inbox.' }
+  "whatsapp": {
+    "title": "Connect WhatsApp in the cloud",
+    "description": "Link WhatsApp from your phone and capture in the cloud.",
+    "category": "HOSTED ACCOUNT LINKING",
+    "platform": "whatsapp",
+    "sections": [
+      {
+        "id": "coverage",
+        "title": "What gets captured",
+        "paragraphs": [
+          "Captures ordinary messages, edits, and deletions delivered to your linked device. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt capture."
+        ],
+        "note": "No view-once or disappearing messages, past deleted content, or attachment file downloads."
+      },
+      {
+        "id": "before",
+        "title": "Have your phone ready",
+        "bullets": [
+          "Your phone, signed in to WhatsApp",
+          "An available linked-device slot"
+        ],
+        "paragraphs": [
+          "Use a computer or a second screen to display the code while you scan with your phone. You do not need Node.js, a terminal, an extension, or a computer left running."
+        ]
+      },
+      {
+        "id": "platform-setup",
+        "title": "Link your account",
+        "steps": [
+          "In Afterword, choose Connections → WhatsApp, name the account, and authorize hosted capture.",
+          "iPhone: WhatsApp → Settings → Linked devices → Link a device. Android: WhatsApp → ⋮ → Linked devices → Link a device.",
+          "Unlock your phone if asked, scan the code shown in Afterword, and approve the link. Wait for Connected."
+        ],
+        "links": [
+          {
+            "label": "WhatsApp: link a device",
+            "url": "https://faq.whatsapp.com/1317564962315842/"
+          },
+          {
+            "label": "Baileys project",
+            "url": "https://github.com/WhiskeySockets/Baileys"
+          }
+        ],
+        "note": "The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app."
+      },
+      {
+        "id": "verify",
+        "title": "Verify your first captured message",
+        "paragraphs": [
+          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+        ],
+        "steps": [
+          "Send a harmless message in your own chat and check that it appears in Afterword.",
+          "Edit that message and open its Afterword history to look for both versions.",
+          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+        ],
+        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+      },
+      {
+        "id": "keep-running",
+        "title": "Capture continues in the cloud",
+        "paragraphs": [
+          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+        ],
+        "links": [
+          {
+            "label": "Continuous capture and recovery",
+            "url": "/docs/running"
+          }
+        ]
+      },
+      {
+        "id": "fixes",
+        "title": "If linking needs attention",
+        "bullets": [
+          "If the QR code expires, choose Get a fresh code or Try again. WhatsApp and Telegram refresh their codes automatically during setup.",
+          "If your phone rejects the link, check that you are scanning with the matching app and have an available device slot.",
+          "If the platform unlinked your device, open Connection check → Connection options → Relink account, then approve a new code. This clears the old platform login for that source and keeps the archive.",
+          "A cloud capacity or configuration message means the operator must resolve it. Repeated scanning will not fix that condition."
+        ]
+      },
+      {
+        "id": "privacy",
+        "title": "Where your data lives",
+        "paragraphs": [
+          "Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+        ],
+        "links": [
+          {
+            "label": "Privacy and retention",
+            "url": "/docs/privacy"
+          }
+        ]
+      }
     ]
   },
-  running: {
-    title: 'Keep your archive up to date', description: 'Resume safely, connect more accounts, and understand what stays on your computer.', category: 'EVERYDAY USE',
-    sections: [keepRunning,
-      { id: 'profiles', title: 'One profile for each source', paragraphs: ['Pairing assigns a unique profile such as telegram-a1b2c3d4. This keeps two accounts or sources from mixing local sessions or queued messages. Use the exact Resume command displayed in Connections.'], code: 'npm start -- run telegram-a1b2c3d4', note: 'Run only one process per profile. Each additional source needs a separate terminal or supervised process. The companion folder contains the program; your profile data lives outside it, so replacing the program folder does not erase your session.' },
-      { id: 'always-on', title: 'For continuous capture', paragraphs: ['For the simplest setup, leave a dedicated terminal open on a computer that stays awake. Your web browser does not need to stay open. For unattended operation, use an operating-system process supervisor after completing the first sign-in interactively.'], bullets: ['Linux: use a user systemd service with the absolute Node executable, companion/index.mjs run YOUR-PROFILE, a working directory pointing to the extracted folder, Restart=on-failure, RestartSec=10, and UMask=0077.', 'macOS: use a LaunchAgent with the same executable, script, profile, working directory, and restricted file permissions. The companion does not install a LaunchAgent automatically.', 'Windows: use Task Scheduler under your own user account with node.exe, the absolute script path, and run YOUR-PROFILE. Set the working directory to the extracted folder. Complete QR/sign-in first.'], note: 'This release does not ship a desktop tray app or automatic background-service installer. A supervisor restarts stopped processes; it cannot solve expired logins or scan QR codes for you.' },
-      { id: 'updates', title: 'Update without losing your history', steps: ['Stop the companion using Ctrl+C.', 'Download the latest ZIP from a connection setup screen and extract it to a new folder.', 'Run npm ci --omit=dev in that folder, then use your existing profile’s Resume command.', 'For Signal, update signal-cli separately and confirm signal-cli --version works.'], note: 'Your cloud archive and profiles are separate from the downloaded program. Keep your profile files in place unless you intentionally want to unlink or remove local data.' },
-      { id: 'storage', title: 'Where local data lives', paragraphs: ['On macOS and Linux, profiles live under ~/.afterword/. On Windows, look inside .afterword in your user home folder. Each profile contains a restricted config.json, an encrypted retry queue, its local encryption key, and any platform session files.'], bullets: ['The local queue keeps captured events during an archive outage and removes acknowledged deliveries.', 'Some local metadata is retained to correlate edits. Cloud retention does not automatically erase this local metadata.', 'Protect your computer and backups: possession of the local queue and its key allows decryption.'], links: [{ label: 'Delete local and cloud data', url: '/docs/privacy#deletion' }] }
+  "telegram": {
+    "title": "Connect Telegram in the cloud",
+    "description": "Scan a Telegram QR code. Afterword keeps capturing on its server.",
+    "category": "HOSTED ACCOUNT LINKING",
+    "platform": "telegram",
+    "sections": [
+      {
+        "id": "coverage",
+        "title": "What gets captured",
+        "paragraphs": [
+          "Captures ordinary cloud-chat messages, revisions, and deletion events Telegram delivers. Telegram sometimes omits deletion notifications."
+        ],
+        "note": "No secret chats, self-destructing messages, historical backfill, or attachment file downloads."
+      },
+      {
+        "id": "before",
+        "title": "Have your phone ready",
+        "bullets": [
+          "Your phone, signed in to Telegram",
+          "Your two-step verification password, if enabled"
+        ],
+        "paragraphs": [
+          "Use a computer or a second screen to display the code while you scan with your phone. You do not need Node.js, a terminal, an extension, or a computer left running."
+        ]
+      },
+      {
+        "id": "platform-setup",
+        "title": "Link your account",
+        "steps": [
+          "In Afterword, choose Connections → Telegram, name the account, and authorize hosted capture.",
+          "On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in Afterword.",
+          "If prompted, enter your Telegram two-step verification password in Afterword. Wait for Connected."
+        ],
+        "links": [
+          {
+            "label": "Telegram: application setup",
+            "url": "https://core.telegram.org/api/obtaining_api_id"
+          },
+          {
+            "label": "Telegram API terms",
+            "url": "https://core.telegram.org/api/terms"
+          }
+        ],
+        "note": "Afterword’s operator configures the Telegram application credentials. You do not need to create your own Telegram developer application. Your sign-in password is used for the current step and is not stored in application logs."
+      },
+      {
+        "id": "verify",
+        "title": "Verify your first captured message",
+        "paragraphs": [
+          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+        ],
+        "steps": [
+          "Send a harmless message in your own chat and check that it appears in Afterword.",
+          "Edit that message and open its Afterword history to look for both versions.",
+          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+        ],
+        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+      },
+      {
+        "id": "keep-running",
+        "title": "Capture continues in the cloud",
+        "paragraphs": [
+          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+        ],
+        "links": [
+          {
+            "label": "Continuous capture and recovery",
+            "url": "/docs/running"
+          }
+        ]
+      },
+      {
+        "id": "fixes",
+        "title": "If linking needs attention",
+        "bullets": [
+          "If the QR code expires, choose Get a fresh code or Try again. WhatsApp and Telegram refresh their codes automatically during setup.",
+          "If your phone rejects the link, check that you are scanning with the matching app and have an available device slot.",
+          "If the platform unlinked your device, open Connection check → Connection options → Relink account, then approve a new code. This clears the old platform login for that source and keeps the archive.",
+          "A cloud capacity or configuration message means the operator must resolve it. Repeated scanning will not fix that condition."
+        ]
+      },
+      {
+        "id": "privacy",
+        "title": "Where your data lives",
+        "paragraphs": [
+          "Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+        ],
+        "links": [
+          {
+            "label": "Privacy and retention",
+            "url": "/docs/privacy"
+          }
+        ]
+      }
     ]
   },
-  privacy: {
-    title: 'Your archive, your controls', description: 'Understand access, encryption, retention, and deletion before you connect.', category: 'PRIVACY & COVERAGE',
-    sections: [
-      { id: 'access', title: 'What you authorize', paragraphs: ['Connect only accounts and conversations you are authorized to retain. The current collectors capture covered conversations the linked account or bot receives; per-chat allowlists are not available in this release.', 'The archive can preserve a captured copy after another participant edits or deletes the original. Set expectations with the people or communities whose conversations you archive.'] },
-      { id: 'encryption', title: 'Where messages and credentials go', paragraphs: ['Platform credentials and sessions are stored on the computer running your companion. Captured message events are sent to your Afterword server over HTTPS. Message bodies and related names are encrypted in its database.', 'The server holds the encryption key and decrypts messages for search and display. This is encryption at rest, not end-to-end encrypted cloud storage. Your Afterword operator controls the server and its backups.'] },
-      { id: 'retention', title: 'Choose how long to keep messages', paragraphs: ['Settings → Archive retention lets you choose 7, 30, or 90 days, one year, or until you delete them. Age is measured from the first capture, and saved/bookmarked messages follow the same policy.', 'Shortening retention immediately removes older messages. Export first if you need a copy. A deletion in the source app does not itself remove the saved archive.'] },
-      { id: 'deletion', title: 'Disconnecting and deleting are different', bullets: ['Pause: stops storing newly delivered events until resumed. Paused events are discarded.', 'Disconnect source: revokes its archive key while preserving captured cloud history. Also unlink the companion in the platform app if you want to end platform access.', 'Delete archived message: removes its cloud revisions and prevents queued retries from restoring them. It does not delete the message in the original app.', 'Delete account: after password confirmation, removes its messages, connections, and sessions from the running archive database.', 'Remove local data: stop the companion, revoke/unlink the platform session, then remove that source’s profile folder. Cloud deletion does not delete files or backups on your computer.'], note: 'Exports and backups are separate copies. The initial deployment has no automatic backup deletion service; the instance operator must manage any backups they create.' },
-      { id: 'limits', title: 'What cannot be recovered', bullets: ['A message or earlier version the companion never received.', 'Changes missed while the computer, platform session, or network was unavailable.', 'Content outside a platform connection’s documented scope.', 'Disappearing/view-once content excluded by the collector, or attachment file bodies that were never downloaded.'], links: platformOrder.map(p => ({ label: `${platformGuides[p].name} coverage`, url: `/docs/${p}` })) }
+  "signal": {
+    "title": "Connect Signal in the cloud",
+    "description": "Link Signal from your phone; no desktop installation is needed.",
+    "category": "HOSTED ACCOUNT LINKING",
+    "platform": "signal",
+    "sections": [
+      {
+        "id": "coverage",
+        "title": "What gets captured",
+        "paragraphs": [
+          "Captures ordinary incoming messages, synced outgoing messages, edits, and remote deletion events received by the linked device. signal-cli is unofficial and must stay current."
+        ],
+        "note": "No disappearing or view-once messages, existing Signal Desktop database import, or attachment file downloads."
+      },
+      {
+        "id": "before",
+        "title": "Have your phone ready",
+        "bullets": [
+          "Your phone, signed in to Signal",
+          "An available linked-device slot"
+        ],
+        "paragraphs": [
+          "Use a computer or a second screen to display the code while you scan with your phone. You do not need Node.js, a terminal, an extension, or a computer left running."
+        ]
+      },
+      {
+        "id": "platform-setup",
+        "title": "Link your account",
+        "steps": [
+          "In Afterword, choose Connections → Signal, name the account, and authorize hosted capture.",
+          "On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).",
+          "Scan the QR code shown in Afterword and approve the device named Afterword Cloud. Wait for Connected."
+        ],
+        "links": [
+          {
+            "label": "Signal: linked devices",
+            "url": "https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices"
+          }
+        ],
+        "note": "The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app."
+      },
+      {
+        "id": "verify",
+        "title": "Verify your first captured message",
+        "paragraphs": [
+          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+        ],
+        "steps": [
+          "Send a harmless message in your own chat and check that it appears in Afterword.",
+          "Edit that message and open its Afterword history to look for both versions.",
+          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+        ],
+        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+      },
+      {
+        "id": "keep-running",
+        "title": "Capture continues in the cloud",
+        "paragraphs": [
+          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+        ],
+        "links": [
+          {
+            "label": "Continuous capture and recovery",
+            "url": "/docs/running"
+          }
+        ]
+      },
+      {
+        "id": "fixes",
+        "title": "If linking needs attention",
+        "bullets": [
+          "If the QR code expires, choose Get a fresh code or Try again. WhatsApp and Telegram refresh their codes automatically during setup.",
+          "If your phone rejects the link, check that you are scanning with the matching app and have an available device slot.",
+          "If the platform unlinked your device, open Connection check → Connection options → Relink account, then approve a new code. This clears the old platform login for that source and keeps the archive.",
+          "A cloud capacity or configuration message means the operator must resolve it. Repeated scanning will not fix that condition."
+        ]
+      },
+      {
+        "id": "privacy",
+        "title": "Where your data lives",
+        "paragraphs": [
+          "Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+        ],
+        "links": [
+          {
+            "label": "Privacy and retention",
+            "url": "/docs/privacy"
+          }
+        ]
+      }
+    ]
+  },
+  "troubleshooting": {
+    "title": "Get your connection back on track",
+    "description": "Clear next steps for QR codes, cloud sessions, and missing messages.",
+    "category": "HELP",
+    "sections": [
+      {
+        "id": "qr",
+        "title": "QR code expired or rejected",
+        "bullets": [
+          "Use the scanner inside the matching phone app, not the normal camera app.",
+          "Choose Try again or Get a fresh code if the code has expired.",
+          "Check your linked-device slots and phone connectivity. If the platform unlinked your session, use Connection options → Relink account."
+        ]
+      },
+      {
+        "id": "offline",
+        "title": "Cloud source is offline",
+        "paragraphs": [
+          "Wait briefly while the server retries. If the error persists, open Connection check. You may need to approve a fresh phone link. A server configuration or capacity error needs the operator’s attention."
+        ],
+        "note": "Closing the website does not stop a hosted collector. Local companions and Discord’s browser extension do depend on the computer running them."
+      },
+      {
+        "id": "missing",
+        "title": "Connected, but a message is missing",
+        "bullets": [
+          "Confirm this is your real workspace rather than the signed-out demo.",
+          "Send a new ordinary message to your own chat after the connection shows Connected.",
+          "Check whether the source is paused and whether the conversation/message type is covered.",
+          "Deletion events are not guaranteed on every platform. Messages edited or deleted during a capture gap may be incomplete."
+        ]
+      },
+      {
+        "id": "account",
+        "title": "Cannot sign in to Afterword",
+        "paragraphs": [
+          "Check your username and password. New accounts may require an invitation code. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
+        ]
+      }
+    ]
+  },
+  "running": {
+    "title": "Continuous capture and recovery",
+    "description": "How hosted connections behave when you close the browser or a connection drops.",
+    "category": "USING AFTERWORD",
+    "sections": [
+      {
+        "id": "keep-running",
+        "title": "Capture continues in the cloud",
+        "paragraphs": [
+          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+        ],
+        "links": [
+          {
+            "label": "Continuous capture and recovery",
+            "url": "/docs/running"
+          }
+        ]
+      },
+      {
+        "id": "restart",
+        "title": "Restarts and connection gaps",
+        "paragraphs": [
+          "Hosted sessions are saved in encrypted per-connection storage. The service resumes enabled connections after a normal server restart and retries unexpected collector exits with a delay. Expired logins may require a fresh scan.",
+          "Signal requires working session files while running. These live on a temporary in-memory filesystem in production and are checkpointed into encrypted storage every five seconds. A sudden machine failure can lose the latest checkpoint interval; the service cannot promise gap-free capture through an outage."
+        ]
+      },
+      {
+        "id": "controls",
+        "title": "Pause, disconnect, and relink",
+        "bullets": [
+          "Pause: keep the platform session connected but discard new captured events.",
+          "Disconnect: stop the collector and remove its stored cloud session. Previously captured messages remain.",
+          "Relink: reset one connection’s platform login and scan again. Previously captured messages remain.",
+          "A message that changes before Afterword receives it cannot be reconstructed."
+        ]
+      },
+      {
+        "id": "local",
+        "title": "Older local connections and Discord",
+        "paragraphs": [
+          "Connections identifies whether each source captures in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.",
+          "Discord’s extension remains local and requires Chrome with the selected Discord Web tab open. This is not a cloud connector."
+        ]
+      },
+      {
+        "id": "capacity",
+        "title": "Hosted capacity",
+        "paragraphs": [
+          "The operator sets a server-wide collector limit and each account can have up to four hosted connections. If capacity is full, setup shows a clear error. A small development server is not unlimited production capacity."
+        ]
+      }
+    ]
+  },
+  "privacy": {
+    "title": "Your data, privacy, and retention",
+    "description": "What Afterword stores and how to remove it.",
+    "category": "PRIVACY",
+    "sections": [
+      {
+        "id": "storage",
+        "title": "Hosted sessions and message copies",
+        "paragraphs": [
+          "Hosted collectors run on Afterword’s server. Platform login sessions, ordinary captured messages, and the revisions received by each collector are stored separately for each source. QR codes and pending login responses are temporary and visible only through the authenticated owner’s setup.",
+          "Saved platform credentials and message bodies are encrypted at rest. The server has the decryption keys and can read them to provide the service; this is not end-to-end encrypted storage.",
+          "Legacy local collectors keep their platform sessions on that computer. The Discord extension stores its own queue in the browser and uploads captured messages to the archive."
+        ]
+      },
+      {
+        "id": "coverage",
+        "title": "Coverage and limits",
+        "bullets": [
+          "Only messages/events received by a collector can be archived. Past deleted messages cannot be recovered.",
+          "Disappearing, self-destructing, and view-once content is excluded.",
+          "Attachment names and metadata may be recorded. File contents are not downloaded.",
+          "Unofficial Signal and WhatsApp integrations can break when their platforms change. Discord cloud capture is unavailable."
+        ]
+      },
+      {
+        "id": "retention",
+        "title": "Retention and export",
+        "paragraphs": [
+          "Choose 7, 30, 90, or 365 days, or keep messages until you delete them. Retention is measured from first capture and applies to saved messages as well. Lowering retention immediately removes older messages. Export includes all captured versions in JSON."
+        ]
+      },
+      {
+        "id": "deletion",
+        "title": "Disconnecting and deleting",
+        "bullets": [
+          "Disconnect removes the hosted login for that source and stops capture; it keeps your existing archive.",
+          "Deleting an archived message removes its revisions and prevents later retries from recreating that item.",
+          "Account deletion removes that account’s archive, sign-in sessions, and hosted platform sessions.",
+          "Deleting here does not delete messages in the messaging platform. You can also unlink Afterword from the platform’s device settings. Deleted archive data may remain in restricted operational backups until those snapshots rotate out; the server keeps its latest seven snapshots."
+        ]
+      },
+      {
+        "id": "use",
+        "title": "Archive with authorization",
+        "paragraphs": [
+          "Connect only accounts you control and retain only conversations you are authorized to keep. Captured copies may remain after a participant edits or deletes the original."
+        ]
+      }
     ]
   }
 };

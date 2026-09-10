@@ -6,9 +6,27 @@ import { signalEvent } from './normalize.mjs';
 
 export async function startSignal(ctx) {
   const directory = join(ctx.directory, 'signal-session');
-  const child = spawn('signal-cli', ['--config', directory, 'jsonRpc'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const nativeOptions = ctx.hosted && process.env.SIGNAL_NATIVE_DIR ? [`-Djava.io.tmpdir=${process.env.SIGNAL_NATIVE_DIR}`] : [];
+  const child = spawn('signal-cli', [...nativeOptions, '--config', directory, 'jsonRpc'], { stdio: ['pipe', 'pipe', 'pipe'] });
   const pending = new Map();
-  let counter = 0, stopped = false;
+  let counter = 0, stopped = false, stopPromise;
+  const stop = () => {
+    if (stopPromise) return stopPromise;
+    stopped = true;
+    for (const p of pending.values()) p.reject(new Error('Shutting down'));
+    pending.clear();
+    // Wait for signal-cli to finish writing before the worker checkpoints and
+    // removes its private working files.
+    stopPromise = new Promise(resolve => {
+      if (!child.pid || child.exitCode !== null || child.signalCode !== null) return resolve();
+      const timer = setTimeout(() => child.kill('SIGKILL'), 5000).unref();
+      child.once('close', () => { clearTimeout(timer); resolve(); });
+      child.kill('SIGTERM');
+    });
+    return stopPromise;
+  };
+  ctx.onStop?.(stop);
+  ctx.signal?.addEventListener('abort', stop, { once: true });
   const rpc = (method, params = {}) => new Promise((resolve, reject) => {
     const id = String(++counter);
     const timer = setTimeout(() => { pending.delete(id); reject(new Error('Signal request timed out. Restart setup to try again.')); }, 180_000);
@@ -18,7 +36,7 @@ export async function startSignal(ctx) {
   child.stdin.on('error', () => {});
   const failed = message => { ctx.health('error', message); for (const p of pending.values()) p.reject(new Error(message)); pending.clear(); };
   child.on('error', () => failed('signal-cli is unavailable. Install it and restart the companion.'));
-  child.on('exit', () => { if (!stopped) failed('signal-cli stopped. Restart the companion to resume capture.'); });
+  child.on('exit', () => { if (!stopped) { failed('signal-cli stopped. Restart the companion to resume capture.'); ctx.fatal?.('Signal stopped unexpectedly. Reconnecting.'); } });
   // Never forward raw signal-cli diagnostics: they can contain message/account data.
   child.stderr.on('data', () => {});
   const lines = createInterface({ input: child.stdout });
@@ -42,11 +60,13 @@ export async function startSignal(ctx) {
     const accounts = await rpc('listAccounts');
     if (!accounts?.length) {
       const { deviceLinkUri } = await rpc('startLink');
-      console.log('Scan in Signal → Settings → Linked devices:'); qr.generate(deviceLinkUri, { small: true });
-      ctx.health('waiting', 'Scan the QR code in your companion terminal');
-      await rpc('finishLink', { deviceLinkUri, deviceName: 'Afterword companion' });
+      if (ctx.showQR) ctx.showQR(deviceLinkUri, Date.now() + 170_000);
+      else { console.log('Scan in Signal → Settings → Linked devices:'); qr.generate(deviceLinkUri, { small: true }); }
+      ctx.health('waiting', ctx.hosted ? 'Scan this code in Signal → Linked devices' : 'Scan the QR code in your companion terminal');
+      await rpc('finishLink', { deviceLinkUri, deviceName: ctx.hosted ? 'Afterword Cloud' : 'Afterword companion' });
     }
+    await ctx.checkpoint?.();
     ctx.health('connected', 'Signal linked device connected');
-  } catch (error) { child.kill('SIGTERM'); throw error; }
-  return () => { stopped = true; for (const p of pending.values()) p.reject(new Error('Shutting down')); pending.clear(); lines.close(); child.kill('SIGTERM'); };
+  } catch (error) { await stop(); throw error; }
+  return () => { lines.close(); return stop(); };
 }

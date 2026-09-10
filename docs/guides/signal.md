@@ -1,10 +1,10 @@
-# Connect Signal
+# Connect Signal in the cloud
 
-Link your phone through the signal-cli companion on your computer.
+Link Signal from your phone; no desktop installation is needed.
 
 <a id="coverage"></a>
 
-## What this connection covers
+## What gets captured
 
 Captures ordinary incoming messages, synced outgoing messages, edits, and remote deletion events received by the linked device. signal-cli is unofficial and must stay current.
 
@@ -12,71 +12,64 @@ Captures ordinary incoming messages, synced outgoing messages, edits, and remote
 
 <a id="before"></a>
 
-## Before you start
+## Have your phone ready
+
+Use a computer or a second screen to display the code while you scan with your phone. You do not need Node.js, a terminal, an extension, or a computer left running.
 
 - Your phone, signed in to Signal
-- signal-cli installed and available in your terminal
 - An available linked-device slot
-- Node.js 22.13 or newer on the computer running your companion
-
-- [First time? Prepare your computer](./getting-started.md#computer)
 
 <a id="platform-setup"></a>
 
-## Prepare Signal
+## Link your account
 
-1. Install signal-cli before pairing. On macOS with Homebrew, run brew install signal-cli. For Windows and Linux, follow the signal-cli installation guide for your operating system and its Java/runtime requirements.
-2. Run signal-cli --version to confirm the terminal can find it. Then start the Afterword companion and wait for its QR code.
-3. On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device. Unlock if asked, scan the QR code, and approve the link.
+1. In Afterword, choose Connections → Signal, name the account, and authorize hosted capture.
+2. On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).
+3. Scan the QR code shown in Afterword and approve the device named Afterword Cloud. Wait for Connected.
 
-- [Install signal-cli](https://github.com/AsamK/signal-cli#installation)
-- [Homebrew: signal-cli](https://formulae.brew.sh/formula/signal-cli)
+> The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app.
+
 - [Signal: linked devices](https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices)
-
-<a id="pair"></a>
-
-## Pair with your Afterword workspace
-
-1. In Connections, choose Connect Signal. Review the checklist, name your connection, and continue.
-2. Download and extract the companion ZIP. Open a terminal in its folder, then copy the install and pairing commands from the setup screen.
-3. Enter the short Afterword pairing code in the terminal. The companion selects the right platform automatically; finish the sign-in steps or scan the QR code it displays.
-
-> You do not enter your platform password into the Afterword website. Platform credentials and sessions stay on the computer running your companion.
 
 <a id="verify"></a>
 
-## Check that your first message arrived
+## Verify your first captured message
 
-“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates.
+Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive.
 
-1. In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.
-2. Edit that message. Open its history in Afterword and check that both versions are present.
-3. Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text.
+1. Send a harmless message in your own chat and check that it appears in Afterword.
+2. Edit that message and open its Afterword history to look for both versions.
+3. Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received.
 
-> Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you.
-
-<a id="fixes"></a>
-
-## If Signal does not connect
-
-- signal-cli not found: install it, reopen the terminal, and confirm signal-cli --version works. Installing Signal Desktop alone does not install signal-cli.
-- QR expires: restart the companion and use the new QR code. Scan using Linked devices on your primary phone, not the camera app.
-- Device limit or revoked session: remove an unused device in Signal, then follow the relinking guide. Update signal-cli when Signal changes its protocol.
-
-- [Connection states, retries, and relinking](./troubleshooting.md)
+> Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion.
 
 <a id="keep-running"></a>
 
-## Keep capture running
+## Capture continues in the cloud
 
-Leave the companion terminal open and keep the computer awake and connected to the internet. Closing it, sleeping, or unlinking the device interrupts capture. Messages that change during a gap may never be recoverable.
+Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.
 
-1. To stop, press Ctrl+C in the companion terminal.
-2. To resume, reopen a terminal in the companion folder and run the Resume command shown beside that source in Connections.
-3. For a second account, create another connection and pair it in another terminal. Afterword assigns separate profiles automatically.
+A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
-- [Continuous capture and storage guide](./running.md)
+- [Continuous capture and recovery](./running.md)
 
-Instructions reviewed September 9, 2026. Platform screens may change.
+<a id="fixes"></a>
+
+## If linking needs attention
+
+- If the QR code expires, choose Get a fresh code or Try again. WhatsApp and Telegram refresh their codes automatically during setup.
+- If your phone rejects the link, check that you are scanning with the matching app and have an available device slot.
+- If the platform unlinked your device, open Connection check → Connection options → Relink account, then approve a new code. This clears the old platform login for that source and keeps the archive.
+- A cloud capacity or configuration message means the operator must resolve it. Repeated scanning will not fix that condition.
+
+<a id="privacy"></a>
+
+## Where your data lives
+
+Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
+
+- [Privacy and retention](./privacy.md)
+
+Instructions reviewed September 10, 2026. Platform screens may change.
 
 Generated from `web/guides.mjs`, the same content shown in the public help center.

@@ -1,12 +1,12 @@
 # Afterword user guides
 
-- [Start your first archive](./getting-started.md)
+- [Start your cloud archive](./getting-started.md)
 - [Connect your personal Discord](./discord.md)
-- [Connect WhatsApp](./whatsapp.md)
-- [Connect Telegram](./telegram.md)
-- [Connect Signal](./signal.md)
-- [Get a connection back on track](./troubleshooting.md)
-- [Keep your archive up to date](./running.md)
-- [Your archive, your controls](./privacy.md)
+- [Connect WhatsApp in the cloud](./whatsapp.md)
+- [Connect Telegram in the cloud](./telegram.md)
+- [Connect Signal in the cloud](./signal.md)
+- [Get your connection back on track](./troubleshooting.md)
+- [Continuous capture and recovery](./running.md)
+- [Your data, privacy, and retention](./privacy.md)
 
 These guides also ship inside the companion download and appear at `/docs` in the app. Edit `web/guides.mjs` and run `npm run docs` to update all copies.

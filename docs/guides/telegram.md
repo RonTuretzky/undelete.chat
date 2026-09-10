@@ -1,10 +1,10 @@
-# Connect Telegram
+# Connect Telegram in the cloud
 
-Connect your own Telegram cloud chats with a phone sign-in.
+Scan a Telegram QR code. Afterword keeps capturing on its server.
 
 <a id="coverage"></a>
 
-## What this connection covers
+## What gets captured
 
 Captures ordinary cloud-chat messages, revisions, and deletion events Telegram delivers. Telegram sometimes omits deletion notifications.
 
@@ -12,71 +12,65 @@ Captures ordinary cloud-chat messages, revisions, and deletion events Telegram d
 
 <a id="before"></a>
 
-## Before you start
+## Have your phone ready
+
+Use a computer or a second screen to display the code while you scan with your phone. You do not need Node.js, a terminal, an extension, or a computer left running.
 
 - Your phone, signed in to Telegram
-- Your Telegram application API ID and API hash
 - Your two-step verification password, if enabled
-- Node.js 22.13 or newer on the computer running your companion
-
-- [First time? Prepare your computer](./getting-started.md#computer)
 
 <a id="platform-setup"></a>
 
-## Prepare Telegram
+## Link your account
 
-1. Open my.telegram.org/apps and sign in. Under API development tools, create an application or use your existing one. Keep its API ID and API hash ready.
-2. Enter the API ID and API hash in the companion terminal, followed by your phone number with country code.
-3. Enter the confirmation code Telegram sends. It may arrive in the Telegram app. If asked, enter your two-step verification password or email verification code.
+1. In Afterword, choose Connections → Telegram, name the account, and authorize hosted capture.
+2. On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in Afterword.
+3. If prompted, enter your Telegram two-step verification password in Afterword. Wait for Connected.
 
-- [Get your Telegram app credentials](https://my.telegram.org/apps)
+> Afterword’s operator configures the Telegram application credentials. You do not need to create your own Telegram developer application. Your sign-in password is used for the current step and is not stored in application logs.
+
 - [Telegram: application setup](https://core.telegram.org/api/obtaining_api_id)
 - [Telegram API terms](https://core.telegram.org/api/terms)
 
-<a id="pair"></a>
-
-## Pair with your Afterword workspace
-
-1. In Connections, choose Connect Telegram. Review the checklist, name your connection, and continue.
-2. Download and extract the companion ZIP. Open a terminal in its folder, then copy the install and pairing commands from the setup screen.
-3. Enter the short Afterword pairing code in the terminal. The companion selects the right platform automatically; finish the sign-in steps or scan the QR code it displays.
-
-> You do not enter your platform password into the Afterword website. Platform credentials and sessions stay on the computer running your companion.
-
 <a id="verify"></a>
 
-## Check that your first message arrived
+## Verify your first captured message
 
-“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates.
+Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive.
 
-1. In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.
-2. Edit that message. Open its history in Afterword and check that both versions are present.
-3. Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text.
+1. Send a harmless message in your own chat and check that it appears in Afterword.
+2. Edit that message and open its Afterword history to look for both versions.
+3. Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received.
 
-> Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you.
-
-<a id="fixes"></a>
-
-## If Telegram does not connect
-
-- API credentials rejected: the API ID is numeric and the API hash comes from API development tools; neither is a BotFather token.
-- No confirmation code: check the Telegram service conversation on your phone. Do not repeatedly request codes; Telegram can impose a waiting period.
-- Wrong saved app credentials: run the companion’s credentials command for that profile, then resume. If Telegram reports a revoked session, follow the relinking instructions in Troubleshooting.
-
-- [Connection states, retries, and relinking](./troubleshooting.md)
+> Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion.
 
 <a id="keep-running"></a>
 
-## Keep capture running
+## Capture continues in the cloud
 
-Leave the companion terminal open and keep the computer awake and connected to the internet. Closing it, sleeping, or unlinking the device interrupts capture. Messages that change during a gap may never be recoverable.
+Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.
 
-1. To stop, press Ctrl+C in the companion terminal.
-2. To resume, reopen a terminal in the companion folder and run the Resume command shown beside that source in Connections.
-3. For a second account, create another connection and pair it in another terminal. Afterword assigns separate profiles automatically.
+A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
-- [Continuous capture and storage guide](./running.md)
+- [Continuous capture and recovery](./running.md)
 
-Instructions reviewed September 9, 2026. Platform screens may change.
+<a id="fixes"></a>
+
+## If linking needs attention
+
+- If the QR code expires, choose Get a fresh code or Try again. WhatsApp and Telegram refresh their codes automatically during setup.
+- If your phone rejects the link, check that you are scanning with the matching app and have an available device slot.
+- If the platform unlinked your device, open Connection check → Connection options → Relink account, then approve a new code. This clears the old platform login for that source and keeps the archive.
+- A cloud capacity or configuration message means the operator must resolve it. Repeated scanning will not fix that condition.
+
+<a id="privacy"></a>
+
+## Where your data lives
+
+Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
+
+- [Privacy and retention](./privacy.md)
+
+Instructions reviewed September 10, 2026. Platform screens may change.
 
 Generated from `web/guides.mjs`, the same content shown in the public help center.

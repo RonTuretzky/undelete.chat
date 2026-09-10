@@ -18,3 +18,8 @@
 
 /* Keep setup controls reachable while longer platform instructions scroll. */
 .modal{scroll-padding-top:90px}.modal-header{position:sticky;top:0;background:#fff;z-index:2}.modal form .checkbox-label input{flex:0 0 17px;width:17px;height:17px;margin-top:2px;cursor:pointer}
+
+.hosted-qr-layout{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:24px;align-items:center;margin:20px 0}.hosted-qr{display:flex;align-items:center;flex-direction:column;background:white;border:1px solid var(--border,#e3e8e5);border-radius:14px;padding:10px}.hosted-qr img{display:block;max-width:100%;height:auto;image-rendering:pixelated}.hosted-qr span{font-size:12px;color:#64746d;margin:0 0 10px}.hosted-qr-layout ol{padding-left:22px;line-height:1.65}.hosted-qr-layout li{padding-bottom:12px}.hosted-success{text-align:center;padding:25px 20px;background:#edf7f2;border:1px solid #d6e9df;border-radius:14px;margin:20px 0}.hosted-success>svg{color:#287658}.hosted-success h3{margin:12px 0}.hosted-success p{line-height:1.6}.verification-check{display:flex;gap:12px;align-items:center;padding:9px 0;color:#2d7458}.hosted-prompt{padding:14px 0}.wizard-platform span svg{vertical-align:middle;margin-right:4px}@media(max-width:650px){.hosted-qr-layout{grid-template-columns:1fr;gap:14px}.hosted-qr{max-width:320px;justify-self:center}.hosted-qr-layout ol{margin-bottom:0}}
+
+.recovery-key{display:block;overflow-wrap:anywhere;padding:16px;background:#f2f6f4;border-radius:8px;line-height:1.7;margin:16px 0;font-size:14px;user-select:all}
+.modal.wide:has(.hosted-qr-layout){width:min(780px,calc(100% - 32px))}

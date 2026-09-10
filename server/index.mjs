@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createStore } from './store.mjs';
 import { createApp } from './app.mjs';
+import { createBackup } from './backup.mjs';
+import { createCollectorManager } from './hosted/manager.mjs';
 try { process.loadEnvFile('.env'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
 const production = process.env.NODE_ENV === 'production';
 const dir = resolve(process.env.DATA_DIR || 'data');
@@ -20,6 +22,25 @@ chmodSync(resolve(dir, 'afterword.sqlite'), 0o600);
 store.purge();
 const timer = setInterval(() => store.purge(), 60 * 60_000).unref();
 const origin = process.env.PUBLIC_ORIGIN || 'http://localhost:4318';
-const app = createApp(store, { production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
+const collectors = process.env.HOSTED_COLLECTORS === 'true' ? createCollectorManager(store, {
+  key, directory: dir, maxCollectors: Number(process.env.HOSTED_MAX_COLLECTORS || 4),
+  runtimeDirectory: process.env.COLLECTOR_RUNTIME_DIR,
+  telegramApiId: Number(process.env.TELEGRAM_API_ID), telegramApiHash: process.env.TELEGRAM_API_HASH,
+  signalAvailable: process.env.SIGNAL_AVAILABLE !== 'false',
+  signalNativeDirectory: process.env.SIGNAL_NATIVE_DIR
+}) : null;
+const app = createApp(store, { collectors, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
 const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`Afterword listening on port ${process.env.PORT || 4318}`));
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { clearInterval(timer); server.close(() => { store.close(); process.exit(0); }); setTimeout(() => process.exit(1), 10_000).unref(); });
+await collectors?.restore();
+let backupRunning = null;
+const runBackup = () => {
+  if (!backupRunning) backupRunning = createBackup(dir).then(() => console.log('Archive backup completed.')).catch(() => console.error('Archive backup failed.')).finally(() => { backupRunning = null; });
+};
+const backupTimer = production ? setInterval(runBackup, 24 * 60 * 60_000).unref() : null;
+if (production) runBackup();
+let stopping = false;
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
+  if (stopping) return; stopping = true; clearInterval(timer); clearInterval(backupTimer);
+  const closed = new Promise(resolve => server.close(resolve));
+  await collectors?.close(); await backupRunning; await closed; store.close(); process.exit(0);
+});

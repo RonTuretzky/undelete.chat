@@ -85,6 +85,6 @@ The hosted archive uses the retention setting in your Afterword workspace. Disco
 
 - [Privacy and retention](./privacy.md)
 
-Instructions reviewed September 9, 2026. Platform screens may change.
+Instructions reviewed September 10, 2026. Platform screens may change.
 
 Generated from `web/guides.mjs`, the same content shown in the public help center.

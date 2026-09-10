@@ -4,11 +4,12 @@ import { mkdirSync } from 'node:fs';
 import pino from 'pino';
 import qr from 'qrcode-terminal';
 import { whatsappEvent } from './normalize.mjs';
+import { encryptedWhatsAppAuth } from './whatsapp-auth.mjs';
 
 export async function startWhatsApp(ctx) {
   const directory = join(ctx.directory, 'whatsapp-session');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const { state, saveCreds } = await useMultiFileAuthState(directory);
+  const { state, saveCreds } = ctx.hosted ? encryptedWhatsAppAuth(ctx.queue) : await useMultiFileAuthState(directory);
   let socket, stopped = false, retry, retryCount = 0;
   const receive = (message, kind) => {
     const jid = message.key?.remoteJid;
@@ -20,11 +21,15 @@ export async function startWhatsApp(ctx) {
     socket = makeWASocket({ auth: state, logger: pino({ level: 'silent' }), printQRInTerminal: false, markOnlineOnConnect: false, syncFullHistory: false, shouldSyncHistoryMessage: () => false });
     socket.ev.on('creds.update', saveCreds);
     socket.ev.on('connection.update', update => {
-      if (update.qr) { console.log('Scan in WhatsApp → Settings → Linked devices:'); qr.generate(update.qr, { small: true }); ctx.health('waiting', 'Scan the QR code in your companion terminal'); }
+      if (update.qr) {
+        if (ctx.showQR) ctx.showQR(update.qr);
+        else { console.log('Scan in WhatsApp → Settings → Linked devices:'); qr.generate(update.qr, { small: true }); }
+        ctx.health('waiting', ctx.hosted ? 'Scan this code in WhatsApp → Linked devices' : 'Scan the QR code in your companion terminal');
+      }
       if (update.connection === 'open') { retryCount = 0; ctx.health('connected', 'WhatsApp linked device connected'); }
       if (update.connection === 'close' && !stopped) {
         const loggedOut = update.lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut;
-        ctx.health(loggedOut ? 'error' : 'reconnecting', loggedOut ? 'WhatsApp unlinked this device. Relink from companion setup.' : 'Reconnecting to WhatsApp');
+        ctx.health(loggedOut ? 'error' : 'reconnecting', loggedOut ? 'WhatsApp unlinked this device. Choose Relink to connect again.' : 'Reconnecting to WhatsApp');
         if (!loggedOut) retry = setTimeout(connect, Math.min(60_000, 2000 * 2 ** retryCount++));
       }
     });
@@ -39,6 +44,9 @@ export async function startWhatsApp(ctx) {
     socket.ev.on('chats.upsert', chats); socket.ev.on('chats.update', chats);
     socket.ev.on('groups.update', rows => { for (const row of rows) if (row.subject) ctx.queue.set(`wa-chat:${row.id}`, row.subject); });
   };
+  const stop = () => { stopped = true; clearTimeout(retry); socket?.end(undefined); };
+  ctx.onStop?.(stop);
+  ctx.signal?.addEventListener('abort', stop, { once: true });
   connect();
-  return () => { stopped = true; clearTimeout(retry); socket?.end(undefined); };
+  return stop;
 }

@@ -15,7 +15,13 @@ if secrets_path.exists(): values = json.loads(secrets_path.read_text())
 else:
     values = {'archive_key': secrets.token_hex(32), 'invite_code': secrets.token_urlsafe(24), 'owner_password': secrets.token_urlsafe(28), 'owner_username': 'owner'}
     secrets_path.write_text(json.dumps(values, indent=2)); secrets_path.chmod(0o600)
-env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values['invite_code'], 'PUBLIC_ORIGIN=' + state['url'], 'NODE_ENV=production']) + '\n'
+hosted_path = private / 'hosted-config.json'
+hosted = json.loads(hosted_path.read_text()) if hosted_path.exists() else {}
+env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values['invite_code'], 'PUBLIC_ORIGIN=' + state['url'], 'NODE_ENV=production',
+    'HOSTED_COLLECTORS=' + ('true' if hosted.get('enabled') else 'false'),
+    'HOSTED_MAX_COLLECTORS=' + str(int(hosted.get('max_collectors', 4))),
+    'TELEGRAM_API_ID=' + str(int(hosted.get('telegram_api_id', 0))),
+    'TELEGRAM_API_HASH=' + str(hosted.get('telegram_api_hash', ''))]) + '\n'
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)
 invite_path = private / 'invitation-code.txt'; invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
 credentials = private / 'owner-credentials.txt'

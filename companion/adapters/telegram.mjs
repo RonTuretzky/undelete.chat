@@ -28,6 +28,10 @@ export async function startTelegram(ctx) {
   const session = new StringSession(ctx.queue.get('telegram-session') || '');
   const client = new TelegramClient(session, apiId, apiHash, { connectionRetries: 5, autoReconnect: true });
   client.setLogLevel('none');
+  let timer;
+  const stop = async () => { clearInterval(timer); await client.disconnect(); };
+  ctx.onStop?.(stop);
+  ctx.signal?.addEventListener('abort', () => { stop().catch(() => {}); }, { once: true });
   let processingFailed = false;
   const receive = async (event, kind) => {
     try {
@@ -42,13 +46,21 @@ export async function startTelegram(ctx) {
     const scope = channel ? `channel:${channel}` : 'account';
     for (const id of e.deletedIds) ctx.capture({ eventId: eventId('telegram', scope, id, 'delete'), kind: 'delete', scope, externalId: String(id), occurredAt: new Date().toISOString() });
   }, new DeletedMessage({}));
-  await client.start({ phoneNumber: () => ctx.ask('Telegram phone number (include country code): '), phoneCode: () => ctx.ask('Telegram confirmation code: ', true),
+  if (ctx.hosted && ctx.showQR) {
+    await client.connect();
+    if (!await client.checkAuthorization()) await client.signInUserWithQrCode({ apiId, apiHash }, {
+      qrCode: ({ token, expires }) => ctx.showQR(`tg://login?token=${token.toString('base64url')}`, expires * 1000),
+      password: () => ctx.ask('Telegram two-step verification password', true),
+      abortSignal: ctx.signal,
+      onError: () => { ctx.health('waiting', 'Check your Telegram password and try again.'); return false; }
+    });
+  } else await client.start({ phoneNumber: () => ctx.ask('Telegram phone number (include country code): '), phoneCode: () => ctx.ask('Telegram confirmation code: ', true),
     password: () => ctx.ask('Telegram 2FA password: ', true), emailAddress: () => ctx.ask('Telegram verification email: '),
     emailVerification: async () => ({ code: await ctx.ask('Telegram email code: ', true) }),
     onError: error => { console.error('Telegram sign-in:', error.errorMessage || error.name); } });
   ctx.queue.set('telegram-session', client.session.save());
   ctx.health('connected', 'Telegram account connected');
-  const timer = setInterval(() => {
+  timer = setInterval(() => {
     if (processingFailed) ctx.health('error', 'Could not normalize a Telegram event; check companion version');
     else ctx.health(client.connected ? 'connected' : 'reconnecting', client.connected ? 'Telegram account connected' : 'Reconnecting to Telegram');
   }, 15_000);

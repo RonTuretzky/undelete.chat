@@ -3,11 +3,11 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync, chmodSync } from 'n
 import { join } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 import { cipher } from '../server/crypto.mjs';
-export function openQueue(directory) {
+export function openQueue(directory, encryptionKey) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const keyPath = join(directory, 'queue.key');
-  if (!existsSync(keyPath)) writeFileSync(keyPath, randomBytes(32).toString('hex'), { mode: 0o600 });
-  const crypt = cipher(readFileSync(keyPath, 'utf8').trim());
+  if (!encryptionKey && !existsSync(keyPath)) writeFileSync(keyPath, randomBytes(32).toString('hex'), { mode: 0o600 });
+  const crypt = cipher(encryptionKey || readFileSync(keyPath, 'utf8').trim());
   const db = new DatabaseSync(join(directory, 'queue.sqlite'));
   chmodSync(join(directory, 'queue.sqlite'), 0o600);
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA secure_delete=ON;

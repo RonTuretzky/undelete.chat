@@ -1,66 +1,48 @@
-# Keep your archive up to date
+# Continuous capture and recovery
 
-Resume safely, connect more accounts, and understand what stays on your computer.
+How hosted connections behave when you close the browser or a connection drops.
 
 <a id="keep-running"></a>
 
-## Keep capture running
+## Capture continues in the cloud
 
-Leave the companion terminal open and keep the computer awake and connected to the internet. Closing it, sleeping, or unlinking the device interrupts capture. Messages that change during a gap may never be recoverable.
+Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.
 
-1. To stop, press Ctrl+C in the companion terminal.
-2. To resume, reopen a terminal in the companion folder and run the Resume command shown beside that source in Connections.
-3. For a second account, create another connection and pair it in another terminal. Afterword assigns separate profiles automatically.
+A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
-- [Continuous capture and storage guide](./running.md)
+- [Continuous capture and recovery](./running.md)
 
-<a id="profiles"></a>
+<a id="restart"></a>
 
-## One profile for each source
+## Restarts and connection gaps
 
-Pairing assigns a unique profile such as telegram-a1b2c3d4. This keeps two accounts or sources from mixing local sessions or queued messages. Use the exact Resume command displayed in Connections.
+Hosted sessions are saved in encrypted per-connection storage. The service resumes enabled connections after a normal server restart and retries unexpected collector exits with a delay. Expired logins may require a fresh scan.
 
-```sh
-npm start -- run telegram-a1b2c3d4
-```
+Signal requires working session files while running. These live on a temporary in-memory filesystem in production and are checkpointed into encrypted storage every five seconds. A sudden machine failure can lose the latest checkpoint interval; the service cannot promise gap-free capture through an outage.
 
-> Run only one process per profile. Each additional source needs a separate terminal or supervised process. The companion folder contains the program; your profile data lives outside it, so replacing the program folder does not erase your session.
+<a id="controls"></a>
 
-<a id="always-on"></a>
+## Pause, disconnect, and relink
 
-## For continuous capture
+- Pause: keep the platform session connected but discard new captured events.
+- Disconnect: stop the collector and remove its stored cloud session. Previously captured messages remain.
+- Relink: reset one connection’s platform login and scan again. Previously captured messages remain.
+- A message that changes before Afterword receives it cannot be reconstructed.
 
-For the simplest setup, leave a dedicated terminal open on a computer that stays awake. Your web browser does not need to stay open. For unattended operation, use an operating-system process supervisor after completing the first sign-in interactively.
+<a id="local"></a>
 
-- Linux: use a user systemd service with the absolute Node executable, companion/index.mjs run YOUR-PROFILE, a working directory pointing to the extracted folder, Restart=on-failure, RestartSec=10, and UMask=0077.
-- macOS: use a LaunchAgent with the same executable, script, profile, working directory, and restricted file permissions. The companion does not install a LaunchAgent automatically.
-- Windows: use Task Scheduler under your own user account with node.exe, the absolute script path, and run YOUR-PROFILE. Set the working directory to the extracted folder. Complete QR/sign-in first.
+## Older local connections and Discord
 
-> This release does not ship a desktop tray app or automatic background-service installer. A supervisor restarts stopped processes; it cannot solve expired logins or scan QR codes for you.
+Connections identifies whether each source captures in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.
 
-<a id="updates"></a>
+Discord’s extension remains local and requires Chrome with the selected Discord Web tab open. This is not a cloud connector.
 
-## Update without losing your history
+<a id="capacity"></a>
 
-1. Stop the companion using Ctrl+C.
-2. Download the latest ZIP from a connection setup screen and extract it to a new folder.
-3. Run npm ci --omit=dev in that folder, then use your existing profile’s Resume command.
-4. For Signal, update signal-cli separately and confirm signal-cli --version works.
+## Hosted capacity
 
-> Your cloud archive and profiles are separate from the downloaded program. Keep your profile files in place unless you intentionally want to unlink or remove local data.
+The operator sets a server-wide collector limit and each account can have up to four hosted connections. If capacity is full, setup shows a clear error. A small development server is not unlimited production capacity.
 
-<a id="storage"></a>
-
-## Where local data lives
-
-On macOS and Linux, profiles live under ~/.afterword/. On Windows, look inside .afterword in your user home folder. Each profile contains a restricted config.json, an encrypted retry queue, its local encryption key, and any platform session files.
-
-- The local queue keeps captured events during an archive outage and removes acknowledged deliveries.
-- Some local metadata is retained to correlate edits. Cloud retention does not automatically erase this local metadata.
-- Protect your computer and backups: possession of the local queue and its key allows decryption.
-
-- [Delete local and cloud data](./privacy.md#deletion)
-
-Instructions reviewed September 9, 2026. Platform screens may change.
+Instructions reviewed September 10, 2026. Platform screens may change.
 
 Generated from `web/guides.mjs`, the same content shown in the public help center.

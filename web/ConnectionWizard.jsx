@@ -8,7 +8,7 @@ function CodeBlock({ children, label = 'Copy command' }) {
   async function copy() { try { await navigator.clipboard.writeText(children); setCopied(true); setFailed(false); setTimeout(() => setCopied(false), 2000); } catch { setFailed(true); } }
   return <div className="command-wrap"><div className="command-block"><pre>{children}</pre><button className="icon-button" aria-label={label} onClick={copy}>{copied ? <Check size={16}/> : <Copy size={16}/>}</button></div>{failed && <small>Select the text above and copy it manually.</small>}</div>;
 }
-export function ConnectionWizard({ initialPlatform, initialConnection, Modal, Platform, api, onClose, onFinish, onChanged }) {
+export function LocalConnectionWizard({ initialPlatform, initialConnection, Modal, Platform, api, onClose, onFinish, onChanged }) {
   const [platform, setPlatform] = useState(initialConnection?.platform || initialPlatform || null);
   const [connection, setConnection] = useState(initialConnection || null);
   const [step, setStep] = useState(initialConnection ? isLive(initialConnection) ? 3 : 2 : initialPlatform ? 1 : 0);

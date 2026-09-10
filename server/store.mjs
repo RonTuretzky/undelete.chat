@@ -47,13 +47,18 @@ export function createStore(path, encryptionKey) {
     CREATE INDEX IF NOT EXISTS events_message ON events(message_id,occurred_at,id);
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);`);
   db.exec(`CREATE TABLE IF NOT EXISTS forgotten (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE);`);
+  if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'recovery_hash')) db.exec('ALTER TABLE users ADD COLUMN recovery_hash TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'paired_at')) db.exec('ALTER TABLE connections ADD COLUMN paired_at TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'collector')) db.exec('ALTER TABLE connections ADD COLUMN collector TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS pairing_codes (
     connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, expires_at TEXT NOT NULL
   );`);
-  const getUser = id => db.prepare('SELECT id,username,created_at,retention_days FROM users WHERE id=?').get(id);
+  db.exec(`CREATE TABLE IF NOT EXISTS hosted_collectors (
+    connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
+    config TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL
+  );`);
+  const getUser = id => db.prepare('SELECT id,username,created_at,retention_days,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id);
   const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,collector,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id) AS message_count,
     (SELECT max(last_seen) FROM messages WHERE connection_id=connections.id) AS last_message_at
@@ -104,8 +109,35 @@ export function createStore(path, encryptionKey) {
     db.prepare('DELETE FROM pairing_codes WHERE expires_at < ?').run(new Date().toISOString());
   }
   return { db, getUser, connections, ingest, purge,
+    createRecoveryKey(userId) {
+      const secret = `awr_${token()}`;
+      db.prepare('UPDATE users SET recovery_hash=? WHERE id=?').run(hash(secret), userId);
+      return secret;
+    },
+    async recoverAccount(username, recoveryKey, password) {
+      const user = db.prepare('SELECT id,recovery_hash FROM users WHERE username=?').get(username.toLowerCase());
+      if (!user?.recovery_hash || hash(recoveryKey) !== user.recovery_hash) return null;
+      const encoded = await passwordHash(password), replacement = `awr_${token()}`;
+      // Conditional update consumes the old key once even during concurrent resets.
+      const result = db.prepare('UPDATE users SET password=?,recovery_hash=? WHERE id=? AND recovery_hash=?').run(encoded, hash(replacement), user.id, user.recovery_hash);
+      if (!result.changes) return null;
+      db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id);
+      return { user: getUser(user.id), recoveryKey: replacement };
+    },
+    hostedConfig(id) {
+      const row = db.prepare('SELECT config FROM hosted_collectors WHERE connection_id=?').get(id);
+      return row ? crypt.open(row.config, `collector:${id}`) : {};
+    },
+    saveHostedConfig(id, config) {
+      db.prepare(`INSERT INTO hosted_collectors (connection_id,config,updated_at) VALUES (?,?,?)
+        ON CONFLICT(connection_id) DO UPDATE SET config=excluded.config,updated_at=excluded.updated_at`)
+        .run(id, crypt.seal(config, `collector:${id}`), new Date().toISOString());
+    },
+    hostedConnections() {
+      return db.prepare(`SELECT c.*,h.enabled FROM hosted_collectors h JOIN connections c ON c.id=h.connection_id WHERE c.revoked=0 AND c.collector='hosted'`).all();
+    },
     createPairing(connectionId, userId) {
-      const connection = db.prepare('SELECT id FROM connections WHERE id=? AND user_id=? AND revoked=0').get(connectionId, userId);
+      const connection = db.prepare("SELECT id FROM connections WHERE id=? AND user_id=? AND revoked=0 AND (collector IS NULL OR collector!='hosted')").get(connectionId, userId);
       if (!connection) return null;
       const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       // Ten independent symbols from a 32-character alphabet: 50 bits of entropy.

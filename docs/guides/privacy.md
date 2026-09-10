@@ -1,57 +1,47 @@
-# Your archive, your controls
+# Your data, privacy, and retention
 
-Understand access, encryption, retention, and deletion before you connect.
+What Afterword stores and how to remove it.
 
-<a id="access"></a>
+<a id="storage"></a>
 
-## What you authorize
+## Hosted sessions and message copies
 
-Connect only accounts and conversations you are authorized to retain. The current collectors capture covered conversations the linked account or bot receives; per-chat allowlists are not available in this release.
+Hosted collectors run on Afterword’s server. Platform login sessions, ordinary captured messages, and the revisions received by each collector are stored separately for each source. QR codes and pending login responses are temporary and visible only through the authenticated owner’s setup.
 
-The archive can preserve a captured copy after another participant edits or deletes the original. Set expectations with the people or communities whose conversations you archive.
+Saved platform credentials and message bodies are encrypted at rest. The server has the decryption keys and can read them to provide the service; this is not end-to-end encrypted storage.
 
-<a id="encryption"></a>
+Legacy local collectors keep their platform sessions on that computer. The Discord extension stores its own queue in the browser and uploads captured messages to the archive.
 
-## Where messages and credentials go
+<a id="coverage"></a>
 
-Platform credentials and sessions are stored on the computer running your companion. Captured message events are sent to your Afterword server over HTTPS. Message bodies and related names are encrypted in its database.
+## Coverage and limits
 
-The server holds the encryption key and decrypts messages for search and display. This is encryption at rest, not end-to-end encrypted cloud storage. Your Afterword operator controls the server and its backups.
+- Only messages/events received by a collector can be archived. Past deleted messages cannot be recovered.
+- Disappearing, self-destructing, and view-once content is excluded.
+- Attachment names and metadata may be recorded. File contents are not downloaded.
+- Unofficial Signal and WhatsApp integrations can break when their platforms change. Discord cloud capture is unavailable.
 
 <a id="retention"></a>
 
-## Choose how long to keep messages
+## Retention and export
 
-Settings → Archive retention lets you choose 7, 30, or 90 days, one year, or until you delete them. Age is measured from the first capture, and saved/bookmarked messages follow the same policy.
-
-Shortening retention immediately removes older messages. Export first if you need a copy. A deletion in the source app does not itself remove the saved archive.
+Choose 7, 30, 90, or 365 days, or keep messages until you delete them. Retention is measured from first capture and applies to saved messages as well. Lowering retention immediately removes older messages. Export includes all captured versions in JSON.
 
 <a id="deletion"></a>
 
-## Disconnecting and deleting are different
+## Disconnecting and deleting
 
-- Pause: stops storing newly delivered events until resumed. Paused events are discarded.
-- Disconnect source: revokes its archive key while preserving captured cloud history. Also unlink the companion in the platform app if you want to end platform access.
-- Delete archived message: removes its cloud revisions and prevents queued retries from restoring them. It does not delete the message in the original app.
-- Delete account: after password confirmation, removes its messages, connections, and sessions from the running archive database.
-- Remove local data: stop the companion, revoke/unlink the platform session, then remove that source’s profile folder. Cloud deletion does not delete files or backups on your computer.
+- Disconnect removes the hosted login for that source and stops capture; it keeps your existing archive.
+- Deleting an archived message removes its revisions and prevents later retries from recreating that item.
+- Account deletion removes that account’s archive, sign-in sessions, and hosted platform sessions.
+- Deleting here does not delete messages in the messaging platform. You can also unlink Afterword from the platform’s device settings. Deleted archive data may remain in restricted operational backups until those snapshots rotate out; the server keeps its latest seven snapshots.
 
-> Exports and backups are separate copies. The initial deployment has no automatic backup deletion service; the instance operator must manage any backups they create.
+<a id="use"></a>
 
-<a id="limits"></a>
+## Archive with authorization
 
-## What cannot be recovered
+Connect only accounts you control and retain only conversations you are authorized to keep. Captured copies may remain after a participant edits or deletes the original.
 
-- A message or earlier version the companion never received.
-- Changes missed while the computer, platform session, or network was unavailable.
-- Content outside a platform connection’s documented scope.
-- Disappearing/view-once content excluded by the collector, or attachment file bodies that were never downloaded.
-
-- [WhatsApp coverage](./whatsapp.md)
-- [Telegram coverage](./telegram.md)
-- [Discord coverage](./discord.md)
-- [Signal coverage](./signal.md)
-
-Instructions reviewed September 9, 2026. Platform screens may change.
+Instructions reviewed September 10, 2026. Platform screens may change.
 
 Generated from `web/guides.mjs`, the same content shown in the public help center.

@@ -38,12 +38,25 @@ export function createApp(store, config = {}) {
   const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: 25, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many sign-in attempts. Try again in 15 minutes.' } });
   app.get('/api/health', (_req, res) => { store.db.prepare('SELECT 1').get(); res.json({ ok: true, service: 'afterword' }); });
   app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode }));
+  app.get('/api/capabilities', (_req, res) => res.json({ hosted: config.collectors?.capabilities() || { enabled: false, platforms: {} } }));
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const input = credentials.parse(req.body);
     if (config.inviteCode && hash(String(req.body.inviteCode || '')) !== hash(config.inviteCode)) return res.status(403).json({ error: 'Enter a valid invitation code.' });
     if (store.userByName(input.username)) return res.status(409).json({ error: 'That username is unavailable.' });
     const user = await store.createUser(input.username, input.password);
-    res.cookie('afterword', store.session(user.id), cookieOptions).status(201).json({ user });
+    const recoveryKey = store.createRecoveryKey(user.id);
+    res.cookie('afterword', store.session(user.id), cookieOptions).status(201).json({ user: store.getUser(user.id), recoveryKey });
+  });
+  app.post('/api/auth/recover', authLimit, async (req, res) => {
+    const input = credentials.extend({ recoveryKey: z.string().regex(/^awr_[A-Za-z0-9_-]{43}$/) }).parse(req.body);
+    const result = await store.recoverAccount(input.username, input.recoveryKey, input.password);
+    if (!result) return res.status(403).json({ error: 'Username or recovery key is incorrect.' });
+    res.cookie('afterword', store.session(result.user.id), cookieOptions).json(result);
+  });
+  app.post('/api/auth/recovery-key', auth, authLimit, async (req, res) => {
+    const { password } = z.object({ password: z.string().max(128) }).parse(req.body);
+    if (!await checkPassword(password, store.userByName(req.user.username).password)) return res.status(403).json({ error: 'Password is incorrect.' });
+    res.json({ recoveryKey: store.createRecoveryKey(req.user.id), user: store.getUser(req.user.id) });
   });
   app.post('/api/auth/login', authLimit, async (req, res) => {
     const { username, password } = credentials.parse(req.body);
@@ -67,8 +80,29 @@ export function createApp(store, config = {}) {
     res.status(201).json({ connection: store.createConnection(req.user.id, input.platform, input.name) });
   });
   app.post('/api/connections/:id/pairing', auth, (req, res) => {
+    if (store.connection(req.params.id, req.user.id)?.collector === 'hosted') return res.status(409).json({ error: 'This connection runs on the server. Manage it through hosted setup.' });
     const pairing = store.createPairing(req.params.id, req.user.id);
     return pairing ? res.json({ pairing }) : res.status(404).json({ error: 'Connection not found.' });
+  });
+  const hostedLimit = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many setup requests. Try again in a minute.' } });
+  const hosted = (req, res, next) => {
+    if (!config.collectors) return res.status(503).json({ error: 'Hosted connections are not enabled on this server.' });
+    const c = store.connection(req.params.id, req.user.id);
+    if (!c || c.revoked) return res.status(404).json({ error: 'Connection not found.' });
+    next();
+  };
+  app.get('/api/connections/:id/hosted', auth, hosted, (req, res) => res.json({ setup: config.collectors.status(req.params.id) }));
+  app.post('/api/connections/:id/hosted/start', auth, hostedLimit, hosted, async (req, res) => {
+    const input = z.object({ consent: z.boolean().default(false), restart: z.boolean().default(false), relink: z.boolean().default(false) }).parse(req.body);
+    res.json({ setup: await config.collectors.start(req.params.id, req.user.id, input) });
+  });
+  app.post('/api/connections/:id/hosted/reply', auth, hostedLimit, hosted, (req, res) => {
+    const input = z.object({ promptId: z.string().uuid(), value: z.string().min(1).max(256).refine(v => !/[\r\n]/.test(v)) }).parse(req.body);
+    res.json(config.collectors.reply(req.params.id, req.user.id, input.promptId, input.value));
+  });
+  app.post('/api/connections/:id/hosted/stop', auth, hostedLimit, hosted, async (req, res) => {
+    await config.collectors.suspend(req.params.id);
+    res.json({ ok: true });
   });
   const pairLimit = rateLimit({ windowMs: 15 * 60_000, limit: 15, standardHeaders: 'draft-8', legacyHeaders: false,
     message: { error: 'Too many pairing attempts. Wait 15 minutes, then generate a new code in Connections.' } });
@@ -84,10 +118,14 @@ export function createApp(store, config = {}) {
     const c = store.connection(req.params.id, req.user.id);
     if (!c || c.revoked) return res.status(404).json({ error: 'Connection not found.' });
     store.db.prepare('UPDATE connections SET paused=? WHERE id=? AND user_id=?').run(+paused, c.id, req.user.id);
+    config.collectors?.pause(c.id, paused);
     res.json({ ok: true });
   });
-  app.delete('/api/connections/:id', auth, (req, res) => {
+  app.delete('/api/connections/:id', auth, async (req, res) => {
+    const c = store.connection(req.params.id, req.user.id);
+    if (!c) return res.status(404).json({ error: 'Connection not found.' });
     store.db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='disconnected' WHERE id=? AND user_id=?").run(req.params.id, req.user.id);
+    await config.collectors?.remove(c.id);
     res.json({ ok: true });
   });
   app.post('/api/heartbeat', source, (req, res) => {
@@ -141,6 +179,9 @@ export function createApp(store, config = {}) {
   app.delete('/api/account', auth, authLimit, async (req, res) => {
     const { password } = z.object({ password: z.string().max(128) }).parse(req.body);
     if (!await checkPassword(password, store.userByName(req.user.username).password)) return res.status(403).json({ error: 'Password is incorrect.' });
+    const ids = store.connections(req.user.id).map(c => c.id);
+    store.db.prepare('UPDATE connections SET revoked=1,token_hash=NULL WHERE user_id=?').run(req.user.id);
+    await Promise.all(ids.map(id => config.collectors?.remove(id)));
     store.db.prepare('DELETE FROM users WHERE id=?').run(req.user.id);
     res.clearCookie('afterword', cookieOptions).json({ ok: true });
   });
@@ -158,6 +199,7 @@ export function createApp(store, config = {}) {
   app.use(express.static(resolve('dist'), { index: false, maxAge: '1h' }));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
   app.use((error, _req, res, _next) => {
+    if (error.public && [400, 404, 409, 503].includes(error.status)) return res.status(error.status).json({ error: error.message });
     if (error instanceof ZodError) return res.status(400).json({ error: error.issues[0]?.message || 'Invalid request.' });
     if (error.status === 413) return res.status(413).json({ error: 'Request is too large.' });
     if (error instanceof SyntaxError) return res.status(400).json({ error: 'Invalid JSON.' });

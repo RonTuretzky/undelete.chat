@@ -3,9 +3,16 @@ services:
     build:
       context: ..
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    pids_limit: 256
     env_file: .env
     volumes:
       - archive-data:/data
+      # signal-cli expands a large native library here. Disk storage avoids
+      # spending the server's RAM on executable library copies; no sessions
+      # are stored in this cache. The supervisor clears each worker's files.
+      - signal-native-cache:/run/signal-native
     ports:
       - '127.0.0.1:4318:4318'
     security_opt:
@@ -13,9 +20,10 @@ services:
     cap_drop: [ALL]
     read_only: true
     tmpfs:
-      - /tmp:size=32m
+      - /tmp:size=256m,mode=1777
     logging:
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
 volumes:
   archive-data:
+  signal-native-cache:
