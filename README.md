@@ -1,10 +1,10 @@
 # Afterword
 
-A hosted message archive with per-account workspaces and a local companion for Discord, Telegram, Signal and WhatsApp. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
+A hosted message archive for individuals, with per-account workspaces and a local companion for personal Telegram, Signal and WhatsApp accounts. Personal Discord capture is an unimplemented product requirement; it is currently unavailable. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
 
 ## User onboarding and documentation
 
-Open **Help & guides** in the app or visit `/docs` for the public help center. It covers first setup, all four platform integrations, troubleshooting, continuous capture, and privacy. The in-app wizard uses a single-use, ten-minute pairing code; the companion automatically saves its connection key and assigns an isolated profile. It then waits for a real platform heartbeat and first message rather than marking setup complete after a download.
+Open **Help & guides** in the app or visit `/docs` for the public help center. It covers first setup, personal-account connection guides and Discord availability, troubleshooting, continuous capture, and privacy. The in-app wizard uses a single-use, ten-minute pairing code; the companion automatically saves its connection key and assigns an isolated profile. It then waits for a real platform heartbeat and first message rather than marking setup complete after a download.
 
 The [user guides](docs/guides/README.md) are generated from `web/guides.mjs`, which also renders the help center. Run `npm run docs` after editing. `npm run package:companion` produces ZIP and tar.gz downloads with a minimal dependency manifest and offline copies of all guides. Existing connections can continue setup without creating another source; re-pairing rotates only that source’s archive token when the new code is redeemed.
 
@@ -28,12 +28,12 @@ The production API serves the compiled UI on port 4318. Copy `.env.example` to `
 
 | Platform | Implementation | Coverage |
 | --- | --- | --- |
-| Discord | Official bot through discord.js | Accessible server channels and DMs to the bot; create, edit, delete, bulk delete |
+| Discord | Personal connector not implemented | Unavailable; the earlier server-bot adapter does not meet the personal-message requirement |
 | Telegram | Personal account through teleproto / MTProto | Ordinary cloud chats; new messages, edits, delivered deletion updates |
 | Signal | Unofficial signal-cli linked device | Incoming and synced outgoing ordinary messages, edits and remote deletes |
 | WhatsApp | Unofficial Baileys linked device | New deliveries, edits and revoke events exposed by the linked session |
 
-**This is not universal access to every message on all four platforms.** Discord personal DMs are outside the supported bot integration. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. Signal/WhatsApp linked-device compatibility is experimental until validated against the user's live accounts. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
+**This is not universal access to every message on all four platforms.** Personal Discord capture is unavailable. New Discord sources and server-bot pairing are disabled; existing stored records remain accessible. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. Signal/WhatsApp linked-device compatibility is experimental until validated against the user's live accounts. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
 
 ## Architecture
 

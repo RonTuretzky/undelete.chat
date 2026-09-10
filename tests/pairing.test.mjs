@@ -86,3 +86,22 @@ test('pairing refuses insecure or credential-bearing remote URLs', () => {
   assert.equal(serverOrigin('http://localhost:4318'), 'http://localhost:4318');
   for (const url of ['http://example.com', 'https://secret@example.com', 'https://example.com/path', 'https://example.com?token=x', 'not a url']) assert.throws(() => serverOrigin(url));
 });
+
+test('personal-account onboarding rejects Discord bot setup without affecting Telegram pairing or existing records', async t => {
+  const { store, alice, connection } = await fixture(t);
+  const legacy = store.createConnection(alice.id, 'discord', 'Earlier Discord source');
+  store.ingest(store.connectionByToken(legacy.token), { eventId: 'legacy', kind: 'create', scope: 'test', externalId: '1', text: 'Existing record', occurredAt: new Date().toISOString() });
+  const server = createApp(store).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const headers = { Cookie: `afterword=${store.session(alice.id)}`, 'Content-Type': 'application/json' };
+  const creation = await fetch(`${origin}/api/connections`, { method: 'POST', headers, body: JSON.stringify({ platform: 'discord', name: 'My Discord' }) });
+  assert.equal(creation.status, 409);
+  assert.match((await creation.json()).error, /Personal Discord capture is not available/);
+  assert.equal((await fetch(`${origin}/api/connections/${legacy.id}/pairing`, { method: 'POST', headers })).status, 409);
+  assert.equal((await fetch(`${origin}/api/connections/${connection.id}/pairing`, { method: 'POST', headers })).status, 200);
+  const listed = await (await fetch(`${origin}/api/messages`, { headers })).json();
+  assert.equal(listed.messages[0].text, 'Existing record');
+  assert.equal(store.connections(alice.id).length, 2);
+});

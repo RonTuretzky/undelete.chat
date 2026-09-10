@@ -39,9 +39,9 @@ Find the status you see, then take the next step.
 
 <a id="credentials"></a>
 
-## Replace a bot token or application credentials
+## Replace Telegram application credentials
 
-Use this when the companion saved a mistyped Discord token or Telegram API ID/hash. It updates only the platform credentials for the chosen profile; your queue, archive connection, and message history stay intact.
+Use this when the companion saved a mistyped Telegram API ID/hash. It updates only the platform credentials for the chosen profile; your queue, archive connection, and message history stay intact.
 
 ```sh
 npm start -- credentials YOUR-PROFILE
@@ -65,7 +65,7 @@ npm start -- relink YOUR-PROFILE
 npm start -- run YOUR-PROFILE
 ```
 
-> For Discord, use credentials instead: the bot token comes from the Developer Portal. Relinking cannot restore edits or deletions missed while the collector was disconnected.
+> Relinking cannot restore edits or deletions missed while the collector was disconnected.
 
 <a id="missing"></a>
 
@@ -74,7 +74,7 @@ npm start -- run YOUR-PROFILE
 - Confirm you are viewing your signed-in archive, not sample data, and clear search/platform filters.
 - Use a new ordinary text message in a covered conversation. Content from before capture started is not backfilled.
 - Check that the computer stayed awake, that the source is not paused, and that the terminal reports no errors.
-- Signal/WhatsApp disappearing or view-once messages and Telegram secret/self-destructing messages are excluded. Discord only sees conversations accessible to its bot.
+- Signal/WhatsApp disappearing or view-once messages and Telegram secret/self-destructing messages are excluded. Personal Discord capture is not available in this release.
 - If the archive server was down, received events stay queued locally and upload after it recovers. Activity never delivered to the companion is not in that queue.
 - Telegram may omit deletion events. Attachment filenames can appear without downloadable files because this release stores metadata only.
 

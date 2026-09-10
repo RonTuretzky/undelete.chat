@@ -41,7 +41,7 @@ Captures ordinary incoming messages, synced outgoing messages, edits, and remote
 2. Download and extract the companion ZIP. Open a terminal in its folder, then copy the install and pairing commands from the setup screen.
 3. Enter the short Afterword pairing code in the terminal. The companion selects the right platform automatically; finish the sign-in steps or scan the QR code it displays.
 
-> You do not enter your platform password or bot token into the Afterword website. Platform credentials and sessions stay on the computer running your companion.
+> You do not enter your platform password into the Afterword website. Platform credentials and sessions stay on the computer running your companion.
 
 <a id="verify"></a>
 

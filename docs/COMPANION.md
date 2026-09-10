@@ -12,14 +12,14 @@ Your companion receives messages on your computer and sends captured versions to
 6. Enter the short pairing code when the terminal asks. Each code works once and expires after ten minutes.
 7. Follow the platform sign-in or QR prompts. Keep the browser setup open until it confirms connection, then send your own test message in a covered conversation.
 
-Platform passwords, bot tokens, and sessions stay on the computer running the companion. Your Afterword server can decrypt captured message content; the cloud archive is encrypted at rest, not end-to-end encrypted.
+Platform credentials and sessions stay on the computer running the companion. Your Afterword server can decrypt captured message content; the cloud archive is encrypted at rest, not end-to-end encrypted.
 
 ## Step-by-step guides
 
 - [Start your first archive](guides/getting-started.md) — includes Windows, macOS, and Linux terminal instructions.
 - [Connect WhatsApp](guides/whatsapp.md) — linked-device QR pairing through unofficial Baileys.
 - [Connect Telegram](guides/telegram.md) — application credentials, phone sign-in, and verification.
-- [Connect Discord](guides/discord.md) — install a server bot, enable Message Content Intent, and enter its bot token.
+- [Personal Discord availability](guides/discord.md) — personal capture is not implemented; no bot setup is required.
 - [Connect Signal](guides/signal.md) — install signal-cli and link your phone by QR code.
 - [Troubleshooting](guides/troubleshooting.md) — expired codes, missing messages, bad credentials, and relinking.
 - [Continuous capture and local storage](guides/running.md) — resume, additional accounts, updates, and background operation.
@@ -46,12 +46,12 @@ npm start -- credentials YOUR-PROFILE
 npm start -- relink YOUR-PROFILE
 ```
 
-`doctor` checks Node.js and signal-cli availability. `credentials` replaces a saved Discord bot token or Telegram app credentials without deleting the queue. `relink` asks you to type `RELINK` before clearing a Telegram, Signal, or WhatsApp platform session; it preserves your archive key and queued events. Stop that profile's other process first, then run its Resume command to sign in again. See the troubleshooting guide before using these commands.
+`doctor` checks Node.js and signal-cli availability. `credentials` replaces saved Telegram app credentials without deleting the queue. `relink` asks you to type `RELINK` before clearing a Telegram, Signal, or WhatsApp platform session; it preserves your archive key and queued events. Stop that profile's other process first, then run its Resume command to sign in again. See the troubleshooting guide before using these commands.
 
 For advanced users with an existing long-lived connection key, `npm start -- setup YOUR-PROFILE` remains available. Older profiles keep their chosen names; their Resume command is `npm start -- run YOUR-ORIGINAL-PROFILE`.
 
 ## Limits to understand
 
-Capture starts when a running, authorized companion receives a message. It cannot recover an unseen earlier revision or guarantee events the platform never delivers. Discord personal DMs between users are outside the bot connection. Disappearing/view-once content is excluded. Attachments preserve filenames/types, not file contents. Signal and WhatsApp integrations are unofficial and need live verification and maintenance.
+Capture starts when a running, authorized companion receives a message. It cannot recover an unseen earlier revision or guarantee events the platform never delivers. Personal Discord capture is unavailable; the old bot adapter is not a personal-account connector. Disappearing/view-once content is excluded. Attachments preserve filenames/types, not file contents. Signal and WhatsApp integrations are unofficial and need live verification and maintenance.
 
 Local profiles live inside `.afterword` in your user home directory. Platform sessions, credentials, and the encrypted retry queue are stored there with restricted permissions. Some metadata remains to correlate edits. Deleting cloud history does not erase local files or backups. Read the privacy guide before removing a profile or sharing a diagnostic report.

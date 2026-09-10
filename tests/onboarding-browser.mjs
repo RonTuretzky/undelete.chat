@@ -35,6 +35,8 @@ try {
     await noOverflow();
   }
   await page.goto(`${base}/docs/discord`);
+  await expect(page.getByRole('button', { name: 'Connect Discord', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Personal Discord capture is unavailable.', { exact: false })).toBeVisible();
   await page.screenshot({ path: join(output, 'discord-guide-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   for (const slug of ['getting-started', ...platformOrder, 'troubleshooting']) {
@@ -56,7 +58,8 @@ try {
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page.locator('dialog').getByRole('heading', { name: 'Connect WhatsApp', exact: true })).toBeVisible();
   created = true;
-  for (const platform of platformOrder) {
+  const availablePlatforms = platformOrder.filter(p => platformGuides[p].available !== false);
+  for (const platform of availablePlatforms) {
     const name = platformGuides[platform].name;
     if (platform !== 'whatsapp') {
       await connections();
@@ -110,14 +113,14 @@ try {
     await page.screenshot({ path: join(output, `${platform}-verified.png`) });
     await noOverflow();
     await dialog.getByRole('button', { name: 'Open my archive', exact: true }).click();
-    await expect(page.locator('.message-row')).toHaveCount(platformOrder.indexOf(platform) + 1);
+    await expect(page.locator('.message-row')).toHaveCount(availablePlatforms.indexOf(platform) + 1);
   }
   await connections();
-  await expect(page.locator('.source-row')).toHaveCount(4);
+  await expect(page.locator('.source-row')).toHaveCount(availablePlatforms.length);
   await noOverflow();
   await page.screenshot({ path: join(output, 'connected-sources-mobile.png'), fullPage: true });
   expect(issues).toEqual([]);
-  console.log('PASS: eight public guides, direct links, mobile layouts, guide-to-signup intent, all four guided connections, Windows commands, resume without duplicates, code replacement, ZIP download, honest pending states, and first-message verification. Collector events were simulated; no provider sign-ins were attempted.');
+  console.log('PASS: eight public guides, direct links, mobile layouts, guide-to-signup intent, all available guided connections, Windows commands, resume without duplicates, code replacement, ZIP download, honest pending states, and first-message verification. Collector events were simulated; no provider sign-ins were attempted.');
 } finally {
   if (created) {
     const removed = await page.request.delete(`${base}/api/account`, { data: { password } });

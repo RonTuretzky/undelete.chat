@@ -63,10 +63,13 @@ export function createApp(store, config = {}) {
   app.get('/api/connections', auth, (req, res) => res.json({ connections: store.connections(req.user.id) }));
   app.post('/api/connections', auth, (req, res) => {
     const input = z.object({ platform: z.enum(platforms), name: z.string().trim().min(1).max(100) }).parse(req.body);
+    if (input.platform === 'discord') return res.status(409).json({ error: 'Personal Discord capture is not available yet. Server bots do not connect your personal inbox.' });
     if (store.connections(req.user.id).filter(c => !c.revoked).length >= 20) return res.status(409).json({ error: 'Maximum of 20 connections per account.' });
     res.status(201).json({ connection: store.createConnection(req.user.id, input.platform, input.name) });
   });
   app.post('/api/connections/:id/pairing', auth, (req, res) => {
+    const source = store.connections(req.user.id).find(c => c.id === req.params.id);
+    if (source?.platform === 'discord') return res.status(409).json({ error: 'Personal Discord capture is not available yet. Server-bot setup has been withdrawn.' });
     const pairing = store.createPairing(req.params.id, req.user.id);
     return pairing ? res.json({ pairing }) : res.status(404).json({ error: 'Connection not found.' });
   });

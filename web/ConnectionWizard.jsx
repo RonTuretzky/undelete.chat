@@ -25,7 +25,7 @@ export function ConnectionWizard({ initialPlatform, initialConnection, Modal, Pl
   const captured = connection?.last_message_at && (!connection.paired_at || connection.last_message_at >= connection.paired_at);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   useEffect(() => {
-    if (!connection?.id) return;
+    if (!connection?.id || info?.available === false) return;
     let active = true;
     const check = async () => { try {
       const result = await api('/connections');
@@ -38,6 +38,7 @@ export function ConnectionWizard({ initialPlatform, initialConnection, Modal, Pl
     return () => { active = false; clearInterval(timer); };
   }, [connection?.id, pairing?.createdAt]);
   async function generate(existing = connection) {
+    if (info?.available === false) return;
     setBusy(true); setError('');
     try {
       const c = existing || (await api('/connections', { method: 'POST', body: { platform, name } })).connection;
@@ -46,6 +47,10 @@ export function ConnectionWizard({ initialPlatform, initialConnection, Modal, Pl
       setPairing(result.pairing); setStep(2);
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
+  if (info?.available === false) return <Modal title="Personal Discord messages" onClose={onClose}>
+    <p className="modal-description">{info.coverage}</p><p className="wizard-smallprint">{info.exclusions} A server bot cannot connect your personal inbox.</p>
+    <div className="wizard-actions"><button className="button secondary" onClick={() => { setPlatform(null); setConnection(null); setStep(0); }}>Choose another account</button><a className="button primary" href="/docs/discord" target="_blank" rel="noreferrer">View availability<ExternalLink size={15}/></a></div>
+  </Modal>;
   const title = step === 0 ? 'Choose your first connection' : step === 3 ? `${info.name} connection check` : `Connect ${info.name}`;
   return <Modal title={title} wide onClose={onClose}>
     {step > 0 && <ol className="setup-progress" aria-label="Connection setup progress">{['Check access', 'Pair companion', 'Verify capture'].map((label, i) => <li key={label} className={step === i + 1 ? 'current' : step > i + 1 ? 'complete' : ''} aria-current={step === i + 1 ? 'step' : undefined}><span>{step > i + 1 ? <Check size={12}/> : i + 1}</span>{label}</li>)}</ol>}
