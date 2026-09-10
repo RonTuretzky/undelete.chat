@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import qr from 'qrcode-terminal';
 import { signalEvent } from './normalize.mjs';
 
+// Observed provisioning window before signal-cli rejects finishLink, and the
+// number of fresh codes offered before the sign-in is reported as failed.
+export const linkWindowMs = 115_000, maxLinkAttempts = 5;
 export async function startSignal(ctx) {
   const directory = join(ctx.directory, 'signal-session');
   const nativeOptions = ctx.hosted && process.env.SIGNAL_NATIVE_DIR ? [`-Djava.io.tmpdir=${process.env.SIGNAL_NATIVE_DIR}`] : [];
@@ -59,11 +62,21 @@ export async function startSignal(ctx) {
   try {
     const accounts = await rpc('listAccounts');
     if (!accounts?.length) {
-      const { deviceLinkUri } = await rpc('startLink');
-      if (ctx.showQR) ctx.showQR(deviceLinkUri, Date.now() + 170_000);
-      else { console.log('Scan in Signal → Settings → Linked devices:'); qr.generate(deviceLinkUri, { small: true }); }
-      ctx.health('waiting', ctx.hosted ? 'Scan this code in Signal → Linked devices' : 'Scan the QR code in your companion terminal');
-      await rpc('finishLink', { deviceLinkUri, deviceName: ctx.hosted ? 'Afterword Cloud' : 'Afterword companion' });
+      // Signal closes a provisioning link about two minutes after it is issued;
+      // signal-cli then fails finishLink. Issue a fresh code instead of failing
+      // the whole sign-in while the user is still on the linking screen. The
+      // worker's own setup deadline bounds the total wait.
+      for (let attempt = 1; ; attempt++) {
+        const { deviceLinkUri } = await rpc('startLink');
+        if (ctx.showQR) ctx.showQR(deviceLinkUri, Date.now() + linkWindowMs);
+        else { console.log('Scan in Signal → Settings → Linked devices:'); qr.generate(deviceLinkUri, { small: true }); }
+        ctx.health('waiting', ctx.hosted ? 'Scan this code in Signal → Linked devices' : 'Scan the QR code in your companion terminal');
+        try { await rpc('finishLink', { deviceLinkUri, deviceName: ctx.hosted ? 'Afterword Cloud' : 'Afterword companion' }); break; }
+        catch (error) {
+          if (stopped || attempt >= maxLinkAttempts || !/^Signal RPC /.test(error.message)) throw error;
+          ctx.health('waiting', 'The previous code expired. A fresh code is being prepared.');
+        }
+      }
     }
     await ctx.checkpoint?.();
     ctx.health('connected', 'Signal linked device connected');

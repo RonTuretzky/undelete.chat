@@ -11,7 +11,7 @@ import { createCollectorManager } from '../server/hosted/manager.mjs';
 import { openQueue } from '../companion/queue.mjs';
 import { encryptedWhatsAppAuth } from '../companion/adapters/whatsapp-auth.mjs';
 import { signalVault } from '../server/hosted/signal-vault.mjs';
-import { startSignal } from '../companion/adapters/signal.mjs';
+import { startSignal, linkWindowMs, maxLinkAttempts } from '../companion/adapters/signal.mjs';
 const until = async (fn, limit = 10_000) => { const deadline = Date.now() + limit; while (Date.now() < deadline) { if (await fn()) return; await new Promise(r => setTimeout(r, 30)); } throw new Error('Condition did not become true'); };
 async function fixture(t, options = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'afterword-hosted-test-'));
@@ -240,4 +240,38 @@ test('a worker that cannot be started is retried with backoff instead of crashin
   assert.equal(attempts, 2); assert.equal(rejections.length, 0);
   await f.manager.suspend(c.id);
   assert.equal(f.manager.status(c.id).running, false);
+});
+test('Signal linking issues a fresh code when the provisioning window closes and gives up after the attempt limit', { skip: process.platform === 'win32' }, async t => {
+  const directory = mkdtempSync(join(tmpdir(), 'afterword-signal-link-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(join(directory, 'signal-cli'), `#!/usr/bin/env node
+const failures = Number(process.env.FAKE_LINK_FAILURES); let links = 0, finishes = 0;
+const lines = require('node:readline').createInterface({ input: process.stdin });
+lines.on('line', line => {
+  const r = JSON.parse(line), reply = result => console.log(JSON.stringify({ jsonrpc: '2.0', id: r.id, result }));
+  if (r.method === 'listAccounts') reply([]);
+  else if (r.method === 'startLink') reply({ deviceLinkUri: 'sgnl://linkdevice?uuid=code-' + (++links) });
+  else if (r.method === 'finishLink') { if (++finishes <= failures) console.log(JSON.stringify({ jsonrpc: '2.0', id: r.id, error: { code: -1, message: 'Link request timed out' } })); else reply({ number: '+15550100' }); }
+});
+process.on('SIGTERM', () => process.exit(0));
+`, { mode: 0o700 });
+  const run = async failures => {
+    const codes = [], states = [];
+    const oldPath = process.env.PATH, oldFailures = process.env.FAKE_LINK_FAILURES; let starting;
+    try {
+      process.env.PATH = directory + ':' + oldPath; process.env.FAKE_LINK_FAILURES = String(failures);
+      starting = startSignal({ directory: join(directory, 'run-' + failures), hosted: true, showQR: (value, expiresAt) => codes.push({ value, expiresAt }), health: (state, detail) => states.push(state + ':' + detail), checkpoint: async () => {} });
+    } finally { process.env.PATH = oldPath; if (oldFailures === undefined) delete process.env.FAKE_LINK_FAILURES; else process.env.FAKE_LINK_FAILURES = oldFailures; }
+    return { codes, states, result: starting };
+  };
+  const recovered = await run(2);
+  const stop = await recovered.result; t.after(stop);
+  assert.deepEqual(recovered.codes.map(c => c.value), ['sgnl://linkdevice?uuid=code-1', 'sgnl://linkdevice?uuid=code-2', 'sgnl://linkdevice?uuid=code-3']);
+  assert.ok(recovered.codes.every(c => c.expiresAt - Date.now() <= linkWindowMs && c.expiresAt - Date.now() > linkWindowMs - 10_000));
+  assert.equal(recovered.states.filter(s => s.startsWith('waiting:The previous code expired')).length, 2);
+  assert.equal(recovered.states.at(-1), 'connected:Signal linked device connected');
+  await stop();
+  const exhausted = await run(maxLinkAttempts);
+  await assert.rejects(exhausted.result, /Signal RPC -1/);
+  assert.equal(exhausted.codes.length, maxLinkAttempts);
 });
