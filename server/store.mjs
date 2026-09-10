@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { cipher, hash, token, passwordHash } from './crypto.mjs';
+import { createArchiveReader } from './archive-reader.mjs';
 
 export const platforms = ['discord', 'telegram', 'signal', 'whatsapp'];
 const short = z.string().min(1).max(256);
@@ -35,7 +36,8 @@ export function createStore(path, encryptionKey) {
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       connection_id TEXT NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
       platform TEXT NOT NULL, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL,
-      saved INTEGER NOT NULL DEFAULT 0
+      saved INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'captured',
+      version_count INTEGER NOT NULL DEFAULT 0, edit_count INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT, message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
@@ -46,6 +48,30 @@ export function createStore(path, encryptionKey) {
     CREATE INDEX IF NOT EXISTS messages_owner ON messages(user_id,last_seen DESC);
     CREATE INDEX IF NOT EXISTS events_message ON events(message_id,occurred_at,id);
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);`);
+  const messageColumns = new Set(db.prepare('PRAGMA table_info(messages)').all().map(c => c.name));
+  const addedColumns = { status: "TEXT NOT NULL DEFAULT 'captured'", version_count: 'INTEGER NOT NULL DEFAULT 0', edit_count: 'INTEGER NOT NULL DEFAULT 0' };
+  if (Object.keys(addedColumns).some(name => !messageColumns.has(name))) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      // Another process may have finished migrating while we waited for the lock.
+      const currentColumns = new Set(db.prepare('PRAGMA table_info(messages)').all().map(c => c.name));
+      for (const [name, definition] of Object.entries(addedColumns)) if (!currentColumns.has(name)) db.exec(`ALTER TABLE messages ADD COLUMN ${name} ${definition}`);
+      // Existing encrypted payloads need no decryption or rewrite to migrate.
+      db.exec(`UPDATE messages SET
+        version_count=(SELECT count(*) FROM events WHERE message_id=messages.id AND kind!='delete'),
+        edit_count=(SELECT count(*) FROM events WHERE message_id=messages.id AND kind='edit'),
+        status=CASE WHEN EXISTS(SELECT 1 FROM events WHERE message_id=messages.id AND kind='delete') THEN 'deleted'
+          WHEN EXISTS(SELECT 1 FROM events WHERE message_id=messages.id AND kind='edit') THEN 'edited' ELSE 'captured' END;
+        COMMIT;`);
+    } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
+  }
+  db.exec(`CREATE INDEX IF NOT EXISTS messages_page ON messages(user_id,last_seen DESC,id);
+    CREATE INDEX IF NOT EXISTS messages_platform_page ON messages(user_id,platform,last_seen DESC,id);
+    CREATE INDEX IF NOT EXISTS messages_status_page ON messages(user_id,status,last_seen DESC,id);
+    CREATE INDEX IF NOT EXISTS messages_scan ON messages(user_id,id);
+    CREATE INDEX IF NOT EXISTS messages_connection ON messages(connection_id,last_seen DESC);
+    CREATE INDEX IF NOT EXISTS events_history ON events(message_id,occurred_at,CASE kind WHEN 'create' THEN 0 WHEN 'edit' THEN 1 ELSE 2 END,id);`);
+  const reader = createArchiveReader(db, crypt);
   db.exec(`CREATE TABLE IF NOT EXISTS forgotten (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE);`);
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'recovery_hash')) db.exec('ALTER TABLE users ADD COLUMN recovery_hash TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'paired_at')) db.exec('ALTER TABLE connections ADD COLUMN paired_at TEXT');
@@ -96,6 +122,10 @@ export function createStore(path, encryptionKey) {
         ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen`).run(id, connection.user_id, connection.id, connection.platform, now, now);
       db.prepare('INSERT INTO events (message_id,connection_id,event_uid,kind,occurred_at,received_at,payload) VALUES (?,?,?,?,?,?,?)')
         .run(id, connection.id, uid, e.kind, e.occurredAt, now, crypt.seal(e, `${connection.user_id}:${id}:${uid}`));
+      db.prepare(`UPDATE messages SET version_count=version_count+?,edit_count=edit_count+?,
+        status=CASE WHEN status='deleted' OR ?='delete' THEN 'deleted'
+          WHEN status='edited' OR ?='edit' THEN 'edited' ELSE 'captured' END WHERE id=?`)
+        .run(+(e.kind !== 'delete'), +(e.kind === 'edit'), e.kind, e.kind, id);
       db.exec('COMMIT');
       return { id, duplicate: false };
     } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -108,7 +138,7 @@ export function createStore(path, encryptionKey) {
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
     db.prepare('DELETE FROM pairing_codes WHERE expires_at < ?').run(new Date().toISOString());
   }
-  return { db, getUser, connections, ingest, purge,
+  return { db, getUser, connections, ingest, purge, ...reader,
     createRecoveryKey(userId) {
       const secret = `awr_${token()}`;
       db.prepare('UPDATE users SET recovery_hash=? WHERE id=?').run(hash(secret), userId);

@@ -5,7 +5,7 @@ root = pathlib.Path(__file__).resolve().parent.parent
 private = pathlib.Path.home() / '.config' / 'afterword'
 state = json.loads((private / 'deployment.json').read_text())
 if not state.get('ip'): raise SystemExit('Run provision.py again to resolve the server IP.')
-ssh_options = ['-i', str(private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(private / 'known_hosts'), '-o', 'ConnectTimeout=15']
+ssh_options = ['-i', str(private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(private / 'known_hosts'), '-o', 'ConnectTimeout=15']
 target = 'root@' + state['ip']
 def remote(command, input=None, capture=False):
     return subprocess.run(['ssh', *ssh_options, target, command], input=input, text=True, check=True, capture_output=capture)

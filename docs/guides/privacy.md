@@ -10,6 +10,8 @@ Hosted collectors run on Afterword’s server. Platform login sessions, ordinary
 
 Saved platform credentials and message bodies are encrypted at rest. The server has the decryption keys and can read them to provide the service; this is not end-to-end encrypted storage.
 
+Full-server recovery backups include the server’s decryption keys. Access to those backups is restricted to infrastructure operators; our hosting provider does not encrypt those server images at rest.
+
 Legacy local collectors keep their platform sessions on that computer. The Discord extension stores its own queue in the browser and uploads captured messages to the archive.
 
 <a id="coverage"></a>
@@ -34,7 +36,7 @@ Choose 7, 30, 90, or 365 days, or keep messages until you delete them. Retention
 - Disconnect removes the hosted login for that source and stops capture; it keeps your existing archive.
 - Deleting an archived message removes its revisions and prevents later retries from recreating that item.
 - Account deletion removes that account’s archive, sign-in sessions, and hosted platform sessions.
-- Deleting here does not delete messages in the messaging platform. You can also unlink Afterword from the platform’s device settings. Deleted archive data may remain in restricted operational backups until those snapshots rotate out; the server keeps its latest seven snapshots.
+- Deleting here does not delete messages in the messaging platform. You can also unlink Afterword from the platform’s device settings. Deleted archive data may remain in restricted operational backups until they expire. Application backups keep the latest seven snapshots; daily server backups are retained for seven days.
 
 <a id="use"></a>
 

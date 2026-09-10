@@ -34,13 +34,14 @@ function App() {
   const [connectPlatform, setConnectPlatform] = useState(null), [resumeConnection, setResumeConnection] = useState(null);
   const [guideSlug, setGuideSlug] = useState(window.location.pathname.split('/')[2] || '');
   const [wantedPlatform, setWantedPlatform] = useState(null);
+  const archiveRequest = useRef(null);
   const isDemo = !user;
   const notify = text => { setNotice(text); };
   const reload = () => setRefresh(v => v + 1);
   useEffect(() => { api('/me').then(d => { setUser(d.user); setInvite(d.inviteRequired); }).catch(e => setError(e.message)).finally(() => setBooting(false)); }, []);
   useEffect(() => { const timer = setTimeout(() => { setDebounced(query); setOffset(0); }, 200); return () => clearTimeout(timer); }, [query]);
   useEffect(() => { if (notice) { const timer = setTimeout(() => setNotice(''), 4500); return () => clearTimeout(timer); } }, [notice]);
-  useEffect(() => { if (!user) return; const timer = setInterval(reload, 12_000); return () => clearInterval(timer); }, [user]);
+  useEffect(() => { if (!user) return; const timer = setInterval(() => { if (!archiveRequest.current) reload(); }, 12_000); return () => clearInterval(timer); }, [user]);
   useEffect(() => {
     let alive = true;
     const status = ['deleted', 'edited'].includes(view) ? view : '';
@@ -50,9 +51,10 @@ function App() {
       setMessages(rows); setTotal(rows.length); setStats({ total: demo.length, edited: demo.filter(m => m.status === 'edited').length, deleted: demo.filter(m => m.status === 'deleted').length, saved: demo.filter(m => m.saved).length, edits: demo.reduce((n, m) => n + m.versions.filter(v => v.kind === 'edit').length, 0), versions: demo.reduce((n, m) => n + m.versionCount, 0) });
       setConnections([]); return;
     }
-    const params = new URLSearchParams({ q: debounced, platform, status, offset: String(offset), ...(view === 'saved' ? { saved: '1' } : {}) });
-    Promise.all([api(`/messages?${params}`), api('/connections')]).then(([data, c]) => { if (alive) { setMessages(data.messages); setStats(data.stats); setTotal(data.total); setConnections(c.connections); } }).catch(e => alive && setError(e.message));
-    return () => { alive = false; };
+    const controller = new AbortController(); archiveRequest.current = controller;
+    const params = new URLSearchParams({ q: ['archive', 'saved', 'edited', 'deleted'].includes(view) ? debounced : '', platform, status, offset: String(offset), ...(view === 'saved' ? { saved: '1' } : {}) });
+    Promise.all([api(`/messages?${params}`, { signal: controller.signal }), api('/connections', { signal: controller.signal })]).then(([data, c]) => { if (alive) { setMessages(data.messages); setStats(data.stats); setTotal(data.total); setConnections(c.connections); } }).catch(e => alive && e.name !== 'AbortError' && setError(e.message)).finally(() => { if (archiveRequest.current === controller) archiveRequest.current = null; });
+    return () => { alive = false; controller.abort(); if (archiveRequest.current === controller) archiveRequest.current = null; };
   }, [isDemo, user?.id, view, platform, debounced, demo, offset, refresh]);
   useEffect(() => { let alive = true; if (!selected) { setDetail(null); return; } if (isDemo) { setDetail(demo.find(m => m.id === selected)); return; } api(`/messages/${selected}`).then(d => alive && setDetail(d.message)).catch(e => { if (alive) { setError(e.message); setSelected(null); } }); return () => { alive = false; }; }, [selected, isDemo, refresh, demo]);
   const changeView = next => { setView(next); setOffset(0); setSelected(null); setMobileNav(false); window.history.pushState({}, '', next === 'docs' ? '/docs' : '/'); if (next === 'docs') setGuideSlug(''); window.scrollTo(0, 0); };

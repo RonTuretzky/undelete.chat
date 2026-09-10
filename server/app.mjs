@@ -4,6 +4,8 @@ import { rateLimit } from 'express-rate-limit';
 import { z, ZodError } from 'zod';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { checkPassword, passwordHash, hash } from './crypto.mjs';
 import { platforms } from './store.mjs';
 
@@ -30,6 +32,36 @@ export function createApp(store, config = {}) {
     next();
   });
   const auth = (req, res, next) => req.user ? next() : res.status(401).json({ error: 'Sign in to continue.' });
+  const archiveReads = new Map();
+  let activeArchiveReads = 0, activeExports = 0;
+  async function archiveRead(req, res, exporting, callback) {
+    const current = archiveReads.get(req.user.id) || { total: 0, exports: 0 };
+    if (activeArchiveReads >= 4 || current.total >= 2 || exporting && (current.exports || activeExports >= 2)) {
+      return res.status(429).set('Retry-After', '2').json({ error: 'The archive is busy. Try again shortly.' });
+    }
+    current.total++; if (exporting) { current.exports++; activeExports++; }
+    archiveReads.set(req.user.id, current); activeArchiveReads++;
+    const controller = new AbortController();
+    const closed = () => controller.abort();
+    res.once('close', closed);
+    const timedOut = () => controller.abort(Object.assign(new Error('The archive request took too long. Narrow the search or try again.'), { public: true, status: 503 }));
+    // Large exports may legitimately take minutes. Stop stalled connections,
+    // while allowing a download that continues making network progress.
+    const timeout = exporting ? null : setTimeout(timedOut, 30_000).unref();
+    if (exporting) res.setTimeout(60_000, timedOut);
+    try { await callback(controller.signal); }
+    catch (error) {
+      if (res.destroyed) return;
+      if (res.headersSent) { res.destroy(error); return; }
+      throw error;
+    } finally {
+      clearTimeout(timeout); res.off('close', closed);
+      if (exporting) { res.off('timeout', timedOut); if (!res.destroyed) res.setTimeout(0); }
+      current.total--; if (exporting) { current.exports--; activeExports--; }
+      if (!current.total) archiveReads.delete(req.user.id);
+      activeArchiveReads--;
+    }
+  }
   const source = (req, res, next) => {
     req.connection = store.connectionByToken(req.get('authorization')?.replace(/^Bearer /, ''));
     return req.connection ? next() : res.status(401).json({ error: 'Invalid or revoked connection key.' });
@@ -142,16 +174,15 @@ export function createApp(store, config = {}) {
     });
     res.json({ results });
   });
-  app.get('/api/messages', auth, (req, res) => {
+  app.get('/api/messages', auth, (req, res) => archiveRead(req, res, false, async signal => {
     store.purge();
-    const q = String(req.query.q || '').slice(0, 300).toLowerCase();
-    const all = store.messages(req.user.id);
-    let rows = all.filter(m => (!req.query.platform || m.platform === req.query.platform) && (!req.query.status || m.status === req.query.status) && (!req.query.saved || m.saved));
-    if (q) rows = rows.filter(m => `${m.authorName} ${m.chatName} ${m.versions.map(v => v.text || '').join(' ')}`.toLowerCase().includes(q));
-    const offset = Math.max(0, Number(req.query.offset) || 0);
-    res.json({ messages: rows.slice(offset, offset + 50).map(({ versions, ...m }) => m), total: rows.length,
-      stats: { total: all.length, edited: all.filter(m => m.status === 'edited').length, edits: all.reduce((n, m) => n + m.versions.filter(v => v.kind === 'edit').length, 0), deleted: all.filter(m => m.status === 'deleted').length, saved: all.filter(m => m.saved).length, versions: all.reduce((n, m) => n + m.versionCount, 0) } });
-  });
+    const input = z.object({ q: z.string().max(300).optional(), platform: z.enum(['', ...platforms]).optional(),
+      status: z.enum(['', 'captured', 'edited', 'deleted']).optional(), saved: z.enum(['', '0', '1']).optional(),
+      offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0) }).parse(req.query);
+    const result = await store.listMessages(req.user.id, { ...input, saved: input.saved === '1', signal });
+    if (!store.authenticate(req.sessionToken)) return res.status(401).json({ error: 'Sign in to continue.' });
+    res.json(result);
+  }));
   app.get('/api/messages/:id', auth, (req, res) => {
     store.purge();
     const message = store.message(req.params.id, req.user.id);
@@ -166,10 +197,11 @@ export function createApp(store, config = {}) {
     store.forgetMessage(req.params.id, req.user.id);
     res.json({ ok: true });
   });
-  app.get('/api/export', auth, (req, res) => {
+  app.get('/api/export', auth, (req, res) => archiveRead(req, res, true, async signal => {
     store.purge();
-    res.attachment('afterword-archive.json').json({ exportedAt: new Date().toISOString(), version: 1, messages: store.messages(req.user.id) });
-  });
+    res.attachment('afterword-archive.json').type('application/json');
+    await pipeline(Readable.from(store.exportArchive(req.user.id, { signal }), { objectMode: false, highWaterMark: 64 * 1024 }), res, { signal });
+  }));
   app.patch('/api/settings', auth, (req, res) => {
     const { retentionDays } = z.object({ retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365), z.literal(0)]) }).parse(req.body);
     store.db.prepare('UPDATE users SET retention_days=? WHERE id=?').run(retentionDays, req.user.id);
@@ -199,6 +231,7 @@ export function createApp(store, config = {}) {
   app.use(express.static(resolve('dist'), { index: false, maxAge: '1h' }));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
   app.use((error, _req, res, _next) => {
+    if (res.headersSent || res.destroyed) { if (!res.destroyed) res.destroy(error); return; }
     if (error.public && [400, 404, 409, 503].includes(error.status)) return res.status(error.status).json({ error: error.message });
     if (error instanceof ZodError) return res.status(400).json({ error: error.issues[0]?.message || 'Invalid request.' });
     if (error.status === 413) return res.status(413).json({ error: 'Request is too large.' });
