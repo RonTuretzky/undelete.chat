@@ -89,9 +89,10 @@ if (command === 'relink') {
 }
 const queue = openQueue(directory);
 let state = { health: 'waiting', detail: 'Starting companion' }, flushing = false, stopped = false, stopAdapter, heartbeatTimer, flushTimer;
-let consecutiveFailures = 0, failedUntil = 0;
-const health = (health, detail = '') => { const changed = state.health !== health; state = { health, detail }; if (changed) console.log(`${health}: ${detail}`); };
-const capture = input => { if (stopped) return; try { const event = eventSchema.parse(input); if (!event.ephemeral) queue.add(event); } catch { health('error', 'An event could not be normalized. Update the companion.'); } };
+let consecutiveFailures = 0, failedUntil = 0, capacityFailure = false;
+const health = (health, detail = '') => { if (capacityFailure && health !== 'error') return; const changed = state.health !== health; state = { health, detail }; if (changed) console.log(`${health}: ${detail}`); };
+async function stopForCapacity(error) { if (capacityFailure) return; capacityFailure = true; health('error', error.message); await heartbeat(); await shutdown(1); }
+const capture = input => { if (stopped || capacityFailure) return; try { const event = eventSchema.parse(input); if (!event.ephemeral) queue.add(event); } catch (error) { if (error.capacity) stopForCapacity(error); else health('error', 'An event could not be normalized. Update the companion.'); } };
 async function heartbeat() {
   if (stopped) return;
   try {
@@ -105,7 +106,7 @@ async function flush() {
   if (flushing || stopped || Date.now() < failedUntil) return;
   flushing = true;
   try { await deliverBatch({ queue, server: config.server, token: config.token }); consecutiveFailures = 0; }
-  catch (error) { if (error.status === 401) { console.error('Connection revoked. Stopping capture.'); await shutdown(1); } else { failedUntil = Date.now() + Math.min(60_000, 2000 * 2 ** consecutiveFailures++); } }
+  catch (error) { if (error.capacity) await stopForCapacity(error); else if (error.status === 401) { console.error('Connection revoked. Stopping capture.'); await shutdown(1); } else { failedUntil = Date.now() + Math.min(60_000, 2000 * 2 ** consecutiveFailures++); } }
   finally { flushing = false; }
 }
 async function shutdown(code = 0) {
@@ -116,6 +117,8 @@ async function shutdown(code = 0) {
   queue.close(); process.exit(code);
 }
 for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => shutdown());
+process.on('uncaughtException', error => { if (error?.capacity) stopForCapacity(error); else { console.error('Companion stopped unexpectedly. Restart it to resume.'); shutdown(1); } });
+process.on('unhandledRejection', error => { if (error?.capacity) stopForCapacity(error); else { console.error('Companion stopped unexpectedly. Restart it to resume.'); shutdown(1); } });
 try {
   const ctx = { config, directory, queue, ask, save, capture, health };
   heartbeatTimer = setInterval(heartbeat, 25_000); flushTimer = setInterval(flush, 2000);

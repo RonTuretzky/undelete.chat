@@ -81,6 +81,8 @@ test('encrypted queue survives restart, rejects tampering, deduplicates and only
   vault.close(); vault = await openVault(factory, 'persistent');
   assert.equal((await vault.pending())[0].text, 'first version');
   await vault.acknowledge([{ eventId: 'not-sent', id: 'bad' }], events); assert.equal(await vault.count(), 1);
+  await vault.acknowledge([{ eventId: events[0].eventId, error: 'Temporarily full', retryable: true }], events);
+  assert.equal((await vault.pending()).length, 1); assert.equal(await vault.rejected(), 0);
   await vault.acknowledge([{ eventId: events[0].eventId, error: 'rejected' }], events); assert.equal(await vault.count(), 1); assert.equal(await vault.rejected(), 1);
   await vault.acknowledge([{ eventId: events[0].eventId, id: 'stored' }], events); assert.equal(await vault.count(), 0);
   const db = await new Promise(resolve => { const r = factory.open('persistent'); r.onsuccess = () => resolve(r.result); });

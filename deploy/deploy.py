@@ -17,12 +17,20 @@ else:
     secrets_path.write_text(json.dumps(values, indent=2)); secrets_path.chmod(0o600)
 hosted_path = private / 'hosted-config.json'
 hosted = json.loads(hosted_path.read_text()) if hosted_path.exists() else {}
+capacity_path = private / 'capacity-config.json'
+capacity = json.loads(capacity_path.read_text()) if capacity_path.exists() else {}
+capacity_env = {'ARCHIVE_ACCOUNT_BYTES': capacity.get('account_bytes', 128 * 1024**2),
+                'ARCHIVE_SERVER_BYTES': capacity.get('server_bytes', 1024**3),
+                'ARCHIVE_MIN_FREE_BYTES': capacity.get('minimum_free_bytes', 2 * 1024**3)}
+if any(type(value) is not int or not 0 < value <= 9007199254740991 for value in capacity_env.values()):
+    raise SystemExit('Archive capacity settings must be positive integer byte counts.')
 env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values['invite_code'], 'PUBLIC_ORIGIN=' + state['url'], 'NODE_ENV=production',
     'HOSTED_COLLECTORS=' + ('true' if hosted.get('enabled') else 'false'),
     'HOSTED_MAX_COLLECTORS=' + str(int(hosted.get('max_collectors', 4))),
     'DISCORD_PERSONAL_CLOUD=' + ('true' if hosted.get('discord_personal_cloud') else 'false'),
     'TELEGRAM_API_ID=' + str(int(hosted.get('telegram_api_id', 0))),
-    'TELEGRAM_API_HASH=' + str(hosted.get('telegram_api_hash', ''))]) + '\n'
+    'TELEGRAM_API_HASH=' + str(hosted.get('telegram_api_hash', '')),
+    *[name + '=' + str(value) for name, value in capacity_env.items()]]) + '\n'
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)
 invite_path = private / 'invitation-code.txt'; invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
 credentials = private / 'owner-credentials.txt'

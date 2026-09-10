@@ -61,6 +61,11 @@ async function sync() {
         const events = await vault.pending(); if (!events.length) break;
         const result = await archiveRequest(destination, '/api/ingest', { events });
         await vault.acknowledge(result.results, events);
+        const retry = result.results?.find(r => r.error && r.retryable);
+        if (retry) {
+          if (['archive_quota', 'server_capacity', 'disk_capacity'].includes(retry.code)) { await stop(retry.error); health = 'error'; }
+          throw new Error(retry.error);
+        }
       }
     }
     uploadError = '';

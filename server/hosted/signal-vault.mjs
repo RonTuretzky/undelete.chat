@@ -1,6 +1,7 @@
-import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, rm, stat } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { DatabaseSync, backup } from 'node:sqlite';
+import { capacityError, MiB } from '../capacity.mjs';
 
 // signal-cli needs regular files. Keep its working files in the container's tmpfs;
 // persist only authenticated ciphertext in the connection's encrypted queue.
@@ -21,15 +22,20 @@ export async function signalVault(directory, queue) {
         const path = join(dir, entry.name);
         if (entry.isDirectory()) { await visit(path); continue; }
         if (!entry.isFile() || /(?:-wal|-shm|\.lock|\.backup)$/.test(entry.name)) continue;
+        if (bytes + (await stat(path)).size > 16 * MiB) throw capacityError('collector_capacity');
         let data = await readFile(path);
         if (data.subarray(0, 16).toString() === 'SQLite format 3\0') {
           const temp = path + '.backup';
           const db = new DatabaseSync(path, { readOnly: true });
-          try { await backup(db, temp); data = await readFile(temp); }
+          try {
+            const projected = db.prepare('PRAGMA page_count').get().page_count * db.prepare('PRAGMA page_size').get().page_size;
+            if (bytes + projected > 16 * MiB) throw capacityError('collector_capacity');
+            await backup(db, temp); if (bytes + (await stat(temp)).size > 16 * MiB) throw capacityError('collector_capacity'); data = await readFile(temp);
+          }
           finally { db.close(); await rm(temp, { force: true }); }
         }
         bytes += data.length;
-        if (bytes > 64 * 1024 * 1024) throw new Error('Signal session exceeds storage limit');
+        if (bytes > 16 * MiB) throw capacityError('collector_capacity');
         files[relative(directory, path)] = data.toString('base64');
       }
     }

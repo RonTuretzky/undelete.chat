@@ -47,6 +47,8 @@ Confirm a new manifest exists and contains the archive and expected collector qu
 4. For actual failover, stop the old collectors, install the complete archive and queue snapshot with the original key, and start exactly one replacement service. Restore file ownership to the container's application user. Expect gaps after the snapshot and possible phone reapproval; a backup is not a guarantee of uninterrupted capture.
 5. Verify HTTPS, sign-in, account separation, archive counts, decryption, and each collector before reopening registration. Record the snapshot time, recovery duration, observed gaps, and any required relinking.
 
+Use matching application and database versions for rollback. Older writer code does not maintain the new archive usage fields; do not run it against a migrated database. Preserve the current data and restore a verified complete snapshot with its matching release when rolling back a migration.
+
 ## External monitoring
 
 The `Afterword availability` DigitalOcean Uptime check probes the public HTTPS health endpoint from US East and Western Europe. It runs independently of the Afterword server and the operator's computer.
@@ -60,6 +62,14 @@ python3 deploy/operations.py uptime-status
 The command preserves existing checks, including disabled checks and other applications' monitoring. No email or Slack notifications are created by this command. An alert recipient is still required; do not describe notifications as enabled until an alert is configured and delivery is verified. Availability monitoring does not replace collector-state, disk-space, or backup-age monitoring.
 
 ## Cost and capacity
+
+Archive defaults are 128 MiB per account, 1 GiB of charged archive data globally, and a 2 GiB free-disk reserve. Settings shows the account's allowance and usage; stopped sources retain their queued copies and require Resume capture → Try again after the issue is resolved. Existing over-limit archives are preserved. Keep enough headroom for SQLite indexes/WAL, collector sessions, native caches, builds, and seven backup copies; the charged archive budget is not physical disk usage.
+
+Deployment reads optional private `~/.config/afterword/capacity-config.json` values: `account_bytes`, `server_bytes`, and `minimum_free_bytes`, all positive integer byte counts. These become `ARCHIVE_ACCOUNT_BYTES`, `ARCHIVE_SERVER_BYTES`, and `ARCHIVE_MIN_FREE_BYTES` in the service environment. Omitting the file preserves the documented defaults. A user's nullable `users.archive_limit_bytes` is an operator-controlled override for future plans; no public endpoint lets a customer increase it. Payment plans are not configured yet.
+
+Before increasing limits, measure available disk and memory, allow for backups, and test the intended number of collectors. Do not reduce limits expecting automatic deletion: a smaller allowance stops subsequent growth. To release archive allowance, remove history or shorten retention; deletion markers remain to prevent replay. If a collector queue itself fills, inspect its encrypted storage and delivery errors before clearing anything. Relinking is rejected while pending or quarantined copies remain; it is not a storage-cleanup shortcut. The check runs again after worker shutdown to cover an event arriving during the stop.
+
+The backup routine checks the configured free-space reserve before copying each database. Insufficient space aborts the new snapshot and keeps earlier complete backups. Monitor failures and backup age externally; a free-space guard alone is not an alert or a recovery copy.
 
 The current Droplet is $6/month, daily backups add $1.80/month, and the additional uptime check adds $1/month: approximately $8.80/month before taxes and usage-based charges. The account already uses its one free uptime check elsewhere. [Backup pricing](https://docs.digitalocean.com/products/backups/details/pricing/), [Uptime pricing](https://docs.digitalocean.com/products/uptime/details/pricing/)
 

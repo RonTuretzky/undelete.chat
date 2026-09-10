@@ -5,6 +5,7 @@ import { createStore } from './store.mjs';
 import { createApp } from './app.mjs';
 import { createBackup } from './backup.mjs';
 import { createCollectorManager } from './hosted/manager.mjs';
+import { MiB, positiveBytes } from './capacity.mjs';
 try { process.loadEnvFile('.env'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
 const production = process.env.NODE_ENV === 'production';
 const dir = resolve(process.env.DATA_DIR || 'data');
@@ -17,7 +18,11 @@ if (!key) {
   key = readFileSync(file, 'utf8').trim();
 }
 if (production && !process.env.PUBLIC_ORIGIN?.startsWith('https://')) throw new Error('Set an HTTPS PUBLIC_ORIGIN.');
-const store = createStore(resolve(dir, 'afterword.sqlite'), key);
+const store = createStore(resolve(dir, 'afterword.sqlite'), key, {
+  accountLimitBytes: positiveBytes(process.env.ARCHIVE_ACCOUNT_BYTES, 128 * MiB, 'ARCHIVE_ACCOUNT_BYTES'),
+  serverLimitBytes: positiveBytes(process.env.ARCHIVE_SERVER_BYTES, 1024 * MiB, 'ARCHIVE_SERVER_BYTES'),
+  minimumFreeBytes: production ? positiveBytes(process.env.ARCHIVE_MIN_FREE_BYTES, 2048 * MiB, 'ARCHIVE_MIN_FREE_BYTES') : 0,
+});
 chmodSync(resolve(dir, 'afterword.sqlite'), 0o600);
 store.purge();
 const timer = setInterval(() => store.purge(), 60 * 60_000).unref();
@@ -35,7 +40,7 @@ const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOS
 await collectors?.restore();
 let backupRunning = null;
 const runBackup = () => {
-  if (!backupRunning) backupRunning = createBackup(dir).then(() => console.log('Archive backup completed.')).catch(() => console.error('Archive backup failed.')).finally(() => { backupRunning = null; });
+  if (!backupRunning) backupRunning = createBackup(dir, { minimumFreeBytes: store.capacity.limits.minimumFreeBytes }).then(() => console.log('Archive backup completed.')).catch(() => console.error('Archive backup failed.')).finally(() => { backupRunning = null; });
 };
 const backupTimer = production ? setInterval(runBackup, 24 * 60 * 60_000).unref() : null;
 if (production) runBackup();

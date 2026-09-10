@@ -38,6 +38,18 @@ Run the disposable large-archive benchmark explicitly:
 node --max-old-space-size=64 tests/fixtures/archive-scale.mjs
 ```
 
-Local measurement on September 10, 2026: 12,001 synthetic messages and 26,000 versions, including one message with 2,000 revisions of 40,000 characters each; page 10 ms, historical search 1,105 ms, newest and oldest history pages together 7 ms, streaming export 2,528 ms for 160 MB. Sampled peak JavaScript heap was 32.7 MB and process RSS 186.2 MB. This is one local measurement under a 64 MB heap limit, not a production throughput or concurrency guarantee.
+Local measurement on September 10, 2026 after adding capacity accounting: 12,001 synthetic messages and 26,000 versions, including one message with 2,000 revisions of 40,000 characters each; page 10 ms, historical search 1,052 ms, newest and oldest history pages together 6 ms, streaming export 2,316 ms for 160 MB. Sampled peak JavaScript heap was 29.5 MB and process RSS 171.5 MB. The fixture explicitly raises its account allowance to 1 GiB. This is one local measurement under a 64 MB heap limit, not a production throughput or concurrency guarantee.
 
-Per-account storage quotas, monitoring disk pressure, and testing concurrent collectors/readers on the intended production hardware remain launch work.
+## Storage allowances and delivery recovery
+
+The default archive allowance is 128 MiB per account, with a separate 1 GiB server-wide archive budget. Production also reserves 2 GiB of free disk space. Operators can configure these bounds; see [operations](OPERATIONS.md). They are pilot safety limits, not paid-plan definitions or a guarantee of the disk space needed by SQLite and backups.
+
+An event is charged its encrypted payload bytes, twice its UTF-8 event identifier length, and 768 bytes for associated records. A message is charged 1,536 bytes; a deletion marker is charged 512 bytes. These fixed charges bound metadata growth as well as content. They are allowance accounting, not exact filesystem measurements. Markers prevent erased history from reappearing and remain charged until account deletion.
+
+SQLite insert/delete triggers maintain account and global usage in the same transaction as the data. Admission checks run inside `BEGIN IMMEDIATE`, so separate writer processes cannot reserve the same remaining space. Duplicates, paused events, excluded ephemeral events, and retries of forgotten items do not add usage. Migration derives sizes from ciphertext and metadata without decrypting or rewriting content; over-limit archives remain readable and exportable.
+
+Capacity failures are retryable. A hosted source is stopped and disabled until the owner resumes it; encrypted queued copies and saved login state remain. Supervisor restart does not silently restart a source stopped for capacity. Invalid payloads are quarantined, while transient internal/storage failures remain pending. The API never exposes internal database error text. Companion and extension deliveries honor the same retryable distinction.
+
+Each companion/hosted queue allows 32 MiB for events, including rejected events, and a separate 32 MiB for encrypted metadata. A full queue refuses growth rather than evicting earlier copies; acknowledgements and smaller replacements release capacity. Signal snapshots are bounded at 16 MiB before base64/encryption overhead. Queue requests are split below the HTTP body limit. Queue capacity failures stop collection and require operator attention; activity during a stop can be missed.
+
+Production archive writes, hosted queue growth, and backups check the same available-disk reserve. Before copying each database, a backup reserves its current page count plus the configured free-space margin; a failed attempt removes its partial copy and retains previous complete backups. Relinking refuses to erase a queue containing pending or quarantined events, including an event arriving during worker shutdown. External disk/backup alerts and concurrent production load measurements remain outstanding.

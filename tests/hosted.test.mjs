@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync, mkdirSync, truncateSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fork } from 'node:child_process';
@@ -16,7 +16,8 @@ const until = async (fn, limit = 10_000) => { const deadline = Date.now() + limi
 async function fixture(t, options = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'afterword-hosted-test-'));
   const key = randomBytes(32).toString('hex');
-  const store = createStore(join(directory, 'archive.sqlite'), key);
+  const { storeOptions, ...managerOptions } = options;
+  const store = createStore(join(directory, 'archive.sqlite'), key, storeOptions);
   const alice = await store.createUser('alice', 'long-test-password-alice'), bob = await store.createUser('bob', 'long-test-password-bob');
   const children = [], environments = [];
   const settings = { directory, key, runtimeDirectory: join(directory, 'runtime'), maxCollectors: 4, telegramApiId: 1234, telegramApiHash: '1'.repeat(32),
@@ -25,7 +26,7 @@ async function fixture(t, options = {}) {
       environments.push(config.env);
       const child = fork(new URL('./fixtures/hosted-worker.mjs', import.meta.url), args, config);
       children.push(child); return child;
-    }, ...options };
+    }, ...managerOptions };
   let manager = createCollectorManager(store, settings);
   t.after(async () => { await manager.close(); store.close(); rmSync(directory, { recursive: true, force: true }); });
   return { directory, key, store, alice, bob, children, environments, get manager() { return manager; }, async restart() { await manager.close(); manager = createCollectorManager(store, settings); await manager.restore(); } };
@@ -81,6 +82,40 @@ test('real worker processes resume encrypted sessions after supervisor restart a
   const raw = readFileSync(join(f.directory, 'collectors', c.id, 'queue.sqlite'));
   assert.equal(raw.includes(Buffer.from('Original private text')), false);
   assert.equal(raw.includes(Buffer.from('secret-password')), false);
+});
+test('a full archive stops its worker, preserves queued events across restart, and resumes after space is available', async t => {
+  const f = await fixture(t, { storeOptions: { accountLimitBytes: 1 } });
+  const c = f.store.createConnection(f.alice.id, 'telegram', 'Limited archive');
+  await f.manager.start(c.id, f.alice.id, { consent: true });
+  await until(() => f.manager.status(c.id).qr);
+  const id = randomUUID(); f.children[0].send({ type: 'fixture-prompt', id });
+  await until(() => f.manager.status(c.id).prompt);
+  f.manager.reply(c.id, f.alice.id, id, 'test approval');
+  await until(() => !f.manager.status(c.id).running && f.manager.status(c.id).capacityReason === 'archive_quota');
+  assert.equal(f.manager.status(c.id).enabled, false);
+  assert.equal(f.store.messages(f.alice.id).length, 0);
+  assert.equal(f.store.connection(c.id, f.alice.id).queued, 3);
+  await assert.rejects(f.manager.start(c.id, f.alice.id), { code: 'archive_quota' });
+  await f.restart();
+  assert.equal(f.manager.status(c.id).running, false); assert.equal(f.children.length, 1);
+  f.store.db.prepare('UPDATE users SET archive_limit_bytes=100000 WHERE id=?').run(f.alice.id);
+  await assert.rejects(f.manager.start(c.id, f.alice.id, { relink: true }), /unsent events/);
+  await f.manager.start(c.id, f.alice.id);
+  await until(() => f.store.messages(f.alice.id)[0]?.versions.length === 3);
+  await until(() => f.store.connection(c.id, f.alice.id).queued === 0);
+  assert.equal(f.manager.status(c.id).health, 'connected');
+  assert.equal(f.manager.status(c.id).capacityReason, null); assert.equal(f.manager.status(c.id).qr, null);
+});
+test('relinking preserves an event queued during worker shutdown', async t => {
+  const f = await fixture(t), c = f.store.createConnection(f.alice.id, 'telegram', 'Cloud');
+  await f.manager.start(c.id, f.alice.id, { consent: true });
+  await until(() => f.manager.status(c.id).qr);
+  f.children[0].send({ type: 'fixture-queue-on-stop', event: { eventId: 'during-stop', kind: 'create', externalId: 'stop-race', scope: 'account', text: 'Keep this unsent copy', occurredAt: new Date().toISOString() } });
+  await assert.rejects(f.manager.start(c.id, f.alice.id, { relink: true }), /unsent events/);
+  assert.equal(existsSync(join(f.directory, 'collectors', c.id, 'queue.sqlite')), true);
+  assert.equal(f.manager.status(c.id).enabled, false);
+  await f.manager.start(c.id, f.alice.id);
+  await until(() => f.store.messages(f.alice.id).some(m => m.text === 'Keep this unsent copy'));
 });
 test('concurrent starts respect global capacity; separate accounts cannot start or reply to another source', async t => {
   const f = await fixture(t, { maxCollectors: 1 });
@@ -152,6 +187,17 @@ test('Signal session snapshots restore from encrypted storage and reject escapin
   assert.equal(readFileSync(join(runtime, 'data', 'account'), 'utf8'), 'private-signal-key');
   queue.set('signal-session-files', { '../escape': Buffer.from('bad').toString('base64') });
   await assert.rejects(signalVault(runtime, queue), /Invalid saved Signal path/);
+});
+test('Signal session growth stops before replacing the last encrypted checkpoint', async t => {
+  const directory = mkdtempSync(join(tmpdir(), 'afterword-signal-bound-'));
+  const queue = openQueue(join(directory, 'persistent'));
+  t.after(() => { queue.close(); rmSync(directory, { recursive: true, force: true }); });
+  const runtime = join(directory, 'runtime'), vault = await signalVault(runtime, queue);
+  writeFileSync(join(runtime, 'account'), 'saved session'); await vault.checkpoint();
+  const before = queue.get('signal-session-files'), usage = queue.usage();
+  writeFileSync(join(runtime, 'too-large'), ''); truncateSync(join(runtime, 'too-large'), 17 * 1024 * 1024);
+  await assert.rejects(vault.checkpoint(), { code: 'collector_capacity' });
+  assert.deepEqual(queue.get('signal-session-files'), before); assert.deepEqual(queue.usage(), usage);
 });
 test('Signal shutdown waits for the native process to finish saving session files', { skip: process.platform === 'win32' }, async t => {
   const directory = mkdtempSync(join(tmpdir(), 'afterword-signal-stop-'));

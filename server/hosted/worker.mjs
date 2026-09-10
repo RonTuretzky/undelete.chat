@@ -7,10 +7,17 @@ import { signalVault } from './signal-vault.mjs';
 
 process.umask(0o077);
 let queue, stopAdapter, checkpoint, runtimeDirectory, started = false, stopped = false, paused = false, flushing = false;
-let prompt, pingTimer, flushTimer, checkpointTimer, setupTimer;
+let prompt, pingTimer, flushTimer, checkpointTimer, setupTimer, capacityStopping = false;
 const controller = new AbortController();
 const send = message => { if (process.connected) process.send(message, () => {}); };
 const health = (health, detail = '') => send({ type: 'health', health, detail });
+function capacityStop(error) {
+  if (stopped || capacityStopping) return;
+  capacityStopping = true;
+  if (!process.connected) return shutdown(2);
+  const fallback = setTimeout(() => shutdown(2), 1000).unref();
+  process.send({ type: 'capacity', code: error.code }, () => { clearTimeout(fallback); shutdown(2); });
+}
 function ask(label, secret = false) {
   if (prompt) return Promise.reject(new Error('A sign-in response is already pending'));
   return new Promise((resolve, reject) => {
@@ -39,7 +46,7 @@ function flush() {
 async function start(input) {
   started = true; paused = !!input.paused; runtimeDirectory = input.runtimeDirectory;
   mkdirSync(runtimeDirectory, { recursive: true, mode: 0o700 });
-  queue = openQueue(input.directory, input.key);
+  queue = openQueue(input.directory, input.key, { minimumFreeBytes: input.minimumFreeBytes });
   const config = input.config || {};
   pingTimer = setInterval(() => send({ type: 'ping', queued: queue.count(), rejected: queue.rejected() }), 5000);
   flushTimer = setInterval(flush, 1000);
@@ -49,12 +56,15 @@ async function start(input) {
     fatal(detail) { health('error', detail); shutdown(1); },
     fail(detail) { health('error', detail); shutdown(2); },
     save(patch) { Object.assign(config, patch); send({ type: 'config', config }); },
-    health(state, detail) { if (state === 'connected') clearTimeout(setupTimer); health(state, detail); },
+    health(state, detail) { if (stopped || capacityStopping) return; if (state === 'connected') clearTimeout(setupTimer); health(state, detail); },
     showQR(value, expiresAt = Date.now() + 55_000) { send({ type: 'qr', value, expiresAt: new Date(expiresAt).toISOString() }); },
     capture(input) {
-      if (stopped || paused) return;
+      if (stopped || paused || capacityStopping) return;
       try { const event = eventSchema.parse(input); if (!event.ephemeral) queue.add(event); }
-      catch { health('error', 'An event could not be processed. Please contact support.'); }
+      catch (error) {
+        if (error.capacity) { capacityStop(error); throw error; }
+        health('error', 'An event could not be processed. Please contact support.');
+      }
     },
     onStop(fn) { stopAdapter = fn; },
     checkpoint: async () => { await checkpoint?.(); }
@@ -62,7 +72,10 @@ async function start(input) {
   if (input.platform === 'signal') {
     const vault = await signalVault(join(runtimeDirectory, 'signal-session'), queue);
     checkpoint = vault.checkpoint;
-    checkpointTimer = setInterval(() => checkpoint().catch(() => health('error', 'Signal session could not be saved. Please reconnect.')), 5000);
+    checkpointTimer = setInterval(() => checkpoint().catch(error => {
+      if (error.capacity) capacityStop(error);
+      else health('error', 'Signal session could not be saved. Please reconnect.');
+    }), 5000);
   }
   const adapters = { telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp', discord: 'startDiscordCloud' };
   if (!adapters[input.platform]) throw new Error('Unsupported hosted platform');
@@ -75,13 +88,14 @@ async function start(input) {
 }
 process.on('message', message => {
   if (!message || stopped) return;
-  if (message.type === 'start' && !started) start(message).catch(() => { health('error', 'Could not complete sign-in. Choose Try again or check the platform guide.'); shutdown(2); });
+  if (message.type === 'start' && !started) start(message).catch(error => { if (error.capacity) return capacityStop(error); if (!stopped) health('error', 'Could not complete sign-in. Choose Try again or check the platform guide.'); shutdown(2); });
   if (message.type === 'reply' && prompt?.id === message.id && typeof message.value === 'string') {
     const pending = prompt; prompt = null; clearTimeout(pending.timer);
     send({ type: 'prompt', prompt: null }); pending.resolve(message.value);
   }
   if (message.type === 'ack' && queue) {
     for (const result of message.results || []) {
+      if (result.error && result.retryable) continue;
       if (result.error) queue.reject(result.eventId, 'Archive rejected an event'); else queue.ack(result.eventId);
     }
     flushing = false;
@@ -91,5 +105,6 @@ process.on('message', message => {
 });
 process.on('disconnect', () => shutdown());
 for (const name of ['SIGINT', 'SIGTERM']) process.on(name, () => shutdown());
-process.on('uncaughtException', () => { health('error', 'Collector stopped unexpectedly. Reconnecting.'); shutdown(1); });
-process.on('unhandledRejection', () => { health('error', 'Collector stopped unexpectedly. Reconnecting.'); shutdown(1); });
+const unexpected = error => { if (error?.capacity) return capacityStop(error); if (!stopped) health('error', 'Collector stopped unexpectedly. Reconnecting.'); shutdown(1); };
+process.on('uncaughtException', unexpected);
+process.on('unhandledRejection', unexpected);

@@ -13,7 +13,7 @@ import { createStore } from '../../server/store.mjs';
 const folder = await mkdtemp(join(tmpdir(), 'afterword-scale-'));
 const count = Number(process.argv[2] || 12000);
 assert.ok(Number.isSafeInteger(count) && count >= 1000 && count <= 100000);
-const store = createStore(join(folder, 'synthetic.sqlite'), randomBytes(32).toString('hex'));
+const store = createStore(join(folder, 'synthetic.sqlite'), randomBytes(32).toString('hex'), { accountLimitBytes: 1024 ** 3 });
 let peakHeap = 0, peakRSS = 0;
 const sample = () => { const memory = process.memoryUsage(); peakHeap = Math.max(peakHeap, memory.heapUsed); peakRSS = Math.max(peakRSS, memory.rss); };
 const timer = setInterval(sample, 10);

@@ -41,6 +41,7 @@ export async function openVault(factory = indexedDB, name = 'afterword-discord-v
       const allowed = new Set(sent.map(e => e.eventId));
       for (const result of results || []) {
         if (!allowed.has(result.eventId)) continue;
+        if (result.error && result.retryable) continue;
         if (result.error) { const row = await rawGet('queue', result.eventId); if (row) await rawSet('queue', result.eventId, { ...row, rejected: true }); }
         else if (result.id || result.ignored || result.duplicate) await remove('queue', result.eventId);
       }

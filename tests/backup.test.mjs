@@ -27,3 +27,13 @@ test('online backups restore encrypted archive revisions and collector sessions 
   assert.equal(readdirSync(join(dir, 'backups')).filter(n => !n.startsWith('.')).length, 1);
   queue.close(); store.close();
 });
+test('low disk space aborts a backup without removing the last complete recovery snapshot', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'afterword-backup-space-')), key = randomBytes(32).toString('hex');
+  const store = createStore(join(dir, 'afterword.sqlite'), key);
+  t.after(() => { store.close(); rmSync(dir, { recursive: true, force: true }); });
+  await store.createUser('owner', 'long-test-password');
+  const complete = await createBackup(dir);
+  await assert.rejects(createBackup(dir, { minimumFreeBytes: 10000, availableBytes: () => 10000 }), { code: 'disk_capacity' });
+  assert.deepEqual(readdirSync(join(dir, 'backups')), [complete.directory.split('/').at(-1)]);
+  assert.equal(JSON.parse(readFileSync(join(complete.directory, 'manifest.json'))).format, 1);
+});

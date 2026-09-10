@@ -3,8 +3,9 @@ import { mkdir, readdir, rename, rm, chmod, writeFile, stat } from 'node:fs/prom
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { capacityError, freeBytes, MiB, positiveBytes } from './capacity.mjs';
 
-export async function createBackup(directory, { keep = 7 } = {}) {
+export async function createBackup(directory, { keep = 7, minimumFreeBytes = 64 * MiB, availableBytes = freeBytes } = {}) {
   const root = resolve(directory), backups = join(root, 'backups');
   await mkdir(backups, { recursive: true, mode: 0o700 });
   const name = new Date().toISOString().replace(/[:.]/g, '-') + '-' + randomUUID().slice(0, 8);
@@ -13,7 +14,11 @@ export async function createBackup(directory, { keep = 7 } = {}) {
   const copy = async name => {
     const target = join(stage, name); await mkdir(join(target, '..'), { recursive: true, mode: 0o700 });
     const source = new DatabaseSync(join(root, name), { readOnly: true });
-    try { await backup(source, target); await chmod(target, 0o600); files.push(name); }
+    try {
+      const bytes = source.prepare('PRAGMA page_count').get().page_count * source.prepare('PRAGMA page_size').get().page_size;
+      if (availableBytes(root) < minimumFreeBytes + bytes) throw capacityError('disk_capacity');
+      await backup(source, target); await chmod(target, 0o600); files.push(name);
+    }
     finally { source.close(); }
   };
   try {
@@ -34,6 +39,6 @@ export async function createBackup(directory, { keep = 7 } = {}) {
   } catch (error) { await rm(stage, { recursive: true, force: true }); throw error; }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const result = await createBackup(process.env.DATA_DIR || 'data');
+  const result = await createBackup(process.env.DATA_DIR || 'data', { minimumFreeBytes: positiveBytes(process.env.ARCHIVE_MIN_FREE_BYTES, 64 * MiB, 'ARCHIVE_MIN_FREE_BYTES') });
   console.log(JSON.stringify(result));
 }

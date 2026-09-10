@@ -725,6 +725,20 @@ export const guides = {
         ]
       },
       {
+        "id": "allowance",
+        "title": "Archive allowance and full storage",
+        "paragraphs": [
+          "Settings shows your current storage allowance and usage, shared by all connected platforms. Each captured revision counts, including copies of deleted messages. Usage includes encrypted content and associated archive records; it is not the size of an exported JSON file.",
+          "If an event will not fit, its hosted collector stops and keeps copies already in its encrypted queue. Other connections may also stop as they reach the limit. Queues have their own bounds, so an outage cannot grow them indefinitely. Activity during a stop may not be recoverable."
+        ],
+        "steps": [
+          "Export any history you want to keep elsewhere. Exporting alone does not release storage.",
+          "Delete messages you no longer need from their history panel, or choose a shorter retention period in Settings to remove older messages. Small deletion markers remain to prevent retries from restoring removed items.",
+          "Open Connections, choose Resume capture for a stopped hosted source, then Try again. Its saved session and queued copies are reused. Legacy local collectors must be restarted on their computer; the optional Discord extension can retry uploads, but you must start capture again.",
+          "If the notice says server storage or a connection queue is full, contact the operator. Deleting your archive may not resolve a server-wide or session-storage issue."
+        ]
+      },
+      {
         "id": "coverage",
         "title": "Coverage and limits",
         "bullets": [

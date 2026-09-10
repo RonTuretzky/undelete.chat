@@ -1,7 +1,7 @@
 // Simulated provider behind a real subprocess/IPC and durable encrypted queue.
 // This verifies hosting and routing; it does not claim live platform coverage.
 import { openQueue } from '../../companion/queue.mjs';
-let queue, timer;
+let queue, timer, queueOnStop;
 const send = m => process.send?.(m);
 function flush() { const events = queue.pending(); if (events.length) send({ type: 'events', events }); }
 process.on('message', message => {
@@ -22,5 +22,6 @@ process.on('message', message => {
     send({ type: 'health', health: 'connected', detail: 'Provider session connected' }); flush();
   }
   if (message.type === 'ack') for (const r of message.results) if (!r.error) queue.ack(r.eventId);
-  if (message.type === 'stop') { clearInterval(timer); queue?.close(); process.exit(0); }
+  if (message.type === 'fixture-queue-on-stop') queueOnStop = message.event;
+  if (message.type === 'stop') { clearInterval(timer); if (queueOnStop) queue.add(queueOnStop); queue?.close(); process.exit(0); }
 });

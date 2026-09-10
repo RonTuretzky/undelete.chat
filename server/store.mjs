@@ -3,6 +3,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { cipher, hash, token, passwordHash } from './crypto.mjs';
 import { createArchiveReader } from './archive-reader.mjs';
+import { createArchiveCapacity, eventBytes, MESSAGE_BYTES } from './archive-capacity.mjs';
 
 export const platforms = ['discord', 'telegram', 'signal', 'whatsapp'];
 const short = z.string().min(1).max(256);
@@ -15,7 +16,7 @@ export const eventSchema = z.object({
   attachments: z.array(z.object({ name: z.string().max(500), type: z.string().max(100).default('file'), size: z.number().nonnegative().optional() })).max(50).default([])
 }).refine(e => e.kind === 'delete' || e.text !== undefined || e.attachments.length > 0, 'Message content is required.');
 
-export function createStore(path, encryptionKey) {
+export function createStore(path, encryptionKey, options = {}) {
   const db = new DatabaseSync(path);
   const crypt = cipher(encryptionKey);
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA secure_delete=ON;
@@ -84,8 +85,9 @@ export function createStore(path, encryptionKey) {
     connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
     config TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL
   );`);
+  const capacity = createArchiveCapacity(db, path, options);
   const getUser = id => db.prepare('SELECT id,username,created_at,retention_days,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id);
-  const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,collector,
+  const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id) AS message_count,
     (SELECT max(last_seen) FROM messages WHERE connection_id=connections.id) AS last_message_at
     FROM connections WHERE user_id=? ORDER BY created_at`).all(user);
@@ -105,8 +107,8 @@ export function createStore(path, encryptionKey) {
   }
   function ingest(connection, input) {
     const e = eventSchema.parse(input);
-    if (Date.parse(e.occurredAt) > Date.now() + 5 * 60_000) throw new Error('Event timestamp is in the future.');
-    if (connection.revoked) throw new Error('Connection revoked.');
+    if (Date.parse(e.occurredAt) > Date.now() + 5 * 60_000) throw Object.assign(new Error('Event timestamp is in the future.'), { permanent: true });
+    if (connection.revoked) throw Object.assign(new Error('Connection revoked.'), { permanent: true });
     if (connection.paused || e.ephemeral) return { ignored: true, reason: e.ephemeral ? 'ephemeral' : 'paused' };
     const id = hash(`${connection.id}:${e.scope}:${e.externalId}`);
     if (db.prepare('SELECT 1 FROM forgotten WHERE id=?').get(id)) return { ignored: true, reason: 'removed' };
@@ -118,17 +120,20 @@ export function createStore(path, encryptionKey) {
       if (db.prepare('SELECT 1 FROM events WHERE connection_id=? AND event_uid=?').get(connection.id, uid)) {
         db.exec('COMMIT'); return { duplicate: true, id };
       }
+      const payload = crypt.seal(e, `${connection.user_id}:${id}:${uid}`), bytes = eventBytes(payload, uid);
+      const existing = db.prepare('SELECT 1 FROM messages WHERE id=?').get(id);
+      capacity.assertRoom(connection.user_id, bytes + (existing ? 0 : MESSAGE_BYTES));
       db.prepare(`INSERT INTO messages (id,user_id,connection_id,platform,first_seen,last_seen) VALUES (?,?,?,?,?,?)
         ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen`).run(id, connection.user_id, connection.id, connection.platform, now, now);
-      db.prepare('INSERT INTO events (message_id,connection_id,event_uid,kind,occurred_at,received_at,payload) VALUES (?,?,?,?,?,?,?)')
-        .run(id, connection.id, uid, e.kind, e.occurredAt, now, crypt.seal(e, `${connection.user_id}:${id}:${uid}`));
+      db.prepare('INSERT INTO events (message_id,connection_id,event_uid,kind,occurred_at,received_at,payload,user_id,storage_bytes) VALUES (?,?,?,?,?,?,?,?,?)')
+        .run(id, connection.id, uid, e.kind, e.occurredAt, now, payload, connection.user_id, bytes);
       db.prepare(`UPDATE messages SET version_count=version_count+?,edit_count=edit_count+?,
         status=CASE WHEN status='deleted' OR ?='delete' THEN 'deleted'
           WHEN status='edited' OR ?='edit' THEN 'edited' ELSE 'captured' END WHERE id=?`)
         .run(+(e.kind !== 'delete'), +(e.kind === 'edit'), e.kind, e.kind, id);
       db.exec('COMMIT');
       return { id, duplicate: false };
-    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    } catch (error) { db.exec('ROLLBACK'); if (error.capacity) capacity.block(connection.id, error); throw error; }
   }
   function purge() {
     db.prepare(`INSERT OR IGNORE INTO forgotten (id,user_id) SELECT id,user_id FROM messages WHERE user_id IN (SELECT id FROM users WHERE retention_days > 0)
@@ -138,7 +143,7 @@ export function createStore(path, encryptionKey) {
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
     db.prepare('DELETE FROM pairing_codes WHERE expires_at < ?').run(new Date().toISOString());
   }
-  return { db, getUser, connections, ingest, purge, ...reader,
+  return { db, getUser, connections, ingest, purge, ...reader, capacity,
     createRecoveryKey(userId) {
       const secret = `awr_${token()}`;
       db.prepare('UPDATE users SET recovery_hash=? WHERE id=?').run(hash(secret), userId);

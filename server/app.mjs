@@ -8,6 +8,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { checkPassword, passwordHash, hash } from './crypto.mjs';
 import { platforms } from './store.mjs';
+import { deliveryFailure, capacityMessages } from './capacity.mjs';
 
 export function createApp(store, config = {}) {
   const app = express();
@@ -70,6 +71,7 @@ export function createApp(store, config = {}) {
   const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: 25, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many sign-in attempts. Try again in 15 minutes.' } });
   app.get('/api/health', (_req, res) => { store.db.prepare('SELECT 1').get(); res.json({ ok: true, service: 'afterword' }); });
   app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode }));
+  app.get('/api/usage', auth, (req, res) => res.json({ usage: store.capacity.usage(req.user.id) }));
   app.get('/api/capabilities', (_req, res) => res.json({ hosted: config.collectors?.capabilities() || { enabled: false, platforms: {} } }));
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const input = credentials.parse(req.body);
@@ -162,15 +164,19 @@ export function createApp(store, config = {}) {
   });
   app.post('/api/heartbeat', source, (req, res) => {
     const input = z.object({ health: z.enum(['connected', 'reconnecting', 'error', 'waiting']), detail: z.string().max(300).default(''), queued: z.number().int().nonnegative().max(10_000_000).default(0) }).parse(req.body);
-    store.db.prepare('UPDATE connections SET last_seen=?,health=?,detail=?,queued=? WHERE id=?').run(new Date().toISOString(), input.health, input.detail, input.queued, req.connection.id);
-    res.json({ ok: true, paused: !!req.connection.paused, platform: req.connection.platform });
+    const blocked = req.connection.capacity_reason;
+    store.db.prepare('UPDATE connections SET last_seen=?,health=?,detail=?,queued=? WHERE id=?').run(new Date().toISOString(), blocked ? 'error' : input.health, blocked ? capacityMessages[blocked] : input.detail, input.queued, req.connection.id);
+    res.json({ ok: true, paused: !!req.connection.paused, platform: req.connection.platform, capacityBlocked: blocked || null });
   });
   app.post('/api/ingest', source, (req, res) => {
     const events = z.array(z.unknown()).min(1).max(100).parse(req.body.events);
+    if (req.connection.capacity_reason) {
+      try { store.capacity.resume(req.connection.id, req.connection.user_id); } catch { /* Individual results retain the capacity failure and queued copies. */ }
+    }
     // Results acknowledge each event individually, making batch retries safe.
     const results = events.map(event => {
       try { return { eventId: event?.eventId, ...store.ingest(req.connection, event) }; }
-      catch (error) { return { eventId: event?.eventId, error: error instanceof ZodError ? 'Invalid event payload.' : error.message }; }
+      catch (error) { return { eventId: event?.eventId, ...deliveryFailure(error) }; }
     });
     res.json({ results });
   });
@@ -181,7 +187,7 @@ export function createApp(store, config = {}) {
       offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0) }).parse(req.query);
     const result = await store.listMessages(req.user.id, { ...input, saved: input.saved === '1', signal });
     if (!store.authenticate(req.sessionToken)) return res.status(401).json({ error: 'Sign in to continue.' });
-    res.json(result);
+    res.json({ ...result, usage: store.capacity.usage(req.user.id) });
   }));
   app.get('/api/messages/:id', auth, (req, res) => archiveRead(req, res, false, async signal => {
     store.purge();

@@ -1,9 +1,11 @@
 import { fork } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { mkdirSync, rmSync, readdirSync } from 'node:fs';
+import { mkdirSync, rmSync, readdirSync, existsSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import QRCode from 'qrcode';
+import { capacityError, capacityMessages, deliveryFailure } from '../capacity.mjs';
 
 const supported = ['telegram', 'signal', 'whatsapp', 'discord'];
 const failure = (message, status = 409) => Object.assign(new Error(message), { status, public: true });
@@ -19,6 +21,14 @@ export function createCollectorManager(store, options) {
   let closing = false;
   const connection = id => store.db.prepare('SELECT * FROM connections WHERE id=? AND revoked=0').get(id);
   const enabled = id => !!store.db.prepare('SELECT 1 FROM hosted_collectors WHERE connection_id=? AND enabled=1').get(id);
+  function queuedCopies(id) {
+    const path = join(root, id, 'queue.sqlite');
+    if (!existsSync(path)) return 0;
+    const queue = new DatabaseSync(path, { readOnly: true });
+    try { return queue.prepare('SELECT count(*) AS n FROM queue').get().n; }
+    finally { queue.close(); }
+  }
+  const relinkQueueMessage = 'This connection has unsent events. Free archive space and use Try again to upload them before relinking. If events remain rejected, contact support.';
   const send = (state, message) => { if (state?.child?.connected) state.child.send(message, () => {}); };
   const update = (id, health, detail, queued = 0) => store.db.prepare('UPDATE connections SET health=?,detail=?,last_seen=?,queued=? WHERE id=? AND revoked=0 AND collector=?').run(health, detail, new Date().toISOString(), queued, id, 'hosted');
   const serialize = (id, fn) => {
@@ -34,7 +44,7 @@ export function createCollectorManager(store, options) {
     const qr = state?.qr && Date.parse(state.qr.expiresAt) > Date.now() ? state.qr : null;
     return { mode: c?.collector === 'hosted' ? 'hosted' : 'local', running: active, health: c?.health || 'waiting',
       detail: c?.detail || '', paused: !!c?.paused, qr, prompt: state?.prompt || null,
-      lastSeen: c?.last_seen || null, enabled: enabled(id) };
+      lastSeen: c?.last_seen || null, enabled: enabled(id), capacityReason: c?.capacity_reason || null };
   }
   function launch(c, failures = 0) {
     if (closing || workers.get(c.id)?.child) return;
@@ -71,7 +81,9 @@ export function createCollectorManager(store, options) {
           if (message.rejected) update(c.id, 'error', 'Some events need attention. Please contact support.', message.queued);
         }
         if (message.type === 'health' && ['connected', 'reconnecting', 'waiting', 'error'].includes(message.health)) {
-          update(c.id, message.health, String(message.detail || '').slice(0, 300), current.queued);
+          state.providerHealth = { health: message.health, detail: String(message.detail || '').slice(0, 300) };
+          update(c.id, current.capacity_reason || state.archiveError ? 'error' : message.health,
+            capacityMessages[current.capacity_reason] || state.archiveError || state.providerHealth.detail, current.queued);
           if (message.health === 'connected') { state.qr = null; state.prompt = null; state.failures = 0; ++state.qrSequence; }
         }
         if (message.type === 'qr' && typeof message.value === 'string' && message.value.length <= 6000) {
@@ -97,9 +109,19 @@ export function createCollectorManager(store, options) {
         if (message.type === 'events' && Array.isArray(message.events) && message.events.length <= 50) {
           const results = message.events.map(event => {
             try { return { eventId: event?.eventId, ...store.ingest(current, event) }; }
-            catch { return { eventId: event?.eventId, error: 'Invalid event' }; }
+            catch (error) { return { eventId: event?.eventId, ...deliveryFailure(error) }; }
           });
           send(state, { type: 'ack', results });
+          const retry = results.find(r => r.error && r.retryable);
+          state.archiveError = retry?.error || '';
+          if (retry) update(c.id, 'error', retry.error, Math.max(current.queued || 0, results.filter(r => r.error).length));
+          else if (state.providerHealth) update(c.id, state.providerHealth.health, state.providerHealth.detail, current.queued);
+          const capacity = results.find(r => capacityMessages[r.code]);
+          if (capacity) await manager.suspend(c.id, capacity.code);
+        }
+        if (message.type === 'capacity' && message.code === 'collector_capacity') {
+          store.capacity.block(c.id, capacityError(message.code));
+          await manager.suspend(c.id, message.code);
         }
       } catch { update(c.id, 'error', 'The hosted connection needs attention. Please try again.'); }
     });
@@ -116,6 +138,7 @@ export function createCollectorManager(store, options) {
     child.once('exit', exited);
     child.once('error', () => exited(1));
     send(state, { type: 'start', platform: c.platform, config, paused: c.paused, directory: join(root, c.id), runtimeDirectory,
+      minimumFreeBytes: store.capacity.limits.minimumFreeBytes,
       key: createHmac('sha256', Buffer.from(options.key, 'hex')).update('afterword-hosted:' + c.id).digest('hex') });
   }
   async function stop(id) {
@@ -152,10 +175,18 @@ export function createCollectorManager(store, options) {
         const active = store.hostedConnections().filter(x => x.enabled);
         if (!enabled(id) && active.length + reservations.size >= maxCollectors) throw failure('Hosted capacity is full. Please contact support.', 503);
         if (!enabled(id) && active.filter(x => x.user_id === userId).length + [...reservations.values()].filter(x => x === userId).length >= 4) throw failure('This account already has four hosted connections.');
+        if (relink && queuedCopies(id)) throw failure(relinkQueueMessage);
         if (workers.get(id)?.child && !restart && !relink) return publicState(id);
+        store.capacity.resume(id, userId);
         reservations.set(id, userId);
         try {
         await stop(id);
+        // An event can arrive between the initial check and worker shutdown.
+        if (relink && queuedCopies(id)) {
+          store.db.prepare('UPDATE hosted_collectors SET enabled=0 WHERE connection_id=?').run(id);
+          update(id, 'error', relinkQueueMessage, queuedCopies(id));
+          throw failure(relinkQueueMessage);
+        }
         if (relink) rmSync(join(root, id), { recursive: true, force: true });
         store.saveHostedConfig(id, { ...savedConfig, ...(c.platform === 'discord' && experimentalConsent ? { discordRiskAcceptedAt: new Date().toISOString() } : {}) });
         store.db.prepare('UPDATE hosted_collectors SET enabled=1 WHERE connection_id=?').run(id);
@@ -175,7 +206,11 @@ export function createCollectorManager(store, options) {
       return { ok: true };
     },
     pause(id, paused) { send(workers.get(id), { type: 'pause', paused }); },
-    suspend(id) { return serialize(id, async () => { store.db.prepare('UPDATE hosted_collectors SET enabled=0 WHERE connection_id=?').run(id); await stop(id); update(id, 'waiting', 'Hosted capture is stopped'); }); },
+    suspend(id, capacityReason = null) { return serialize(id, async () => {
+      store.db.prepare('UPDATE hosted_collectors SET enabled=0 WHERE connection_id=?').run(id);
+      await stop(id);
+      update(id, capacityReason ? 'error' : 'waiting', capacityMessages[capacityReason] || 'Hosted capture is stopped', connection(id)?.queued || 0);
+    }); },
     remove(id) { return serialize(id, async () => { store.db.prepare('DELETE FROM hosted_collectors WHERE connection_id=?').run(id); await stop(id); rmSync(join(root, id), { recursive: true, force: true }); }); },
     async restore() {
       const connections = store.hostedConnections();
