@@ -3,6 +3,23 @@ import { StringSession } from 'teleproto/sessions/index.js';
 import { NewMessage, EditedMessage, DeletedMessage } from 'teleproto/events/index.js';
 import { telegramEvent } from './normalize.mjs';
 import { eventId } from '../queue.mjs';
+
+export async function normalizeTelegramDelivery(event, kind) {
+  const m = event.message;
+  if (!m || m.action) return null;
+  // teleproto puts sender helpers on Message, not NewMessageEvent.
+  const [author, chat] = await Promise.all([
+    m.getSender().catch(() => null),
+    m.getChat().catch(() => null)
+  ]);
+  const chatId = m.chatId?.toString() || event.chatId?.toString() || '';
+  return telegramEvent(m, kind, {
+    chatId,
+    chatName: chat?.title || [chat?.firstName, chat?.lastName].filter(Boolean).join(' ') || chatId,
+    authorName: author?.title || [author?.firstName, author?.lastName].filter(Boolean).join(' ') || author?.username || m.senderId?.toString() || ''
+  });
+}
+
 export async function startTelegram(ctx) {
   const apiId = Number(ctx.config.apiId || await ctx.ask('Telegram application API ID (my.telegram.org): '));
   const apiHash = ctx.config.apiHash || await ctx.ask('Telegram application API hash: ', true);
@@ -11,17 +28,12 @@ export async function startTelegram(ctx) {
   const session = new StringSession(ctx.queue.get('telegram-session') || '');
   const client = new TelegramClient(session, apiId, apiHash, { connectionRetries: 5, autoReconnect: true });
   client.setLogLevel('none');
+  let processingFailed = false;
   const receive = async (event, kind) => {
     try {
-      const m = event.message;
-      if (!m || m.action) return;
-      const author = await event.getSender().catch(() => null);
-      const chat = await event.getChat().catch(() => null);
-      const normalized = telegramEvent(m, kind, { chatId: event.chatId?.toString() || '',
-        chatName: chat?.title || [chat?.firstName, chat?.lastName].filter(Boolean).join(' ') || event.chatId?.toString() || '',
-        authorName: author?.title || [author?.firstName, author?.lastName].filter(Boolean).join(' ') || author?.username || m.senderId?.toString() || '' });
-      if (normalized) ctx.capture(normalized);
-    } catch { ctx.health('error', 'Could not normalize a Telegram event; check companion version'); }
+      const normalized = await normalizeTelegramDelivery(event, kind);
+      if (normalized) { ctx.capture(normalized); processingFailed = false; }
+    } catch { processingFailed = true; ctx.health('error', 'Could not normalize a Telegram event; check companion version'); }
   };
   client.addEventHandler(e => receive(e, 'create'), new NewMessage({}));
   client.addEventHandler(e => receive(e, 'edit'), new EditedMessage({}));
@@ -36,6 +48,9 @@ export async function startTelegram(ctx) {
     onError: error => { console.error('Telegram sign-in:', error.errorMessage || error.name); } });
   ctx.queue.set('telegram-session', client.session.save());
   ctx.health('connected', 'Telegram account connected');
-  const timer = setInterval(() => ctx.health(client.connected ? 'connected' : 'reconnecting', client.connected ? 'Telegram account connected' : 'Reconnecting to Telegram'), 15_000);
+  const timer = setInterval(() => {
+    if (processingFailed) ctx.health('error', 'Could not normalize a Telegram event; check companion version');
+    else ctx.health(client.connected ? 'connected' : 'reconnecting', client.connected ? 'Telegram account connected' : 'Reconnecting to Telegram');
+  }, 15_000);
   return async () => { clearInterval(timer); ctx.queue.set('telegram-session', client.session.save()); await client.disconnect(); };
 }
