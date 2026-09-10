@@ -1,0 +1,12 @@
+import { build } from 'esbuild';
+import { mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { zipSync } from 'fflate';
+const outdir = 'dist/afterword-discord-extension';
+rmSync(outdir, { recursive: true, force: true }); mkdirSync(outdir, { recursive: true });
+await build({ entryPoints: { background: 'discord-extension/background.mjs', popup: 'discord-extension/popup.mjs' }, bundle: true, outdir, format: 'esm', platform: 'browser', target: 'chrome125', minify: false, legalComments: 'eof' });
+for (const name of ['manifest.json', 'popup.html', 'popup.css']) cpSync(join('discord-extension', name), join(outdir, name));
+cpSync('docs/guides/discord.md', join(outdir, 'SETUP.md'));
+const files = Object.fromEntries(readdirSync(outdir).map(name => [`afterword-discord-extension/${name}`, readFileSync(join(outdir, name))]));
+writeFileSync('dist/afterword-discord-extension.zip', zipSync(files, { level: 6 }));
+console.log('Built personal Discord extension and installable ZIP.');

@@ -48,12 +48,13 @@ export function createStore(path, encryptionKey) {
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);`);
   db.exec(`CREATE TABLE IF NOT EXISTS forgotten (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE);`);
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'paired_at')) db.exec('ALTER TABLE connections ADD COLUMN paired_at TEXT');
+  if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'collector')) db.exec('ALTER TABLE connections ADD COLUMN collector TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS pairing_codes (
     connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, expires_at TEXT NOT NULL
   );`);
   const getUser = id => db.prepare('SELECT id,username,created_at,retention_days FROM users WHERE id=?').get(id);
-  const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,
+  const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,collector,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id) AS message_count,
     (SELECT max(last_seen) FROM messages WHERE connection_id=connections.id) AS last_message_at
     FROM connections WHERE user_id=? ORDER BY created_at`).all(user);
@@ -115,20 +116,21 @@ export function createStore(path, encryptionKey) {
         DO UPDATE SET code_hash=excluded.code_hash,created_at=excluded.created_at,expires_at=excluded.expires_at`).run(connectionId, hash(code), createdAt, expiresAt);
       return { code: `${code.slice(0, 5)}-${code.slice(5)}`, createdAt, expiresAt };
     },
-    redeemPairing(input) {
+    redeemPairing(input, expectedPlatform) {
       const code = String(input).replace(/[\s-]/g, '').toUpperCase();
       if (!/^[A-HJ-NP-Z2-9]{10}$/.test(code)) return null;
       db.exec('BEGIN IMMEDIATE');
       try {
         const c = db.prepare(`SELECT c.* FROM pairing_codes p JOIN connections c ON p.connection_id=c.id
           WHERE p.code_hash=? AND p.expires_at>? AND c.revoked=0`).get(hash(code), new Date().toISOString());
-        if (!c) { db.exec('COMMIT'); return null; }
+        if (!c || expectedPlatform && c.platform !== expectedPlatform || c.platform === 'discord' && expectedPlatform !== 'discord') { db.exec('COMMIT'); return null; }
         const secret = `aw_${token()}`, pairedAt = new Date().toISOString();
-        db.prepare("UPDATE connections SET token_hash=?,paired_at=?,last_seen=?,health='waiting',detail='Companion paired. Finish signing in on your computer.' WHERE id=?")
-          .run(hash(secret), pairedAt, pairedAt, c.id);
+        const collector = c.platform === 'discord' ? 'discord-browser' : 'companion';
+        db.prepare("UPDATE connections SET token_hash=?,paired_at=?,last_seen=?,collector=?,health='waiting',detail=? WHERE id=?")
+          .run(hash(secret), pairedAt, pairedAt, collector, c.platform === 'discord' ? 'Extension paired. Start capture in your Discord Web tab.' : 'Companion paired. Finish signing in on your computer.', c.id);
         db.prepare('DELETE FROM pairing_codes WHERE connection_id=?').run(c.id);
         db.exec('COMMIT');
-        return { token: secret, platform: c.platform, connectionId: c.id, name: c.name, profile: `${c.platform}-${c.id.slice(0, 8)}` };
+        return { token: secret, platform: c.platform, collector, connectionId: c.id, name: c.name, profile: `${c.platform}-${c.id.slice(0, 8)}` };
       } catch (error) { db.exec('ROLLBACK'); throw error; }
     },
     forgetMessage(id, userId) {

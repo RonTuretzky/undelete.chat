@@ -74,7 +74,7 @@ npm start -- run YOUR-PROFILE
 - Confirm you are viewing your signed-in archive, not sample data, and clear search/platform filters.
 - Use a new ordinary text message in a covered conversation. Content from before capture started is not backfilled.
 - Check that the computer stayed awake, that the source is not paused, and that the terminal reports no errors.
-- Signal/WhatsApp disappearing or view-once messages and Telegram secret/self-destructing messages are excluded. Personal Discord capture is not available in this release.
+- Signal/WhatsApp disappearing or view-once messages and Telegram secret/self-destructing messages are excluded. Discord captures only identified DMs and group DMs delivered to the selected browser tab.
 - If the archive server was down, received events stay queued locally and upload after it recovers. Activity never delivered to the companion is not in that queue.
 - Telegram may omit deletion events. Attachment filenames can appear without downloadable files because this release stores metadata only.
 

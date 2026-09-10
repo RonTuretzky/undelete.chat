@@ -19,7 +19,7 @@ export function createApp(store, config = {}) {
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many requests. Try again shortly.' } }));
   app.use((req, res, next) => {
     // Browser mutations require the configured or same origin. Companion requests have no cookies.
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.path.startsWith('/api/ingest') && !req.path.startsWith('/api/heartbeat')) {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.path.startsWith('/api/ingest') && !req.path.startsWith('/api/heartbeat') && req.path !== '/api/pair') {
       const origin = req.get('origin');
       const allowed = config.origins || [config.origin].filter(Boolean);
       if (origin && !allowed.includes(origin)) return res.status(403).json({ error: 'Request origin is not allowed.' });
@@ -63,21 +63,20 @@ export function createApp(store, config = {}) {
   app.get('/api/connections', auth, (req, res) => res.json({ connections: store.connections(req.user.id) }));
   app.post('/api/connections', auth, (req, res) => {
     const input = z.object({ platform: z.enum(platforms), name: z.string().trim().min(1).max(100) }).parse(req.body);
-    if (input.platform === 'discord') return res.status(409).json({ error: 'Personal Discord capture is not available yet. Server bots do not connect your personal inbox.' });
     if (store.connections(req.user.id).filter(c => !c.revoked).length >= 20) return res.status(409).json({ error: 'Maximum of 20 connections per account.' });
     res.status(201).json({ connection: store.createConnection(req.user.id, input.platform, input.name) });
   });
   app.post('/api/connections/:id/pairing', auth, (req, res) => {
-    const source = store.connections(req.user.id).find(c => c.id === req.params.id);
-    if (source?.platform === 'discord') return res.status(409).json({ error: 'Personal Discord capture is not available yet. Server-bot setup has been withdrawn.' });
     const pairing = store.createPairing(req.params.id, req.user.id);
     return pairing ? res.json({ pairing }) : res.status(404).json({ error: 'Connection not found.' });
   });
   const pairLimit = rateLimit({ windowMs: 15 * 60_000, limit: 15, standardHeaders: 'draft-8', legacyHeaders: false,
     message: { error: 'Too many pairing attempts. Wait 15 minutes, then generate a new code in Connections.' } });
   app.post('/api/pair', pairLimit, (req, res) => {
-    const { code } = z.object({ code: z.string().min(1).max(30) }).parse(req.body);
-    const connection = store.redeemPairing(code);
+    // Pairing uses a one-time secret, never cookies. Extension-origin requests
+    // are allowed here; account mutations still enforce the same-origin check.
+    const { code, platform } = z.object({ code: z.string().min(1).max(30), platform: z.enum(platforms).optional() }).parse(req.body);
+    const connection = store.redeemPairing(code, platform);
     return connection ? res.json({ connection }) : res.status(400).json({ error: 'This pairing code is invalid, expired, or already used. Generate a new code in Connections.' });
   });
   app.patch('/api/connections/:id', auth, (req, res) => {
@@ -148,6 +147,11 @@ export function createApp(store, config = {}) {
   app.get('/api/companion/download', auth, (req, res) => {
     const path = resolve(req.query.format === 'zip' ? 'dist/afterword-companion.zip' : 'dist/afterword-companion.tar.gz');
     if (!existsSync(path)) return res.status(503).json({ error: 'Companion package is not available on this build.' });
+    res.download(path);
+  });
+  app.get('/api/discord/extension', auth, (_req, res) => {
+    const path = resolve('dist/afterword-discord-extension.zip');
+    if (!existsSync(path)) return res.status(503).json({ error: 'The Discord extension is not available on this build.' });
     res.download(path);
   });
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));

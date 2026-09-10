@@ -1,7 +1,7 @@
 # Afterword user guides
 
 - [Start your first archive](./getting-started.md)
-- [Personal Discord messages](./discord.md)
+- [Connect your personal Discord](./discord.md)
 - [Connect WhatsApp](./whatsapp.md)
 - [Connect Telegram](./telegram.md)
 - [Connect Signal](./signal.md)

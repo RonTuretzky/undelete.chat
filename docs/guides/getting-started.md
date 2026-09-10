@@ -8,7 +8,7 @@ From a new workspace to your first captured message, one step at a time.
 
 Afterword is your private web archive. The companion is a small program that runs on your computer, receives messages from the accounts you link, and sends captured copies to that archive.
 
-You can browse the archive on your phone. Initial setup needs a Windows, macOS, or Linux computer with a terminal. There is no phone-only installation or background desktop app in this release.
+You can browse the archive on your phone. Initial setup needs a computer. Discord uses a Chrome extension; Telegram, Signal, and WhatsApp use a terminal companion. There is no phone-only installation or background desktop app in this release.
 
 <a id="account"></a>
 
@@ -16,7 +16,7 @@ You can browse the archive on your phone. Initial setup needs a Windows, macOS, 
 
 1. Choose Create your archive and pick a username and a password with at least 12 characters.
 2. If asked, enter the invitation code supplied by your Afterword administrator. This is different from the pairing code you generate later.
-3. After signing in, open Connections and choose a platform. Check its coverage and prerequisites before continuing.
+3. After signing in, open Connections and choose a platform. Check its coverage and prerequisites before continuing. For Discord, follow the browser extension guide; the terminal steps below apply to the other platforms.
 
 > The signed-out preview contains sample messages. Your own archive starts empty. If you forget your account password, contact the operator of your Afterword instance; self-service email recovery is not available.
 

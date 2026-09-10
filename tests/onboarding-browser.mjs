@@ -35,8 +35,8 @@ try {
     await noOverflow();
   }
   await page.goto(`${base}/docs/discord`);
-  await expect(page.getByRole('button', { name: 'Connect Discord', exact: true })).toHaveCount(0);
-  await expect(page.getByText('Personal Discord capture is unavailable.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Connect Discord', exact: true })).toHaveCount(1);
+  await expect(page.getByText(platformGuides.discord.coverage, { exact: true })).toBeVisible();
   await page.screenshot({ path: join(output, 'discord-guide-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   for (const slug of ['getting-started', ...platformOrder, 'troubleshooting']) {
@@ -72,7 +72,7 @@ try {
     await dialog.locator('input[type=checkbox]').check();
     await dialog.getByRole('button', { name: 'Continue to setup', exact: true }).click();
     let code = await page.getByLabel('Pairing code', { exact: true }).innerText();
-    await expect(dialog.getByRole('status')).toContainText('Waiting for your companion');
+    await expect(dialog.getByRole('status')).toContainText(platform === 'discord' ? 'Waiting for your extension' : 'Waiting for your companion');
     if (platform === 'whatsapp') {
       await dialog.getByRole('button', { name: 'Windows', exact: true }).click();
       await expect(dialog.locator('.command-block').first()).toContainText('npm.cmd ci --omit=dev');
@@ -94,11 +94,11 @@ try {
     await dialog.locator('.wizard-platform').scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(output, `${platform}-pairing.png`) });
     await noOverflow();
-    const pairResponse = await page.request.post(`${base}/api/pair`, { data: { code } });
+    const pairResponse = await page.request.post(`${base}/api/pair`, { data: { code, ...(platform === 'discord' ? { platform: 'discord' } : {}) } });
     expect(pairResponse.ok()).toBeTruthy();
     const { connection } = await pairResponse.json();
     expect(connection.platform).toBe(platform);
-    await expect(dialog.getByRole('status')).toContainText('Waiting for platform sign-in', { timeout: 10000 });
+    await expect(dialog.getByRole('status')).toContainText(platform === 'discord' ? 'Waiting for Discord capture' : 'Waiting for platform sign-in', { timeout: 10000 });
     await expect(dialog.getByRole('heading', { name: `${name} is connected`, exact: true })).toHaveCount(0);
     // Simulated collectors exercise actual pairing, heartbeat, ingestion, and UI polling.
     // They intentionally do not sign into provider accounts or send platform messages.

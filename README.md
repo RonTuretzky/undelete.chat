@@ -1,10 +1,10 @@
 # Afterword
 
-A hosted message archive for individuals, with per-account workspaces and a local companion for personal Telegram, Signal and WhatsApp accounts. Personal Discord capture is an unimplemented product requirement; it is currently unavailable. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
+A hosted message archive for individuals, with per-account workspaces and a local companion for personal Telegram, Signal and WhatsApp accounts, plus an experimental Chrome extension for personal Discord DMs and group DMs. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
 
 ## User onboarding and documentation
 
-Open **Help & guides** in the app or visit `/docs` for the public help center. It covers first setup, personal-account connection guides and Discord availability, troubleshooting, continuous capture, and privacy. The in-app wizard uses a single-use, ten-minute pairing code; the companion automatically saves its connection key and assigns an isolated profile. It then waits for a real platform heartbeat and first message rather than marking setup complete after a download.
+Open **Help & guides** in the app or visit `/docs` for the public help center. It covers first setup, personal-account connection guides, including the Discord browser extension, troubleshooting, continuous capture, and privacy. The in-app wizard uses a single-use, ten-minute pairing code; the companion automatically saves its connection key and assigns an isolated profile. It then waits for a real platform heartbeat and first message rather than marking setup complete after a download.
 
 The [user guides](docs/guides/README.md) are generated from `web/guides.mjs`, which also renders the help center. Run `npm run docs` after editing. `npm run package:companion` produces ZIP and tar.gz downloads with a minimal dependency manifest and offline copies of all guides. Existing connections can continue setup without creating another source; re-pairing rotates only that source’s archive token when the new code is redeemed.
 
@@ -28,12 +28,12 @@ The production API serves the compiled UI on port 4318. Copy `.env.example` to `
 
 | Platform | Implementation | Coverage |
 | --- | --- | --- |
-| Discord | Personal connector not implemented | Unavailable; the earlier server-bot adapter does not meet the personal-message requirement |
+| Discord | Passive Chrome extension (experimental) | Identified personal DMs and group DMs delivered to a selected Discord Web tab; create, edit, delete. No server channels or bot tokens. |
 | Telegram | Personal account through teleproto / MTProto | Ordinary cloud chats; new messages, edits, delivered deletion updates |
 | Signal | Unofficial signal-cli linked device | Incoming and synced outgoing ordinary messages, edits and remote deletes |
 | WhatsApp | Unofficial Baileys linked device | New deliveries, edits and revoke events exposed by the linked session |
 
-**This is not universal access to every message on all four platforms.** Personal Discord capture is unavailable. New Discord sources and server-bot pairing are disabled; existing stored records remain accessible. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. Signal/WhatsApp linked-device compatibility is experimental until validated against the user's live accounts. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
+**This is not universal access to every message on all four platforms.** Discord uses the extension rather than a bot. It requires Chrome 125+, debugging permission, and an open signed-in Discord Web tab. Automated compressed-stream and archive tests pass; live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. Signal/WhatsApp linked-device compatibility is experimental until validated against the user's live accounts. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
 
 ## Architecture
 
@@ -60,3 +60,9 @@ Use `docker compose -f deploy/compose.yaml up -d --build` to update. Do not use 
 `node tests/onboarding-browser.mjs` checks all eight public guides, desktop/mobile layouts, preserving a platform choice through signup, all four connection wizards, Windows commands, resuming unfinished setup, code replacement, ZIP downloads, and first-message verification. It uses simulated collectors against the real API and does not sign into providers or send platform messages. Browser tests create isolated accounts and delete them afterward. Set `TEST_URL` for a deployed instance and `TEST_INVITE_FILE` to a private invitation-code file when registration requires one.
 
 The initial implementation is a single-node private beta. Search decrypts an account's messages in memory; it needs indexing and pagination at the storage layer before serving very large archives. There is no production uptime SLA, external monitoring, high availability, billing, or verified-email recovery. Live platform sign-in and capture must be smoke-tested after the user pairs each account; unit tests cannot prove live compatibility. Invite-only registration is recommended for the initial deployment.
+
+## Personal Discord browser collector
+
+`npm run package:discord` creates `dist/afterword-discord-extension.zip` and its unpacked folder. The web setup serves the ZIP and an archive pairing code; no Node.js installation is needed for Discord users. The extension observes inbound Gateway WebSocket frames through Chrome's debugger API, supports JSON, zlib-stream and zstd-stream, and filters events to known personal DM/group-DM channels. It never creates a Discord API session or reads outgoing frames, HTTP response bodies, request headers or cookies.
+
+Its private IndexedDB stores encrypted queue entries and metadata, with a non-extractable AES-GCM key in the same profile. The queue is capped at 10,000 events; message metadata expires after seven days. The first observed account identity binds the source. Account switching, decoding failures, and queue exhaustion stop capture visibly. Stop/Start controls, account pairing, and a visible Chrome debugging notice keep capture user-controlled. This is an unofficial downloadable beta, not an approved Discord integration or Chrome Web Store listing.

@@ -8,13 +8,14 @@
   },
   "scripts": {
     "dev": "concurrently -k 'node --watch server/index.mjs' 'vite --host 127.0.0.1'",
-    "build": "vite build",
+    "build": "vite build && node deploy/package-discord-extension.mjs",
     "start": "node server/index.mjs",
     "test": "node --test tests/*.test.mjs",
     "companion": "node companion/index.mjs",
     "check": "npm test && npm run build",
     "docs": "node deploy/generate-docs.mjs",
-    "package:companion": "npm run docs && node deploy/package-companion.mjs"
+    "package:companion": "npm run docs && node deploy/package-companion.mjs",
+    "package:discord": "npm run docs && node deploy/package-discord-extension.mjs"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.21",
@@ -35,7 +36,10 @@
     "@playwright/test": "^1.55.0",
     "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^9.2.0",
+    "esbuild": "^0.25.12",
+    "fake-indexeddb": "^6.2.4",
     "fflate": "^0.8.3",
+    "fzstd": "^0.1.1",
     "vite": "^7.1.0"
   }
 }

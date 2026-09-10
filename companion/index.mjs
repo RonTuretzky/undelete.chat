@@ -70,7 +70,7 @@ if (!config.server || !config.token) {
   console.error('This profile has not been paired. Open Connections in your archive and copy its pairing command.'); rl.close(); process.exit(1);
 }
 if (command === 'credentials') {
-  if (config.platform === 'discord') save({ botToken: await ask('New Discord bot token: ', true) });
+  if (config.platform === 'discord') { console.log('Discord uses the browser extension. Open Connections → Discord in your archive; no Discord token is needed.'); rl.close(); process.exit(0); }
   else if (config.platform === 'telegram') {
     const apiId = Number(await ask('Telegram application API ID: '));
     const apiHash = await ask('Telegram application API hash: ', true);
@@ -80,7 +80,7 @@ if (command === 'credentials') {
   console.log(`Saved. Resume with: npm start -- run ${profile}`); rl.close(); process.exit(0);
 }
 if (command === 'relink') {
-  if (config.platform === 'discord') { console.log(`Use: npm start -- credentials ${profile}`); rl.close(); process.exit(0); }
+  if (config.platform === 'discord') { console.log('Use Stop and Start in the Afterword browser extension. Pair a separate source for a different Discord account.'); rl.close(); process.exit(0); }
   console.log(`Stop any other companion for ${profile} before continuing. This clears its ${config.platform} login, but preserves your queued events and archive.`);
   if (await ask('Type RELINK to continue: ') !== 'RELINK') { console.log('No changes made.'); rl.close(); process.exit(0); }
   if (config.platform === 'telegram') { const q = openQueue(directory); q.delete('telegram-session'); q.close(); }

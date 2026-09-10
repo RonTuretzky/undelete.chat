@@ -24,7 +24,7 @@ credentials.chmod(0o600)
 with tempfile.TemporaryDirectory(prefix='afterword-deploy-') as tmp:
     archive = pathlib.Path(tmp) / 'source.tar.gz'
     with tarfile.open(archive, 'w:gz') as tar:
-        for name in ['server', 'web', 'companion', 'tests', 'deploy', 'docs', 'package.json', 'package-lock.json', 'vite.config.js', 'Dockerfile', '.dockerignore', 'README.md']:
+        for name in ['server', 'web', 'companion', 'discord-extension', 'tests', 'deploy', 'docs', 'package.json', 'package-lock.json', 'vite.config.js', 'Dockerfile', '.dockerignore', 'README.md']:
             tar.add(root / name, arcname=name)
     remote('install -d -m 700 /opt/afterword')
     subprocess.run(['scp', *ssh_options, str(archive), target + ':/opt/afterword/source.tar.gz'], check=True)
