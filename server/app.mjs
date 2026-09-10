@@ -70,6 +70,10 @@ export function createApp(store, config = {}) {
   const credentials = z.object({ username: z.string().min(3).max(100).regex(/^[a-zA-Z0-9@._+-]+$/), password: z.string().min(12).max(128) });
   const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: 25, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many sign-in attempts. Try again in 15 minutes.' } });
   app.get('/api/health', (_req, res) => { store.db.prepare('SELECT 1').get(); res.json({ ok: true, service: 'afterword' }); });
+  app.get('/api/monitor', (_req, res) => {
+    const state = config.monitor?.publicState() || { ok: false, service: 'afterword' };
+    res.status(state.ok ? 200 : 503).json({ ok: !!state.ok, service: 'afterword' });
+  });
   app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode }));
   app.get('/api/usage', auth, (req, res) => res.json({ usage: store.capacity.usage(req.user.id) }));
   app.get('/api/capabilities', (_req, res) => res.json({ hosted: config.collectors?.capabilities() || { enabled: false, platforms: {} } }));

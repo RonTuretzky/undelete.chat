@@ -72,9 +72,11 @@ test('real worker processes resume encrypted sessions after supervisor restart a
   await until(() => f.manager.status(c.id).prompt);
   f.manager.reply(c.id, f.alice.id, id, 'secret-password');
   await until(() => f.store.messages(f.alice.id).length === 1);
+  const connectedAt = f.store.connection(c.id, f.alice.id).connected_at; assert.ok(connectedAt);
   await f.restart();
   await until(() => f.manager.status(c.id).health === 'connected');
   assert.equal(f.manager.status(c.id).qr, null);
+  assert.equal(f.store.connection(c.id, f.alice.id).connected_at, connectedAt);
   f.children.at(-1).kill('SIGKILL');
   await until(() => f.children.length === 3 && f.manager.status(c.id).health === 'connected');
   assert.equal(f.store.messages(f.alice.id)[0].versions.length, 3, 'retried events are idempotent');

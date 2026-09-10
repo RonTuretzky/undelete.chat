@@ -190,8 +190,8 @@ export function createCollectorManager(store, options) {
         if (relink) rmSync(join(root, id), { recursive: true, force: true });
         store.saveHostedConfig(id, { ...savedConfig, ...(c.platform === 'discord' && experimentalConsent ? { discordRiskAcceptedAt: new Date().toISOString() } : {}) });
         store.db.prepare('UPDATE hosted_collectors SET enabled=1 WHERE connection_id=?').run(id);
-        store.db.prepare("UPDATE connections SET collector='hosted',token_hash=NULL,paired_at=?,last_seen=?,health='waiting',detail='Starting hosted sign-in' WHERE id=?")
-          .run(new Date().toISOString(), new Date().toISOString(), id);
+        store.db.prepare("UPDATE connections SET collector='hosted',token_hash=NULL,paired_at=?,last_seen=?,health='waiting',connected_at=CASE WHEN ? THEN NULL ELSE connected_at END,detail='Starting hosted sign-in' WHERE id=?")
+          .run(new Date().toISOString(), new Date().toISOString(), +(relink || c.collector !== 'hosted'), id);
         store.db.prepare('DELETE FROM pairing_codes WHERE connection_id=?').run(id);
         launch(connection(id));
         return publicState(id);

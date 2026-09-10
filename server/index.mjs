@@ -4,10 +4,13 @@ import { randomBytes } from 'node:crypto';
 import { createStore } from './store.mjs';
 import { createApp } from './app.mjs';
 import { createBackupService, clearBackupStaging } from './backup-service.mjs';
+import { offsiteConfig } from './offsite.mjs';
+import { createOperationsMonitor } from './monitor.mjs';
 import { createCollectorManager } from './hosted/manager.mjs';
 import { MiB, positiveBytes } from './capacity.mjs';
 try { process.loadEnvFile('.env'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
 const production = process.env.NODE_ENV === 'production';
+const backupConfig = production ? offsiteConfig() : null;
 const dir = resolve(process.env.DATA_DIR || 'data');
 mkdirSync(dir, { recursive: true, mode: 0o700 });
 let key = process.env.ARCHIVE_KEY;
@@ -35,16 +38,20 @@ const collectors = process.env.HOSTED_COLLECTORS === 'true' ? createCollectorMan
   discordPersonalCloud: process.env.DISCORD_PERSONAL_CLOUD === 'true',
   signalNativeDirectory: process.env.SIGNAL_NATIVE_DIR
 }) : null;
-const app = createApp(store, { collectors, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
+const monitor = production ? createOperationsMonitor(store, { directory: dir, offsiteConfigured: !!backupConfig,
+  offsiteTarget: backupConfig && { endpoint: backupConfig.endpoint, bucket: backupConfig.bucket }, hostedEnabled: !!collectors }) : null;
+const app = createApp(store, { collectors, monitor, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
 const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`Afterword listening on port ${process.env.PORT || 4318}`));
 await collectors?.restore();
-const backups = production ? createBackupService(dir, { key, minimumFreeBytes: store.capacity.limits.minimumFreeBytes }) : null;
+const backups = production ? createBackupService(dir, { key, config: backupConfig, minimumFreeBytes: store.capacity.limits.minimumFreeBytes }) : null;
 if (production) await clearBackupStaging(dir);
 const backupTimer = backups ? setInterval(() => backups.run(), 15 * 60_000).unref() : null;
 backups?.run();
+const monitorTimer = monitor ? setInterval(() => monitor.run(), 15_000).unref() : null;
+monitor?.run();
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
-  if (stopping) return; stopping = true; clearInterval(timer); clearInterval(backupTimer);
+  if (stopping) return; stopping = true; clearInterval(timer); clearInterval(backupTimer); clearInterval(monitorTimer);
   const closed = new Promise(resolve => server.close(resolve));
-  await Promise.all([collectors?.close(), backups?.close()]); await closed; store.close(); process.exit(0);
+  await Promise.all([collectors?.close(), backups?.close(), monitor?.close()]); await closed; store.close(); process.exit(0);
 });

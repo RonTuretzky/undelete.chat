@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 
 class DigitalOcean:
@@ -59,15 +60,18 @@ class DigitalOcean:
                 raise RuntimeError('Uptime pagination returned an empty page with a next page.')
             page += 1
 
-    def uptime_target(self):
+    def uptime_target(self, path='/api/health'):
         origin = self.state['url'].rstrip('/')
         parsed = urlsplit(origin)
         if parsed.scheme != 'https' or parsed.hostname != self.state['hostname'] or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
             raise RuntimeError('The recorded Afterword URL must be its public HTTPS origin.')
-        return origin + '/api/health'
+        if path not in ('/api/health', '/api/monitor'):
+            raise RuntimeError('Unknown Afterword monitoring endpoint.')
+        return origin + path
 
     def afterword_check(self, checks):
-        matches = [check for check in checks if check['name'] == 'Afterword availability' and check['target'] == self.uptime_target()]
+        targets = {self.uptime_target(), self.uptime_target('/api/monitor')}
+        matches = [check for check in checks if check['name'] == 'Afterword availability' and check['target'] in targets]
         if len(matches) > 1:
             raise RuntimeError('Multiple Afterword availability checks exist; inspect them before changing monitoring.')
         return matches[0] if matches else None
@@ -102,6 +106,46 @@ class DigitalOcean:
         return {'configured': True, 'check': check, 'state': state,
                 'alertCount': len(alerts)}
 
+    def probe_service_monitor(self):
+        target = self.uptime_target('/api/monitor')
+        try:
+            response = urlopen(Request(target, headers={'Accept': 'application/json'}), timeout=15)
+        except HTTPError as error:
+            if error.code != 503:
+                raise
+            response = error
+        with response:
+            body = response.read(1024)
+            status = response.code
+            if response.geturl() != target or not response.headers.get('Content-Type', '').startswith('application/json'):
+                raise RuntimeError('The service monitor endpoint did not return its expected response.')
+        try:
+            value = json.loads(body)
+        except ValueError:
+            raise RuntimeError('The service monitor endpoint did not return JSON.') from None
+        if type(value.get('ok')) is not bool or value != {'ok': value['ok'], 'service': 'afterword'} or status != (200 if value['ok'] else 503):
+            raise RuntimeError('The service monitor response failed validation.')
+        return value
+
+    def enable_service_monitor(self):
+        self.status()
+        check = self.afterword_check(self.uptime_checks())
+        if check is None:
+            raise RuntimeError('Configure the Afterword availability check first.')
+        probe = self.probe_service_monitor()
+        target = self.uptime_target('/api/monitor')
+        changed = check['target'] != target
+        if changed:
+            # Preserve regions, disabled state, name, and the existing check ID.
+            # Its existing alerts are untouched; no notification is created.
+            settings = {key: check[key] for key in ('name', 'type', 'regions', 'enabled')}
+            settings['target'] = target
+            check = self.request('PUT', 'uptime/checks/' + check['id'], settings)['check']
+        result = {'changed': changed, 'check': check, 'probe': probe, 'notificationsConfiguredByThisCommand': False}
+        file = self.private / 'service-monitor-enablement.json'
+        file.write_text(json.dumps(result, indent=2)); file.chmod(0o600)
+        return result
+
     def backup_status(self):
         options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',
                    '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.private / 'known_hosts'), '-o', 'ConnectTimeout=15']
@@ -115,6 +159,14 @@ console.log(JSON.stringify({status,localSnapshots:snapshots.length,latestLocalSn
                                 input=script, text=True, capture_output=True, timeout=30, check=True)
         return json.loads(result.stdout)
 
+    def service_status(self):
+        options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',
+                   '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.private / 'known_hosts'), '-o', 'ConnectTimeout=15']
+        result = subprocess.run(['ssh', *options, 'root@' + self.state['ip'],
+                                 'cd /opt/afterword && docker compose -f deploy/compose.yaml exec -T app node server/monitor.mjs status'],
+                                text=True, capture_output=True, timeout=30, check=True)
+        return json.loads(result.stdout)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -123,6 +175,8 @@ def main():
     commands.add_parser('enable-uptime')
     commands.add_parser('uptime-status')
     commands.add_parser('backup-status')
+    commands.add_parser('service-status')
+    commands.add_parser('enable-service-monitor')
     backups = commands.add_parser('enable-daily-backups')
     backups.add_argument('--hour', type=int, choices=[0, 4, 8, 12, 16, 20], default=20)
     action = commands.add_parser('action')
@@ -134,6 +188,8 @@ def main():
     elif args.command == 'enable-uptime': result = client.enable_uptime()
     elif args.command == 'uptime-status': result = client.uptime_status()
     elif args.command == 'backup-status': result = client.backup_status()
+    elif args.command == 'service-status': result = client.service_status()
+    elif args.command == 'enable-service-monitor': result = client.enable_service_monitor()
     else: result = client.request('GET', 'actions/' + str(args.id))
     print(json.dumps(result, indent=2))
 

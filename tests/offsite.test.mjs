@@ -159,6 +159,15 @@ test('offsite configuration is explicit and interrupted encrypted staging cleanu
   assert.equal((await readdir(f.snapshot.directory)).includes(basename(scratch)), false);
   assert.ok((await stat(join(f.snapshot.directory, 'afterword.sqlite'))).size > 0);
 });
+test('changing backup storage clears previous destination success before reporting an upload failure', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'afterword-backup-target-')); t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'backup-status.json'), JSON.stringify({ lastOffsiteAt: new Date().toISOString(), offsiteSnapshot: 'old', offsiteTarget: { endpoint: config.endpoint, bucket: 'old-bucket' } }));
+  const service = createBackupService(root, { config, client: {}, key: 'test', log: { info() {}, error() {} },
+    snapshot: async () => ({ directory: root, createdAt: new Date().toISOString() }), replicate: async () => { throw new Error('Storage unavailable'); } });
+  const status = await service.run(); await service.close();
+  assert.equal(status.state, 'failed'); assert.equal(status.lastOffsiteAt, undefined); assert.equal(status.offsiteSnapshot, undefined);
+  assert.deepEqual(status.offsiteTarget, { endpoint: config.endpoint, bucket: config.bucket });
+});
 test('the real S3 SDK streams a large database through signed HTTP uploads, readback and offline restore', async t => {
   const f = await fixture(t), provider = await startS3Fixture(); t.after(() => provider.close());
   const settings = { ...config, endpoint: provider.endpoint, credentials: { accessKeyId: 'TESTACCESSKEY', secretAccessKey: 'fixture-secret-only' } };

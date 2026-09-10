@@ -19,6 +19,11 @@ export function createBackupService(directory, { key, minimumFreeBytes, config =
       let previous = {};
       try { previous = JSON.parse(await readFile(statusFile, 'utf8')); } catch (e) { if (e.code !== 'ENOENT') log.error('Backup status could not be read.'); }
       const status = { ...previous, offsiteConfigured: !!config, lastAttemptAt: new Date(now()).toISOString(), state: 'running' };
+      const target = config ? { endpoint: config.endpoint, bucket: config.bucket } : null;
+      if (status.offsiteTarget?.endpoint !== target?.endpoint || status.offsiteTarget?.bucket !== target?.bucket) {
+        delete status.lastOffsiteAt; delete status.offsiteSnapshot;
+      }
+      status.offsiteTarget = target;
       let phase = 'snapshot';
       try {
         if (!latest || now() - Date.parse(latest.createdAt) >= day) {

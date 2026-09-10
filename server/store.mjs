@@ -77,6 +77,21 @@ export function createStore(path, encryptionKey, options = {}) {
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'recovery_hash')) db.exec('ALTER TABLE users ADD COLUMN recovery_hash TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'paired_at')) db.exec('ALTER TABLE connections ADD COLUMN paired_at TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'collector')) db.exec('ALTER TABLE connections ADD COLUMN collector TEXT');
+  if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'connected_at')) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'connected_at')) {
+        db.exec(`ALTER TABLE connections ADD COLUMN connected_at TEXT;
+          UPDATE connections SET connected_at=coalesce((SELECT min(first_seen) FROM messages WHERE connection_id=connections.id),last_seen,created_at)
+          WHERE health='connected' OR EXISTS(SELECT 1 FROM messages WHERE connection_id=connections.id);`);
+      }
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
+  }
+  db.exec(`CREATE TRIGGER IF NOT EXISTS connection_first_connected AFTER UPDATE OF health ON connections
+    WHEN NEW.health='connected' AND NEW.connected_at IS NULL BEGIN
+      UPDATE connections SET connected_at=coalesce(NEW.last_seen,strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE id=NEW.id;
+    END;`);
   db.exec(`CREATE TABLE IF NOT EXISTS pairing_codes (
     connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, expires_at TEXT NOT NULL
@@ -193,7 +208,7 @@ export function createStore(path, encryptionKey, options = {}) {
         if (!c || expectedPlatform && c.platform !== expectedPlatform || c.platform === 'discord' && expectedPlatform !== 'discord') { db.exec('COMMIT'); return null; }
         const secret = `aw_${token()}`, pairedAt = new Date().toISOString();
         const collector = c.platform === 'discord' ? 'discord-browser' : 'companion';
-        db.prepare("UPDATE connections SET token_hash=?,paired_at=?,last_seen=?,collector=?,health='waiting',detail=? WHERE id=?")
+        db.prepare("UPDATE connections SET token_hash=?,paired_at=?,last_seen=?,collector=?,health='waiting',connected_at=NULL,detail=? WHERE id=?")
           .run(hash(secret), pairedAt, pairedAt, collector, c.platform === 'discord' ? 'Extension paired. Start capture in your Discord Web tab.' : 'Companion paired. Finish signing in on your computer.', c.id);
         db.prepare('DELETE FROM pairing_codes WHERE connection_id=?').run(c.id);
         db.exec('COMMIT');

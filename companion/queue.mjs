@@ -15,6 +15,13 @@ export function openQueue(directory, encryptionKey, options = {}) {
     CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT UNIQUE, payload TEXT NOT NULL, error TEXT);
     CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
   if (!db.prepare('PRAGMA table_info(metadata)').all().some(c => c.name === 'updated_at')) db.exec('ALTER TABLE metadata ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0');
+  if (!db.prepare('PRAGMA table_info(queue)').all().some(c => c.name === 'queued_at')) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      if (!db.prepare('PRAGMA table_info(queue)').all().some(c => c.name === 'queued_at')) db.exec('ALTER TABLE queue ADD COLUMN queued_at INTEGER NOT NULL DEFAULT 0');
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
+  }
   const eventLimit = positiveBytes(options.eventLimitBytes, 32 * MiB, 'Queue event limit');
   const metadataLimit = positiveBytes(options.metadataLimitBytes, 32 * MiB, 'Queue metadata limit');
   const minimumFree = options.minimumFreeBytes ?? 64 * MiB;
@@ -52,7 +59,7 @@ export function openQueue(directory, encryptionKey, options = {}) {
     add(event) { return transaction(() => {
       if (db.prepare('SELECT 1 FROM queue WHERE uid=?').get(event.eventId)) return;
       const payload = crypt.seal(event, event.eventId); check('queue', size(event.eventId, payload));
-      db.prepare('INSERT INTO queue (uid,payload) VALUES (?,?)').run(event.eventId, payload);
+      db.prepare('INSERT INTO queue (uid,payload,queued_at) VALUES (?,?,?)').run(event.eventId, payload, Date.now());
     }); },
     pending() {
       const events = []; let bytes = 0;
