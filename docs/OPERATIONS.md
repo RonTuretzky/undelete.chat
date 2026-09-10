@@ -23,7 +23,7 @@ Two recovery layers are configured:
 | Layer | Contents | Retention | Verification |
 | --- | --- | --- | --- |
 | Application snapshots | Online SQLite snapshots of encrypted collector queues followed by the archive; manifest excludes the archive key | Latest seven successful snapshots, made at startup and every 24 hours | A production snapshot was downloaded and restored in an isolated directory on September 10, 2026; integrity and decryption of 49 messages and both linked sessions passed |
-| DigitalOcean daily backups | Full Droplet disk image, including the Docker data volume and service environment with decryption configuration | Seven days | Policy enabled September 10; first window is 20:00–00:00 UTC; first completed image and full image restore are still unverified |
+| DigitalOcean daily backups | Full Droplet disk image, including the Docker data volume and service environment with decryption configuration | Seven days | Policy enabled September 10; window is 20:00–00:00 UTC. The first image completed at 20:02 UTC on September 10 (11.21 GB). A full image restore has not been rehearsed; see the isolation warning below |
 
 Application snapshots are under `/data/backups` inside the container. They share the server disk and cannot alone survive loss of that disk. The Docker named data volume is on the Droplet's boot disk, so the configured server images include it. Separate DigitalOcean block volumes would require their own backup policy.
 
@@ -38,7 +38,7 @@ cd /opt/afterword
 docker compose -f deploy/compose.yaml exec -T app node server/backup.mjs
 ```
 
-Confirm a new manifest exists and contains the archive and expected collector queues. A successful enablement action proves the schedule was configured; it does not prove an image has been created. Inspect `operations.py status` for completed backup IDs and dates. Encrypted off-server replication, retry scheduling, and offline restore commands are implemented but storage activation and a real provider round trip remain outstanding; see [offsite setup](OFFSITE-BACKUPS.md). Backup-freshness alerts are not yet configured.
+Confirm a new manifest exists and contains the archive and expected collector queues. A successful enablement action proves the schedule was configured; it does not prove an image has been created. Inspect `operations.py status` for completed backup IDs and dates. Encrypted off-server replication, retry scheduling, and offline restore commands are implemented but storage activation and a real provider round trip remain outstanding; see [offsite setup](OFFSITE-BACKUPS.md). Local backup freshness is covered by the external check against `/api/monitor`, which fails when the newest application snapshot is older than 26 hours; see [External monitoring](#external-monitoring).
 
 ## Restore procedure
 
@@ -52,15 +52,35 @@ Use matching application and database versions for rollback. Older writer code d
 
 ## External monitoring
 
-The `Afterword availability` DigitalOcean Uptime check probes the public HTTPS health endpoint from US East and Western Europe. It runs independently of the Afterword server and the operator's computer.
+The `Afterword availability` DigitalOcean Uptime check probes the public HTTPS service monitor (`/api/monitor`) from US East and Western Europe. It runs independently of the Afterword server and the operator's computer. The monitor endpoint returns 503 when the in-process operations monitor reports a critical issue: database unavailable, disk below the reserve, archive full, local backup missing or older than 26 hours, backup scheduler stale, a connected collector with a stale heartbeat, or a delivery queue older than five minutes. A warning-only state, such as `offsite_unconfigured`, still returns 200.
 
 ```sh
 # Reuse the existing matching check instead of creating a duplicate.
 python3 deploy/operations.py enable-uptime
+# Point the existing check at /api/monitor after probing that it validates.
+python3 deploy/operations.py enable-service-monitor
+# Attach notifications to the existing check and Droplet metrics.
+python3 deploy/operations.py enable-alerts
 python3 deploy/operations.py uptime-status
+python3 deploy/operations.py alert-status
 ```
 
-The command preserves existing checks, including disabled checks and other applications' monitoring. No email or Slack notifications are created by this command. An alert recipient is still required; do not describe notifications as enabled until an alert is configured and delivery is verified. Availability monitoring does not replace collector-state, disk-space, or backup-age monitoring.
+`enable-uptime` and `enable-service-monitor` preserve existing checks, including disabled checks and other applications' monitoring. `enable-alerts` is idempotent: it creates a `down_global` alert (two-minute period) and an `ssl_expiry` alert (14 days) on the Afterword check, plus Droplet alert policies for disk utilization above 85% and memory utilization above 90% over five minutes. Existing alerts of the same type are left unchanged, including any additional recipients. The recipient defaults to the verified DigitalOcean account email; pass `--email` to use another address. The command records what it created in private `alert-enablement.json` and sets `deliveryVerified: false`; notification delivery has not been exercised by an actual outage, so confirm the first alert email arrives and is not filtered before relying on it. The service monitor's own detailed report is available to the operator through `service-status`; the public endpoint intentionally exposes only `ok` and the service name.
+
+## Server maintenance
+
+The Droplet runs Ubuntu 24.04 LTS with `unattended-upgrades` installing security updates daily. SSH accepts only the deployment key: password authentication is disabled and root login is limited to public keys (`/etc/ssh/sshd_config.d/70-afterword.conf`). `ufw` allows only 22, 80, and 443/tcp; HTTP/3 is advertised by Caddy but 443/udp is intentionally not opened. The application container runs read-only as an unprivileged user with all capabilities dropped.
+
+Kernel updates leave `/var/run/reboot-required` behind. A reboot restarts Caddy, Docker, and the application; the supervisor restores every enabled hosted session afterwards, so customers do not need to relink. Expect about one to two minutes of downtime, which is below the `down_global` alert period. Reboot during a quiet period and verify recovery:
+
+```sh
+ssh -i ~/.config/afterword/deploy_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.config/afterword/known_hosts root@159.65.242.65 \
+  'apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && ls /var/run/reboot-required && systemctl reboot'
+# After it returns:
+python3 deploy/operations.py service-status
+```
+
+Check that `status` is not `critical`, that every previously connected collector reports `connected` with a fresh `lastSeen`, and that the public `/api/monitor` answers 200. The September 10 reboot after a kernel update was verified this way; see the readiness evidence log.
 
 ## Cost and capacity
 

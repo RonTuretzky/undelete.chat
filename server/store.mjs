@@ -71,6 +71,7 @@ export function createStore(path, encryptionKey, options = {}) {
     CREATE INDEX IF NOT EXISTS messages_status_page ON messages(user_id,status,last_seen DESC,id);
     CREATE INDEX IF NOT EXISTS messages_scan ON messages(user_id,id);
     CREATE INDEX IF NOT EXISTS messages_connection ON messages(connection_id,last_seen DESC);
+    CREATE INDEX IF NOT EXISTS messages_retention ON messages(user_id,first_seen);
     CREATE INDEX IF NOT EXISTS events_history ON events(message_id,occurred_at,CASE kind WHEN 'create' THEN 0 WHEN 'edit' THEN 1 ELSE 2 END,id);`);
   const reader = createArchiveReader(db, crypt);
   db.exec(`CREATE TABLE IF NOT EXISTS forgotten (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE);`);
@@ -150,13 +151,32 @@ export function createStore(path, encryptionKey, options = {}) {
       return { id, duplicate: false };
     } catch (error) { db.exec('ROLLBACK'); if (error.capacity) capacity.block(connection.id, error); throw error; }
   }
-  function purge() {
-    db.prepare(`INSERT OR IGNORE INTO forgotten (id,user_id) SELECT id,user_id FROM messages WHERE user_id IN (SELECT id FROM users WHERE retention_days > 0)
-      AND first_seen < (SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || retention_days || ' days') FROM users WHERE id=messages.user_id)`).run();
-    db.prepare(`DELETE FROM messages WHERE user_id IN (SELECT id FROM users WHERE retention_days > 0)
-      AND first_seen < (SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || retention_days || ' days') FROM users WHERE id=messages.user_id)`).run();
+  // Expired messages are removed in small indexed batches so a large retention
+  // boundary cannot stall the single event loop for the whole delete. Each batch
+  // records its suppression markers and deletes atomically. A budget lets request
+  // handlers do bounded work; the hourly timer runs without one.
+  const expiredBatch = 'SELECT id FROM messages WHERE user_id=? AND first_seen<? ORDER BY first_seen LIMIT 500';
+  function purge({ budgetMs = Infinity } = {}) {
+    const started = Date.now();
+    let complete = true;
+    for (const u of db.prepare('SELECT id,retention_days FROM users WHERE retention_days > 0').all()) {
+      const cutoff = new Date(started - u.retention_days * 86400_000).toISOString();
+      while (true) {
+        if (Date.now() - started > budgetMs) { complete = false; break; }
+        db.exec('BEGIN IMMEDIATE');
+        let removed;
+        try {
+          db.prepare(`INSERT OR IGNORE INTO forgotten (id,user_id) SELECT id,user_id FROM messages WHERE id IN (${expiredBatch})`).run(u.id, cutoff);
+          removed = db.prepare(`DELETE FROM messages WHERE id IN (${expiredBatch})`).run(u.id, cutoff).changes;
+          db.exec('COMMIT');
+        } catch (error) { db.exec('ROLLBACK'); throw error; }
+        if (removed < 500) break;
+      }
+      if (!complete) break;
+    }
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
     db.prepare('DELETE FROM pairing_codes WHERE expires_at < ?').run(new Date().toISOString());
+    return complete;
   }
   return { db, getUser, connections, ingest, purge, ...reader, capacity,
     createRecoveryKey(userId) {

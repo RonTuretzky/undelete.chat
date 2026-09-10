@@ -64,14 +64,15 @@ python3 deploy/operations.py status
 python3 deploy/operations.py service-status
 python3 deploy/operations.py backup-status
 python3 deploy/operations.py uptime-status
+python3 deploy/operations.py alert-status
 python3 deploy/deploy.py
 git pull --ff-only origin main
 git push origin main
 ```
 
-The first four commands inspect state. `deploy.py` rebuilds and restarts the hosted service from the checked-out source and the private configuration. Review the diff and run `npm run check` before deploying source changes. Do not use `docker compose down -v`; it deletes the active archive volume. Do not start retired local collectors alongside the hosted service.
+The first five commands inspect state. `deploy.py` rebuilds and restarts the hosted service from the checked-out source and the private configuration. Review the diff and run `npm run check` before deploying source changes. Do not use `docker compose down -v`; it deletes the active archive volume. Do not start retired local collectors alongside the hosted service.
 
-After deployment, verify `https://afterword-159-65-242-65.sslip.io/api/health` and `/api/monitor`. `/api/health` only proves that the web process can query SQLite. `/api/monitor` also checks local backup freshness, disk reserve, collector heartbeats, queue delivery age, and the configured offsite destination. A warning for `offsite_unconfigured` is expected until Spaces is activated.
+After deployment, verify `https://afterword-159-65-242-65.sslip.io/api/health` and `/api/monitor`. `/api/health` only proves that the web process can query SQLite. `/api/monitor` also checks local backup freshness, disk reserve, collector heartbeats, queue delivery age, and the configured offsite destination. A warning for `offsite_unconfigured` is expected until Spaces is activated. The external Uptime check now targets `/api/monitor`, and outage, certificate, disk, and memory alerts go to the DigitalOcean account email; run `python3 deploy/operations.py enable-alerts --email new@example.com` to add the next operator's address.
 
 ## Credentials and files intentionally excluded from handoff
 

@@ -96,3 +96,18 @@ test('API enforces session auth, source token scope, CSRF and revocation', async
   await request('/auth/logout', 'POST', {}, { Cookie: cookie });
   assert.equal((await request('/messages', 'GET', undefined, { Cookie: cookie })).status, 401);
 });
+test('retention removes large expired batches atomically and honours a time budget', async t => {
+  const { store, user, source } = await fixture(t);
+  const old = new Date(Date.now() - 91 * 86400_000).toISOString();
+  for (let i = 0; i < 1203; i++) store.ingest(source, { ...event('create', 'e' + i, 'expired ' + i), externalId: 'm' + i, scope: 'chat-1' });
+  store.ingest(source, { ...event('create', 'fresh', 'keep'), externalId: 'fresh', scope: 'chat-1' });
+  store.db.prepare("UPDATE messages SET first_seen=? WHERE id IN (SELECT id FROM messages WHERE user_id=? ORDER BY id LIMIT 1203)").run(old, user.id);
+  assert.equal(store.purge({ budgetMs: -1 }), false, 'a spent budget stops before finishing');
+  assert.equal(store.db.prepare('SELECT count(*) n FROM messages WHERE user_id=?').get(user.id).n, 1204, 'nothing is deleted once the budget is spent');
+  assert.equal(store.purge(), true);
+  assert.equal(store.db.prepare('SELECT count(*) n FROM messages WHERE user_id=?').get(user.id).n, 1);
+  assert.equal(store.db.prepare('SELECT count(*) n FROM forgotten WHERE user_id=?').get(user.id).n, 1203);
+  assert.equal(store.db.prepare('SELECT count(*) n FROM events').get().n, 1);
+  assert.equal(store.ingest(source, { ...event('create', 'e7', 'expired 7'), externalId: 'm7', scope: 'chat-1' }).reason, 'removed');
+  assert.equal(store.db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='messages_retention'").get()?.name, 'messages_retention');
+});

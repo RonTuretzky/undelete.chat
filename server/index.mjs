@@ -28,7 +28,7 @@ const store = createStore(resolve(dir, 'afterword.sqlite'), key, {
 });
 chmodSync(resolve(dir, 'afterword.sqlite'), 0o600);
 store.purge();
-const timer = setInterval(() => store.purge(), 60 * 60_000).unref();
+const timer = setInterval(() => { try { store.purge(); } catch (error) { console.error('Retention purge failed:', error.code || error.name); } }, 60 * 60_000).unref();
 const origin = process.env.PUBLIC_ORIGIN || 'http://localhost:4318';
 const collectors = process.env.HOSTED_COLLECTORS === 'true' ? createCollectorManager(store, {
   key, directory: dir, maxCollectors: Number(process.env.HOSTED_MAX_COLLECTORS || 4),
@@ -50,8 +50,17 @@ backups?.run();
 const monitorTimer = monitor ? setInterval(() => monitor.run(), 15_000).unref() : null;
 monitor?.run();
 let stopping = false;
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
+async function shutdown(code = 0) {
   if (stopping) return; stopping = true; clearInterval(timer); clearInterval(backupTimer); clearInterval(monitorTimer);
+  // Never hang on a stuck worker or connection; Docker restarts a clean process.
+  setTimeout(() => process.exit(code), 25_000).unref();
   const closed = new Promise(resolve => server.close(resolve));
-  await Promise.all([collectors?.close(), backups?.close(), monitor?.close()]); await closed; store.close(); process.exit(0);
-});
+  try { await Promise.all([collectors?.close(), backups?.close(), monitor?.close()]); await closed; store.close(); }
+  catch (error) { console.error('Shutdown step failed:', error?.code || error?.name); code ||= 1; }
+  process.exit(code);
+}
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => shutdown(0));
+// A stray rejection in a timer or IPC listener must not take every customer's
+// hosted session down. Only error codes are logged; never payloads or secrets.
+process.on('unhandledRejection', error => console.error('Unhandled rejection:', error?.code || error?.name || 'unknown'));
+process.on('uncaughtException', error => { console.error('Uncaught exception:', error?.code || error?.name || 'unknown'); shutdown(1); });

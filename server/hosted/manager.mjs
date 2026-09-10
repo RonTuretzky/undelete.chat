@@ -46,35 +46,54 @@ export function createCollectorManager(store, options) {
       detail: c?.detail || '', paused: !!c?.paused, qr, prompt: state?.prompt || null,
       lastSeen: c?.last_seen || null, enabled: enabled(id), capacityReason: c?.capacity_reason || null };
   }
+  const backoff = failures => Math.min(60_000, 2000 * 2 ** Math.min(failures, 5));
+  const quietly = fn => { try { return fn(); } catch { /* Logged by the caller's state; never crash the supervisor. */ } };
   function launch(c, failures = 0) {
     if (closing || workers.get(c.id)?.child) return;
-    const config = { ...store.hostedConfig(c.id) };
-    if (c.platform === 'telegram') Object.assign(config, { apiId: options.telegramApiId, apiHash: options.telegramApiHash });
     const state = { child: null, qr: null, prompt: null, failures, lastPing: Date.now(), stopping: false, qrSequence: 0, timer: null };
     workers.set(c.id, state);
-    update(c.id, 'reconnecting', 'Starting your hosted connection');
     const runtimeDirectory = join(runtime, c.id);
-    // Each process receives only its own derived key/config. No server secrets,
-    // archive cookie, bearer token, or other account's session is inherited.
-    rmSync(runtimeDirectory, { recursive: true, force: true });
-    mkdirSync(runtimeDirectory, { recursive: true, mode: 0o700 });
-    const env = { PATH: process.env.PATH, HOME: runtimeDirectory, TMPDIR: runtimeDirectory, LANG: 'C.UTF-8', NODE_ENV: 'production' };
     const nativeDirectory = c.platform === 'signal' && signalNative ? join(signalNative, c.id) : null;
-    if (nativeDirectory) {
-      rmSync(nativeDirectory, { recursive: true, force: true });
-      mkdirSync(nativeDirectory, { recursive: true, mode: 0o700 });
-      env.SIGNAL_NATIVE_DIR = nativeDirectory;
+    let child;
+    try {
+      const config = { ...store.hostedConfig(c.id) };
+      if (c.platform === 'telegram') Object.assign(config, { apiId: options.telegramApiId, apiHash: options.telegramApiHash });
+      update(c.id, 'reconnecting', 'Starting your hosted connection');
+      // Each process receives only its own derived key/config. No server secrets,
+      // archive cookie, bearer token, or other account's session is inherited.
+      rmSync(runtimeDirectory, { recursive: true, force: true });
+      mkdirSync(runtimeDirectory, { recursive: true, mode: 0o700 });
+      const env = { PATH: process.env.PATH, HOME: runtimeDirectory, TMPDIR: runtimeDirectory, LANG: 'C.UTF-8', NODE_ENV: 'production' };
+      if (nativeDirectory) {
+        rmSync(nativeDirectory, { recursive: true, force: true });
+        mkdirSync(nativeDirectory, { recursive: true, mode: 0o700 });
+        env.SIGNAL_NATIVE_DIR = nativeDirectory;
+      }
+      child = (options.spawn || fork)(new URL('./worker.mjs', import.meta.url), [], {
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'], detached: process.platform !== 'win32', env,
+        execArgv: ['--max-old-space-size=192']
+      });
+      state.child = child;
+      state.startMessage = { type: 'start', platform: c.platform, config, paused: c.paused, directory: join(root, c.id), runtimeDirectory,
+        minimumFreeBytes: store.capacity.limits.minimumFreeBytes,
+        key: createHmac('sha256', Buffer.from(options.key, 'hex')).update('afterword-hosted:' + c.id).digest('hex') };
+    } catch {
+      // A full runtime disk, an undecryptable configuration, or a fork failure
+      // must not crash the server; retry with backoff while the source stays enabled.
+      if (workers.get(c.id) !== state) return;
+      quietly(() => update(c.id, 'reconnecting', 'Could not start the hosted connection. Retrying automatically.'));
+      state.timer = setTimeout(() => {
+        if (workers.get(c.id) !== state || state.stopping || closing) return;
+        workers.delete(c.id);
+        quietly(() => { const current = connection(c.id); if (current && enabled(c.id)) launch(current, failures + 1); });
+      }, backoff(failures));
+      return;
     }
-    const child = (options.spawn || fork)(new URL('./worker.mjs', import.meta.url), [], {
-      stdio: ['ignore', 'ignore', 'ignore', 'ipc'], detached: process.platform !== 'win32', env,
-      execArgv: ['--max-old-space-size=192']
-    });
-    state.child = child;
     child.on('message', async message => {
       if (closing || state.stopping || workers.get(c.id) !== state) return;
-      const current = connection(c.id);
-      if (!current || current.collector !== 'hosted' || !enabled(c.id)) return;
       try {
+        const current = connection(c.id);
+        if (!current || current.collector !== 'hosted' || !enabled(c.id)) return;
         if (message.type === 'ping') {
           state.lastPing = Date.now();
           store.db.prepare('UPDATE connections SET last_seen=?,queued=? WHERE id=?').run(new Date().toISOString(), Number(message.queued) || 0, c.id);
@@ -123,23 +142,23 @@ export function createCollectorManager(store, options) {
           store.capacity.block(c.id, capacityError(message.code));
           await manager.suspend(c.id, message.code);
         }
-      } catch { update(c.id, 'error', 'The hosted connection needs attention. Please try again.'); }
+      } catch { quietly(() => update(c.id, 'error', 'The hosted connection needs attention. Please try again.')); }
     });
     const exited = code => {
       if (state.child !== child || workers.get(c.id) !== state) return;
       state.child = null; state.qr = null; state.prompt = null; ++state.qrSequence;
-      rmSync(runtimeDirectory, { recursive: true, force: true });
-      if (nativeDirectory) rmSync(nativeDirectory, { recursive: true, force: true });
-      if (closing || state.stopping || !connection(c.id) || !enabled(c.id)) return;
-      if (code === 2) { if (connection(c.id)?.health !== 'error') update(c.id, 'error', 'Sign-in was not completed. Choose Try again to connect.'); return; }
-      update(c.id, 'reconnecting', 'Connection interrupted. Retrying automatically.');
-      state.timer = setTimeout(() => { const current = connection(c.id); if (current && enabled(c.id)) launch(current, state.failures + 1); }, Math.min(60_000, 2000 * 2 ** Math.min(state.failures, 5)));
+      quietly(() => rmSync(runtimeDirectory, { recursive: true, force: true }));
+      if (nativeDirectory) quietly(() => rmSync(nativeDirectory, { recursive: true, force: true }));
+      try {
+        if (closing || state.stopping || !connection(c.id) || !enabled(c.id)) return;
+        if (code === 2) { if (connection(c.id)?.health !== 'error') update(c.id, 'error', 'Sign-in was not completed. Choose Try again to connect.'); return; }
+        update(c.id, 'reconnecting', 'Connection interrupted. Retrying automatically.');
+      } catch { /* Database unavailable; the retry below reads fresh state. */ }
+      state.timer = setTimeout(() => quietly(() => { const current = connection(c.id); if (current && enabled(c.id) && !closing) launch(current, state.failures + 1); }), backoff(state.failures));
     };
     child.once('exit', exited);
     child.once('error', () => exited(1));
-    send(state, { type: 'start', platform: c.platform, config, paused: c.paused, directory: join(root, c.id), runtimeDirectory,
-      minimumFreeBytes: store.capacity.limits.minimumFreeBytes,
-      key: createHmac('sha256', Buffer.from(options.key, 'hex')).update('afterword-hosted:' + c.id).digest('hex') });
+    send(state, state.startMessage); delete state.startMessage;
   }
   async function stop(id) {
     const state = workers.get(id);
@@ -225,7 +244,7 @@ export function createCollectorManager(store, options) {
   };
   const watchdog = setInterval(() => {
     for (const [id, state] of workers) if (state.child && !state.stopping && Date.now() - state.lastPing > 45_000) {
-      update(id, 'reconnecting', 'Connection stopped responding. Restarting.');
+      quietly(() => update(id, 'reconnecting', 'Connection stopped responding. Restarting.'));
       serialize(id, async () => { await stop(id); const c = connection(id); if (c && enabled(id) && !closing) launch(c, state.failures + 1); }).catch(() => {});
     }
   }, 10_000).unref();

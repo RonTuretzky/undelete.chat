@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { checkPassword, passwordHash, hash } from './crypto.mjs';
+import { checkPassword, passwordHash, hash, token } from './crypto.mjs';
 import { platforms } from './store.mjs';
 import { deliveryFailure, capacityMessages } from './capacity.mjs';
 
@@ -33,6 +33,14 @@ export function createApp(store, config = {}) {
     next();
   });
   const auth = (req, res, next) => req.user ? next() : res.status(401).json({ error: 'Sign in to continue.' });
+  // Retention is enforced by the hourly job; reads only do a short bounded pass
+  // at most every 30 seconds so page loads never wait on a large delete.
+  let lastPurge = 0;
+  const purge = () => { const now = Date.now(); if (now - lastPurge < 30_000) return; lastPurge = now; store.purge({ budgetMs: 50 }); };
+  // Unknown usernames still pay the scrypt cost so response time does not reveal
+  // whether an account exists.
+  let decoy;
+  const decoyHash = async () => decoy ||= await passwordHash(token());
   const archiveReads = new Map();
   let activeArchiveReads = 0, activeExports = 0;
   async function archiveRead(req, res, exporting, callback) {
@@ -99,6 +107,7 @@ export function createApp(store, config = {}) {
   app.post('/api/auth/login', authLimit, async (req, res) => {
     const { username, password } = credentials.parse(req.body);
     const user = store.userByName(username);
+    if (!user) await checkPassword(password, await decoyHash());
     const valid = user && await checkPassword(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Username or password is incorrect.' });
     res.cookie('afterword', store.session(user.id), cookieOptions).json({ user: store.getUser(user.id) });
@@ -185,7 +194,7 @@ export function createApp(store, config = {}) {
     res.json({ results });
   });
   app.get('/api/messages', auth, (req, res) => archiveRead(req, res, false, async signal => {
-    store.purge();
+    purge();
     const input = z.object({ q: z.string().max(300).optional(), platform: z.enum(['', ...platforms]).optional(),
       status: z.enum(['', 'captured', 'edited', 'deleted']).optional(), saved: z.enum(['', '0', '1']).optional(),
       offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0) }).parse(req.query);
@@ -194,7 +203,7 @@ export function createApp(store, config = {}) {
     res.json({ ...result, usage: store.capacity.usage(req.user.id) });
   }));
   app.get('/api/messages/:id', auth, (req, res) => archiveRead(req, res, false, async signal => {
-    store.purge();
+    purge();
     const input = z.object({ offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
       snapshot: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional() }).parse(req.query);
     const result = await store.messageHistory(req.params.id, req.user.id, { ...input, signal });
@@ -211,14 +220,14 @@ export function createApp(store, config = {}) {
     res.json({ ok: true });
   });
   app.get('/api/export', auth, (req, res) => archiveRead(req, res, true, async signal => {
-    store.purge();
+    purge();
     res.attachment('afterword-archive.json').type('application/json');
     await pipeline(Readable.from(store.exportArchive(req.user.id, { signal }), { objectMode: false, highWaterMark: 64 * 1024 }), res, { signal });
   }));
   app.patch('/api/settings', auth, (req, res) => {
     const { retentionDays } = z.object({ retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365), z.literal(0)]) }).parse(req.body);
     store.db.prepare('UPDATE users SET retention_days=? WHERE id=?').run(retentionDays, req.user.id);
-    store.purge();
+    purge();
     res.json({ user: store.getUser(req.user.id) });
   });
   app.delete('/api/account', auth, authLimit, async (req, res) => {
@@ -245,7 +254,7 @@ export function createApp(store, config = {}) {
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
   app.use((error, _req, res, _next) => {
     if (res.headersSent || res.destroyed) { if (!res.destroyed) res.destroy(error); return; }
-    if (error.public && [400, 404, 409, 503].includes(error.status)) return res.status(error.status).json({ error: error.message });
+    if (error.public && [400, 404, 409, 503, 507].includes(error.status)) return res.status(error.status).json({ error: error.message });
     if (error instanceof ZodError) return res.status(400).json({ error: error.issues[0]?.message || 'Invalid request.' });
     if (error.status === 413) return res.status(413).json({ error: 'Request is too large.' });
     if (error instanceof SyntaxError) return res.status(400).json({ error: 'Invalid JSON.' });

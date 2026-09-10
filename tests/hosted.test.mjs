@@ -21,15 +21,16 @@ async function fixture(t, options = {}) {
   const alice = await store.createUser('alice', 'long-test-password-alice'), bob = await store.createUser('bob', 'long-test-password-bob');
   const children = [], environments = [];
   const settings = { directory, key, runtimeDirectory: join(directory, 'runtime'), maxCollectors: 4, telegramApiId: 1234, telegramApiHash: '1'.repeat(32),
-    spawn(_file, args, config) {
-      assert.equal(config.env.ARCHIVE_KEY, undefined);
-      environments.push(config.env);
-      const child = fork(new URL('./fixtures/hosted-worker.mjs', import.meta.url), args, config);
-      children.push(child); return child;
-    }, ...managerOptions };
+    spawn: fixtureSpawn, ...managerOptions };
+  function fixtureSpawn(_file, args, config) {
+    assert.equal(config.env.ARCHIVE_KEY, undefined);
+    environments.push(config.env);
+    const child = fork(new URL('./fixtures/hosted-worker.mjs', import.meta.url), args, config);
+    children.push(child); return child;
+  }
   let manager = createCollectorManager(store, settings);
   t.after(async () => { await manager.close(); store.close(); rmSync(directory, { recursive: true, force: true }); });
-  return { directory, key, store, alice, bob, children, environments, get manager() { return manager; }, async restart() { await manager.close(); manager = createCollectorManager(store, settings); await manager.restore(); } };
+  return { directory, key, store, alice, bob, children, environments, fixtureSpawn, get manager() { return manager; }, async restart() { await manager.close(); manager = createCollectorManager(store, settings); await manager.restore(); } };
 }
 test('hosted QR and login endpoints require source ownership and reject stale replies and cross-site requests', async t => {
   const f = await fixture(t), { store, alice, bob } = f;
@@ -220,4 +221,23 @@ process.on('SIGTERM', () => { setTimeout(() => { fs.writeFileSync(${JSON.stringi
   t.after(stop);
   await stop();
   assert.equal(readFileSync(saved, 'utf8'), 'session saved');
+});
+test('a worker that cannot be started is retried with backoff instead of crashing the supervisor', async t => {
+  let attempts = 0, f;
+  f = await fixture(t, { spawn(file, args, config) {
+    if (++attempts === 1) throw Object.assign(new Error('no space left on device'), { code: 'ENOSPC' });
+    return f.fixtureSpawn(file, args, config);
+  } });
+  const { store, alice } = f;
+  const c = store.createConnection(alice.id, 'whatsapp', 'Personal');
+  const rejections = []; const onRejection = error => rejections.push(error); process.on('unhandledRejection', onRejection);
+  t.after(() => process.off('unhandledRejection', onRejection));
+  await f.manager.start(c.id, alice.id, { consent: true });
+  const first = f.manager.status(c.id);
+  assert.equal(first.running, false); assert.equal(first.health, 'reconnecting'); assert.match(first.detail, /Retrying automatically/);
+  await until(() => f.manager.status(c.id).running, 15_000);
+  await until(() => f.manager.status(c.id).qr, 15_000);
+  assert.equal(attempts, 2); assert.equal(rejections.length, 0);
+  await f.manager.suspend(c.id);
+  assert.equal(f.manager.status(c.id).running, false);
 });

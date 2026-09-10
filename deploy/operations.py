@@ -19,8 +19,12 @@ class DigitalOcean:
         request = Request('https://api.digitalocean.com/v2/' + path,
                           data=json.dumps(body).encode() if body is not None else None,
                           headers={'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json'}, method=method)
-        with urlopen(request, timeout=30) as response:
-            raw = response.read()
+        try:
+            with urlopen(request, timeout=30) as response:
+                raw = response.read()
+        except HTTPError as error:
+            detail = error.read(2048).decode('utf-8', 'replace')
+            raise RuntimeError(f'DigitalOcean {method} {path} failed with HTTP {error.code}: {detail}') from None
         return json.loads(raw) if raw else {}
 
     def status(self):
@@ -146,6 +150,72 @@ class DigitalOcean:
         file.write_text(json.dumps(result, indent=2)); file.chmod(0o600)
         return result
 
+    def alert_email(self, override=None):
+        if override:
+            return override
+        account = self.request('GET', 'account')['account']
+        if not account.get('email_verified') or not account.get('email'):
+            raise RuntimeError('The DigitalOcean account email is not verified; pass --email explicitly.')
+        return account['email']
+
+    droplet_alerts = (
+        ('Afterword disk utilization', 'v1/insights/droplet/disk_utilization_percent', 85),
+        ('Afterword memory utilization', 'v1/insights/droplet/memory_utilization_percent', 90),
+    )
+
+    def enable_alerts(self, email=None):
+        """Idempotently attach operator notifications to the existing monitoring resources."""
+        self.status()
+        recipient = self.alert_email(email)
+        check = self.afterword_check(self.uptime_checks())
+        if check is None:
+            raise RuntimeError('Configure the Afterword availability check first.')
+        resource = 'uptime/checks/' + check['id']
+        existing = self.request('GET', resource + '/alerts')['alerts']
+        wanted = [
+            {'name': 'Afterword down', 'type': 'down_global', 'period': '2m', 'comparison': 'less_than', 'threshold': 0},
+            {'name': 'Afterword certificate expiry', 'type': 'ssl_expiry', 'threshold': 14, 'comparison': 'less_than', 'period': '2m'},
+        ]
+        uptime = []
+        for alert in wanted:
+            match = next((a for a in existing if a['type'] == alert['type']), None)
+            if match is None:
+                match = self.request('POST', resource + '/alerts', {**alert, 'notifications': {'email': [recipient], 'slack': []}})['alert']
+                uptime.append({'created': True, 'id': match['id'], 'type': match['type']})
+            else:
+                # Preserve the operator's existing alert and any additional recipients.
+                uptime.append({'created': False, 'id': match['id'], 'type': match['type'],
+                               'notifiesRecipient': recipient in match.get('notifications', {}).get('email', [])})
+        droplet_id = str(self.state['droplet_id'])
+        policies = self.request('GET', 'monitoring/alerts?per_page=200')['policies']
+        droplet = []
+        for description, kind, value in self.droplet_alerts:
+            match = next((p for p in policies if p['type'] == kind and droplet_id in [str(e) for e in p.get('entities', [])]), None)
+            if match is None:
+                match = self.request('POST', 'monitoring/alerts', {
+                    'alerts': {'email': [recipient], 'slack': []}, 'compare': 'GreaterThan', 'description': description,
+                    'enabled': True, 'entities': [droplet_id], 'tags': [], 'type': kind, 'value': value, 'window': '5m'})['policy']
+                droplet.append({'created': True, 'uuid': match['uuid'], 'type': kind, 'value': value})
+            else:
+                droplet.append({'created': False, 'uuid': match['uuid'], 'type': kind, 'value': match.get('value'),
+                                'enabled': match.get('enabled'), 'notifiesRecipient': recipient in match.get('alerts', {}).get('email', [])})
+        result = {'recipient': recipient, 'uptimeAlerts': uptime, 'dropletAlerts': droplet,
+                  'deliveryVerified': False}
+        file = self.private / 'alert-enablement.json'
+        file.write_text(json.dumps(result, indent=2)); file.chmod(0o600)
+        return result
+
+    def alert_status(self):
+        check = self.afterword_check(self.uptime_checks())
+        alerts = self.request('GET', 'uptime/checks/' + check['id'] + '/alerts')['alerts'] if check else []
+        droplet_id = str(self.state['droplet_id'])
+        policies = [p for p in self.request('GET', 'monitoring/alerts?per_page=200')['policies']
+                    if droplet_id in [str(e) for e in p.get('entities', [])]]
+        return {'uptimeAlerts': [{'id': a['id'], 'name': a['name'], 'type': a['type'], 'threshold': a.get('threshold'),
+                                  'period': a.get('period'), 'recipients': len(a.get('notifications', {}).get('email', []))} for a in alerts],
+                'dropletAlerts': [{'uuid': p['uuid'], 'type': p['type'], 'value': p['value'], 'window': p['window'], 'enabled': p['enabled'],
+                                   'recipients': len(p.get('alerts', {}).get('email', []))} for p in policies]}
+
     def backup_status(self):
         options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',
                    '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.private / 'known_hosts'), '-o', 'ConnectTimeout=15']
@@ -177,6 +247,9 @@ def main():
     commands.add_parser('backup-status')
     commands.add_parser('service-status')
     commands.add_parser('enable-service-monitor')
+    alerts = commands.add_parser('enable-alerts')
+    alerts.add_argument('--email', help='Notification recipient; defaults to the verified DigitalOcean account email.')
+    commands.add_parser('alert-status')
     backups = commands.add_parser('enable-daily-backups')
     backups.add_argument('--hour', type=int, choices=[0, 4, 8, 12, 16, 20], default=20)
     action = commands.add_parser('action')
@@ -190,6 +263,8 @@ def main():
     elif args.command == 'backup-status': result = client.backup_status()
     elif args.command == 'service-status': result = client.service_status()
     elif args.command == 'enable-service-monitor': result = client.enable_service_monitor()
+    elif args.command == 'enable-alerts': result = client.enable_alerts(args.email)
+    elif args.command == 'alert-status': result = client.alert_status()
     else: result = client.request('GET', 'actions/' + str(args.id))
     print(json.dumps(result, indent=2))
 
