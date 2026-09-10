@@ -33,6 +33,8 @@ The production API serves the compiled UI on port 4318. Copy `.env.example` to `
 | Signal | Unofficial signal-cli linked device | Incoming and synced outgoing ordinary messages, edits and remote deletes |
 | WhatsApp | Unofficial Baileys linked device | New deliveries, edits and revoke events exposed by the linked session |
 
+Platforms also deliver reactions, link previews, pins, and formatting changes as edit events. The archive acknowledges an edit whose text and attachments match the current version without recording a new revision, so the timeline only shows content changes.
+
 **This is not universal access to every message on all four platforms.** Discord's cloud connector requires phone approval and acknowledgement that Discord forbids automated personal accounts and may terminate them. It is not an approved integration. Its optional extension requires Chrome 125+, debugging permission, and an open signed-in Discord Web tab. Live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
 
 ## Architecture

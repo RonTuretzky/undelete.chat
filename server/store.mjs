@@ -136,8 +136,20 @@ export function createStore(path, encryptionKey, options = {}) {
       if (db.prepare('SELECT 1 FROM events WHERE connection_id=? AND event_uid=?').get(connection.id, uid)) {
         db.exec('COMMIT'); return { duplicate: true, id };
       }
-      const payload = crypt.seal(e, `${connection.user_id}:${id}:${uid}`), bytes = eventBytes(payload, uid);
       const existing = db.prepare('SELECT 1 FROM messages WHERE id=?').get(id);
+      if (e.kind === 'edit' && existing) {
+        // Platforms also report reactions, link previews, pins, and formatting
+        // as edits. A version whose text and attachments match the current one
+        // carries no new content, so it is acknowledged without being recorded.
+        const latest = db.prepare('SELECT event_uid,kind,payload FROM events WHERE message_id=? ORDER BY occurred_at DESC,id DESC LIMIT 1').get(id);
+        if (latest && latest.kind !== 'delete') {
+          const current = crypt.open(latest.payload, `${connection.user_id}:${id}:${latest.event_uid}`);
+          if ((current.text ?? '') === (e.text ?? '') && JSON.stringify(current.attachments || []) === JSON.stringify(e.attachments || [])) {
+            db.exec('COMMIT'); return { ignored: true, reason: 'unchanged', id };
+          }
+        }
+      }
+      const payload = crypt.seal(e, `${connection.user_id}:${id}:${uid}`), bytes = eventBytes(payload, uid);
       capacity.assertRoom(connection.user_id, bytes + (existing ? 0 : MESSAGE_BYTES));
       db.prepare(`INSERT INTO messages (id,user_id,connection_id,platform,first_seen,last_seen) VALUES (?,?,?,?,?,?)
         ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen`).run(id, connection.user_id, connection.id, connection.platform, now, now);

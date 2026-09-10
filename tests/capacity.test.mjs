@@ -75,7 +75,7 @@ test('global budget and disk reserve reject new writes without rejecting stored 
   assert.throws(() => second.ingest(other, event(2, { text: 'x'.repeat(2000) })), { code: 'server_capacity' });
   available = 10000;
   assert.equal(store.ingest(source, input).duplicate, true);
-  assert.throws(() => store.ingest(source, event(3, { externalId: '1', kind: 'edit' })), { code: 'disk_capacity' });
+  assert.throws(() => store.ingest(source, event(3, { externalId: '1', kind: 'edit', text: 'changed text' })), { code: 'disk_capacity' });
   assert.equal(store.capacity.usage(user.id).usedBytes, actualUsage(store, user.id));
 });
 

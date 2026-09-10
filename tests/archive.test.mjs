@@ -111,3 +111,23 @@ test('retention removes large expired batches atomically and honours a time budg
   assert.equal(store.ingest(source, { ...event('create', 'e7', 'expired 7'), externalId: 'm7', scope: 'chat-1' }).reason, 'removed');
   assert.equal(store.db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='messages_retention'").get()?.name, 'messages_retention');
 });
+test('edits that leave text and attachments unchanged are acknowledged but not recorded as versions', async t => {
+  const { store, user, source } = await fixture(t);
+  const count = () => store.db.prepare('SELECT count(*) n FROM events').get().n;
+  store.ingest(source, event('create', 'a', 'meet at seven'));
+  // A reaction, link preview, pin, or formatting change arrives as an edit with the same content.
+  assert.deepEqual(store.ingest(source, event('edit', 'b', 'meet at seven', 5)), { ignored: true, reason: 'unchanged', id: store.messages(user.id)[0].id });
+  let [message] = store.messages(user.id);
+  assert.equal(count(), 1); assert.equal(message.status, 'captured'); assert.equal(message.versionCount, 1);
+  assert.equal(store.ingest(source, event('edit', 'b', 'meet at seven', 5)).reason, 'unchanged', 'a retry stays ignored');
+  assert.equal(store.ingest(source, event('edit', 'c', 'meet at eight', 10)).duplicate, false, 'a real text change is recorded');
+  assert.equal(store.ingest(source, event('edit', 'd', 'meet at eight', 15)).reason, 'unchanged');
+  assert.equal(store.ingest(source, { ...event('edit', 'e', 'meet at eight', 20), attachments: [{ name: 'map.png', type: 'image/png' }] }).duplicate, false, 'an attachment change is recorded');
+  assert.equal(store.ingest(source, event('edit', 'f', 'meet at seven', 25)).duplicate, false, 'reverting to earlier text is a change from the current version');
+  [message] = store.messages(user.id);
+  assert.equal(count(), 4); assert.equal(message.versionCount, 4); assert.equal(message.status, 'edited');
+  assert.deepEqual(message.versions.map(v => v.text), ['meet at seven', 'meet at eight', 'meet at eight', 'meet at seven']);
+  store.ingest(source, event('delete', 'g', undefined, 30));
+  assert.equal(store.ingest(source, event('edit', 'h', 'meet at seven', 35)).duplicate, false, 'an edit after a deletion tombstone is still preserved');
+  assert.equal(store.ingest(source, event('edit', 'i', 'brand new', 1)).duplicate, false, 'a late edit with different text is preserved');
+});
