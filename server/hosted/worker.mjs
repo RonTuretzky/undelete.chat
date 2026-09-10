@@ -47,6 +47,7 @@ async function start(input) {
   const ctx = {
     config, directory: runtimeDirectory, queue, hosted: true, signal: controller.signal, ask,
     fatal(detail) { health('error', detail); shutdown(1); },
+    fail(detail) { health('error', detail); shutdown(2); },
     save(patch) { Object.assign(config, patch); send({ type: 'config', config }); },
     health(state, detail) { if (state === 'connected') clearTimeout(setupTimer); health(state, detail); },
     showQR(value, expiresAt = Date.now() + 55_000) { send({ type: 'qr', value, expiresAt: new Date(expiresAt).toISOString() }); },
@@ -63,9 +64,9 @@ async function start(input) {
     checkpoint = vault.checkpoint;
     checkpointTimer = setInterval(() => checkpoint().catch(() => health('error', 'Signal session could not be saved. Please reconnect.')), 5000);
   }
-  const adapters = { telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp' };
+  const adapters = { telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp', discord: 'startDiscordCloud' };
   if (!adapters[input.platform]) throw new Error('Unsupported hosted platform');
-  const module = await import(`../../companion/adapters/${input.platform}.mjs`);
+  const module = input.platform === 'discord' ? await import('./discord.mjs') : await import(`../../companion/adapters/${input.platform}.mjs`);
   const stop = await module[adapters[input.platform]](ctx);
   if (stopped) { await stop?.(); return; }
   stopAdapter = stop;

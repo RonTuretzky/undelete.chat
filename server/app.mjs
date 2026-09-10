@@ -93,7 +93,7 @@ export function createApp(store, config = {}) {
   };
   app.get('/api/connections/:id/hosted', auth, hosted, (req, res) => res.json({ setup: config.collectors.status(req.params.id) }));
   app.post('/api/connections/:id/hosted/start', auth, hostedLimit, hosted, async (req, res) => {
-    const input = z.object({ consent: z.boolean().default(false), restart: z.boolean().default(false), relink: z.boolean().default(false) }).parse(req.body);
+    const input = z.object({ consent: z.boolean().default(false), experimentalConsent: z.boolean().default(false), restart: z.boolean().default(false), relink: z.boolean().default(false) }).parse(req.body);
     res.json({ setup: await config.collectors.start(req.params.id, req.user.id, input) });
   });
   app.post('/api/connections/:id/hosted/reply', auth, hostedLimit, hosted, (req, res) => {

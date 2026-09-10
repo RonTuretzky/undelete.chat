@@ -35,7 +35,7 @@ Signal requires working session files while running. These live on a temporary i
 
 Connections identifies whether each source captures in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.
 
-Discord’s extension remains local and requires Chrome with the selected Discord Web tab open. This is not a cloud connector.
+Discord’s optional extension remains local and requires Chrome with the selected Discord Web tab open. The separate experimental cloud connector continues on the server, subject to Discord’s account restrictions.
 
 <a id="capacity"></a>
 

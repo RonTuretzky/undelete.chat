@@ -19,7 +19,7 @@ Legacy local collectors keep their platform sessions on that computer. The Disco
 - Only messages/events received by a collector can be archived. Past deleted messages cannot be recovered.
 - Disappearing, self-destructing, and view-once content is excluded.
 - Attachment names and metadata may be recorded. File contents are not downloaded.
-- Unofficial Signal and WhatsApp integrations can break when their platforms change. Discord cloud capture is unavailable.
+- Unofficial Signal, WhatsApp, and Discord integrations can break when their platforms change. Discord forbids automated personal accounts and may terminate accounts using the experimental cloud connector.
 
 <a id="retention"></a>
 

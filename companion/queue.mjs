@@ -13,6 +13,7 @@ export function openQueue(directory, encryptionKey) {
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA secure_delete=ON;
     CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT UNIQUE, payload TEXT NOT NULL, error TEXT);
     CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+  if (!db.prepare('PRAGMA table_info(metadata)').all().some(c => c.name === 'updated_at')) db.exec('ALTER TABLE metadata ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0');
   return {
     add(event) { db.prepare('INSERT OR IGNORE INTO queue (uid,payload) VALUES (?,?)').run(event.eventId, crypt.seal(event, event.eventId)); },
     pending() { return db.prepare('SELECT uid,payload FROM queue WHERE error IS NULL ORDER BY id LIMIT 50').all().map(r => crypt.open(r.payload, r.uid)); },
@@ -21,8 +22,10 @@ export function openQueue(directory, encryptionKey) {
     ack(uid) { db.prepare('DELETE FROM queue WHERE uid=?').run(uid); },
     reject(uid, error) { db.prepare('UPDATE queue SET error=? WHERE uid=?').run(error, uid); },
     get(key) { const r = db.prepare('SELECT value FROM metadata WHERE key=?').get(key); return r ? crypt.open(r.value, key) : undefined; },
-    set(key, value) { db.prepare('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, crypt.seal(value, key)); },
+    set(key, value) { db.prepare('INSERT INTO metadata (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at').run(key, crypt.seal(value, key), Date.now()); },
     delete(key) { db.prepare('DELETE FROM metadata WHERE key=?').run(key); },
+    clearPrefix(prefix) { db.prepare('DELETE FROM metadata WHERE substr(key,1,length(?))=?').run(prefix, prefix); },
+    prunePrefix(prefix, before) { db.prepare('DELETE FROM metadata WHERE substr(key,1,length(?))=? AND updated_at<?').run(prefix, prefix, before); },
     close() { db.close(); }
   };
 }

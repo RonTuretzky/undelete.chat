@@ -27,6 +27,7 @@ const collectors = process.env.HOSTED_COLLECTORS === 'true' ? createCollectorMan
   runtimeDirectory: process.env.COLLECTOR_RUNTIME_DIR,
   telegramApiId: Number(process.env.TELEGRAM_API_ID), telegramApiHash: process.env.TELEGRAM_API_HASH,
   signalAvailable: process.env.SIGNAL_AVAILABLE !== 'false',
+  discordPersonalCloud: process.env.DISCORD_PERSONAL_CLOUD === 'true',
   signalNativeDirectory: process.env.SIGNAL_NATIVE_DIR
 }) : null;
 const app = createApp(store, { collectors, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });

@@ -1,4 +1,38 @@
-export const platformOrder = ['whatsapp', 'telegram', 'signal', 'discord'];
+export const platformOrder = ["whatsapp","telegram","signal","discord"];
+export const discordBrowserGuide = {
+  "name": "Discord",
+  "mode": "Personal account · browser beta",
+  "effort": "Chrome extension · no terminal",
+  "available": true,
+  "summary": "Capture DMs and group DMs delivered to your own Discord Web tab.",
+  "coverage": "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
+  "needs": [
+    "Chrome 125 or newer on a computer",
+    "Your own account signed in to Discord Web",
+    "Permission to load the extension and observe your chosen tab"
+  ],
+  "finish": [
+    "Download and extract the Afterword Discord extension ZIP.",
+    "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
+    "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
+    "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
+  ],
+  "exclusions": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required.",
+  "resources": [
+    {
+      "label": "Open Discord Web",
+      "url": "https://discord.com/channels/@me"
+    },
+    {
+      "label": "Chrome: load an unpacked extension",
+      "url": "https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked"
+    },
+    {
+      "label": "Discord platform terms",
+      "url": "https://discord.com/terms"
+    }
+  ]
+};
 export const platformGuides = {
   "whatsapp": {
     "name": "WhatsApp",
@@ -56,35 +90,29 @@ export const platformGuides = {
   },
   "discord": {
     "name": "Discord",
-    "mode": "Personal account · browser beta",
-    "effort": "Chrome extension · no terminal",
+    "mode": "Personal cloud session · experimental",
+    "effort": "Phone QR approval · account restrictions apply",
     "available": true,
-    "summary": "Capture DMs and group DMs delivered to your own Discord Web tab.",
-    "coverage": "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
+    "summary": "An experimental personal session can capture DMs on the server after phone approval.",
+    "coverage": "Captures identified personal DMs and group DMs delivered to a hosted Discord session, including revisions and deletion events. Server channels are excluded. Discord forbids automated personal accounts and may terminate accounts that use them.",
     "needs": [
-      "Chrome 125 or newer on a computer",
-      "Your own account signed in to Discord Web",
-      "Permission to load the extension and observe your chosen tab"
+      "Your phone, signed in to your own Discord account",
+      "Acceptance of the account risk before starting this unofficial connection"
     ],
     "finish": [
-      "Download and extract the Afterword Discord extension ZIP.",
-      "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
-      "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
-      "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
+      "In Afterword, choose Connections → Discord. Read the account-risk notice, name the source, and acknowledge both consent boxes.",
+      "On your phone, open Discord → your profile → Settings → Scan QR Code. Scan the code generated in your signed-in Afterword workspace.",
+      "Review the phone approval screen and approve the login only if you intend to give Afterword a personal session on its server. Wait for Connected, then verify a harmless DM in your archive."
     ],
-    "exclusions": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required.",
+    "exclusions": "Experimental and not approved by Discord. No server channels, historical backfill, ephemeral interactions, or attachment file downloads. Discord restrictions, missing events, or revoked sessions can interrupt capture.",
     "resources": [
       {
-        "label": "Open Discord Web",
-        "url": "https://discord.com/channels/@me"
+        "label": "Discord: personal-account automation policy",
+        "url": "https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots"
       },
       {
-        "label": "Chrome: load an unpacked extension",
-        "url": "https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked"
-      },
-      {
-        "label": "Discord platform terms",
-        "url": "https://discord.com/terms"
+        "label": "Discord: phone QR login",
+        "url": "https://support.discord.com/hc/en-us/articles/360039213771-QR-Code-Login-FAQ"
       }
     ]
   },
@@ -125,7 +153,7 @@ export const guides = {
         "steps": [
           "Choose Create your archive. Use a username and a unique password of at least 12 characters.",
           "Enter the invitation code if your Afterword instance requires one.",
-          "Open Connections and choose WhatsApp, Telegram, or Signal. Discord currently has a separate browser-only integration."
+          "Open Connections and choose an account. WhatsApp, Telegram, and Signal use hosted phone linking. Discord offers an explicitly experimental personal cloud connection when the operator enables it, plus an optional browser extension."
         ],
         "note": "The signed-out preview contains sample messages. Your own archive starts empty. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key."
       },
@@ -134,7 +162,7 @@ export const guides = {
         "title": "Scan once, capture in the cloud",
         "steps": [
           "Read the platform’s coverage and authorize Afterword to host your linked session.",
-          "Open Linked devices (or Devices in Telegram) in the phone app and scan the code shown in Afterword.",
+          "Open the phone’s linking screen: Linked devices for WhatsApp/Signal, Devices for Telegram, or Scan QR Code in Discord Settings. Scan the code shown in Afterword.",
           "Complete any requested password or phone approval. Keep the setup page open until it shows Connected."
         ],
         "paragraphs": [
@@ -172,7 +200,7 @@ export const guides = {
         "id": "discord",
         "title": "Discord availability",
         "paragraphs": [
-          "The current Discord integration uses a Chrome extension and an open Discord Web tab. It covers personal DMs and group DMs, not server channels. It does not provide continuous cloud capture while your computer is off."
+          "Discord offers an experimental personal cloud connection when the operator enables it. It can run while your computer is off, but Discord forbids automated personal accounts and may terminate them. Read its account-risk notice before linking. The optional browser extension still requires an open Discord Web tab."
         ],
         "links": [
           {
@@ -197,106 +225,92 @@ export const guides = {
     ]
   },
   "discord": {
-    "title": "Connect your personal Discord",
-    "description": "Capture DMs and group DMs delivered to your own Discord Web tab.",
-    "category": "BROWSER EXTENSION · EXPERIMENTAL",
+    "category": "CONNECT AN ACCOUNT",
     "platform": "discord",
+    "title": "Connect personal Discord in the cloud",
+    "description": "Phone-approved, experimental access to your own DMs. Understand Discord’s account restrictions before linking.",
     "sections": [
       {
-        "id": "coverage",
-        "title": "Your DMs, in your own account",
+        "id": "access",
+        "title": "Understand the account risk",
         "paragraphs": [
-          "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
-          "This is a passive browser collector. You sign into Discord normally; Afterword does not request your Discord password or token, install a server bot, send messages, or open another Discord API session."
-        ],
-        "note": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required."
-      },
-      {
-        "id": "before",
-        "title": "Before you start",
-        "bullets": [
-          "Chrome 125 or newer on a computer",
-          "Your own account signed in to Discord Web",
-          "Permission to load the extension and observe your chosen tab"
-        ],
-        "note": "The extension is a downloadable beta, not a Chrome Web Store release. Chrome shows a broad debugging-permission notice: the implementation attaches only to the Discord tab you select and reads incoming Gateway frames. It ignores outgoing frames, HTTP bodies, cookies, and headers. Captured copies upload to your chosen Afterword archive."
-      },
-      {
-        "id": "platform-setup",
-        "title": "Install and pair the extension",
-        "steps": [
-          "In Connections, choose Connect Discord, name the source, and continue.",
-          "Download and extract the Afterword Discord extension ZIP.",
-          "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
-          "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
-          "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
+          "Discord does not offer a supported general-purpose cloud API for archiving a personal account’s DMs. This connector uses an unofficial personal session. Discord forbids automated personal accounts and can terminate accounts that use them.",
+          "The operator must enable this experiment. It is not an approved Discord integration, and phone approval does not make it compliant with Discord’s rules. Do not rely on uninterrupted access or a production service guarantee."
         ],
         "links": [
           {
-            "label": "Open Discord Web",
-            "url": "https://discord.com/channels/@me"
-          },
-          {
-            "label": "Chrome: load an unpacked extension",
-            "url": "https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked"
-          },
-          {
-            "label": "Discord platform terms",
-            "url": "https://discord.com/terms"
+            "label": "Read Discord’s policy",
+            "url": "https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots"
           }
-        ],
-        "note": "No Node.js, terminal, bot token, server selection, or developer application is needed. Keep the extracted extension folder: Chrome loads the extension from that location. Treat the Afterword pairing code as private."
-      },
-      {
-        "id": "verify",
-        "title": "Check that your first message arrived",
-        "paragraphs": [
-          "“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates."
-        ],
-        "steps": [
-          "In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.",
-          "Edit that message. Open its history in Afterword and check that both versions are present.",
-          "Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text."
-        ],
-        "note": "Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you."
-      },
-      {
-        "id": "keep-running",
-        "title": "Keep Discord Web open",
-        "paragraphs": [
-          "Keep Chrome running with your selected Discord Web tab open and signed in. Background tabs can receive events, but browser suspension, sleep, network gaps, and canceled debugging can interrupt capture.",
-          "After restarting Chrome or updating the extension, open it and click Start capturing DMs again. Starting reloads the tab once so the collector sees the new Discord connection."
-        ],
-        "bullets": [
-          "Stop capturing detaches from the tab while queued events can still upload.",
-          "Pausing the source in Afterword discards incoming activity, matching other sources. Resume does not recover paused events.",
-          "Use a separate Afterword source and Chrome profile for a different Discord account. A detected account switch stops capture to prevent mixing archives."
         ]
       },
       {
-        "id": "storage",
-        "title": "Local copies and your archive",
+        "id": "platform-setup",
+        "title": "Have your phone ready",
+        "bullets": [
+          "Your phone, signed in to your own Discord account",
+          "Acceptance of the account risk before starting this unofficial connection"
+        ],
         "paragraphs": [
-          "The extension keeps its archive key, DM metadata, and retry queue encrypted in its private IndexedDB storage. The encryption key lives in the same browser profile; this does not protect against someone who controls that profile or device.",
-          "Queued events survive a browser restart and are removed after the server acknowledges them. A queue limit stops capture instead of silently dropping deliveries. Recent message metadata used to merge partial edits expires after seven days or on message deletion. Attachment metadata is stored; files are not downloaded.",
-          "The hosted archive uses the retention setting in your Afterword workspace. Disconnecting the extension clears its local connection and metadata once the queue is empty. Uninstalling it removes local extension storage; export any required data first."
+          "No browser extension, bot token, developer application, or terminal is required for the cloud experiment. The account session is created only after you approve it on your phone."
+        ]
+      },
+      {
+        "id": "connect",
+        "title": "Link your own account",
+        "steps": [
+          "In Afterword, choose Connections → Discord. Read the account-risk notice, name the source, and acknowledge both consent boxes.",
+          "On your phone, open Discord → your profile → Settings → Scan QR Code. Scan the code generated in your signed-in Afterword workspace.",
+          "Review the phone approval screen and approve the login only if you intend to give Afterword a personal session on its server. Wait for Connected, then verify a harmless DM in your archive."
+        ],
+        "note": "Approving this QR signs your personal account into Afterword’s server. Generate the code yourself inside your signed-in workspace and keep it private.",
+        "links": [
+          {
+            "label": "Discord: phone QR login",
+            "url": "https://support.discord.com/hc/en-us/articles/360039213771-QR-Code-Login-FAQ"
+          }
+        ]
+      },
+      {
+        "id": "verify",
+        "title": "Verify capture before relying on it",
+        "steps": [
+          "Wait until the platform connection reports Connected.",
+          "Send a harmless DM to a person who has agreed to help test, or use an existing conversation you are authorized to archive.",
+          "Check that the original appears in Afterword. Edit and delete the test message in Discord, then inspect the captured history.",
+          "Close the Afterword website and your computer. The hosted collector continues while its server and Discord session remain available."
+        ],
+        "note": "Only messages actually received while capture is active can be retained. Live account linking and message capture remain required to validate this experimental connector."
+      },
+      {
+        "id": "privacy",
+        "title": "What the server stores",
+        "paragraphs": [
+          "The approved personal session is stored encrypted in the source’s private queue. It is never returned by the Afterword API or placed in application logs. The server holds the decryption key.",
+          "Only allowlisted fields from identified DMs/group DMs enter the archive. The connector does not send Discord messages, mark them read, download attachments, or retain server-channel messages. Temporary message metadata used for partial edits expires after seven days.",
+          "Pause drops new activity while keeping the session connected. Disconnect stops capture and deletes the saved session from active storage; existing archived messages remain. Use Discord’s device/session controls to revoke its login as well. Restricted backups can retain older encrypted copies until rotation."
         ]
       },
       {
         "id": "fixes",
-        "title": "If messages do not appear",
-        "bullets": [
-          "Finish ordinary Discord sign-in in the selected tab and click Start capturing DMs in the extension.",
-          "Close DevTools for that Discord tab; another debugger can displace capture. Restart if Chrome’s debugging notice was canceled.",
-          "Check the extension status. Paired only confirms the archive link. Waiting for Discord is not a verified message delivery.",
-          "Only identified DMs and group DMs are captured. A server message, old message, or event Discord never delivers will not appear.",
-          "If archive access is down, events remain encrypted locally. Restore access before the queue reaches its 10,000-event limit.",
-          "Unsupported encoding/compression or an account switch stops capture visibly. Update the extension or create a separate account connection. Do not paste a Discord user token to work around an error."
+        "title": "When linking or capture stops",
+        "paragraphs": [
+          "Expired code: request a fresh one from Afterword and approve it before it expires.",
+          "Additional verification or CAPTCHA: this connector stops. Complete account checks in the official Discord app; it does not solve or bypass verification challenges.",
+          "Session revoked: choose Relink, review the warning again, and approve the intended account. The original source is bound to one Discord account; use another source for a different account.",
+          "Repeated protocol failures or account restrictions require operator attention. Do not repeatedly retry a rejected login."
+        ]
+      },
+      {
+        "id": "browser",
+        "title": "Optional browser extension",
+        "paragraphs": [
+          "If cloud access is disabled or you choose the browser option during setup, the existing experimental extension can observe a selected Discord Web tab. It requires Chrome and that tab to stay open."
         ],
         "links": [
           {
-            "label": "Privacy and retention",
-            "url": "/docs/privacy"
+            "label": "Browser extension instructions",
+            "url": "/docs/discord-extension"
           }
         ]
       }
@@ -672,7 +686,7 @@ export const guides = {
         "title": "Older local connections and Discord",
         "paragraphs": [
           "Connections identifies whether each source captures in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.",
-          "Discord’s extension remains local and requires Chrome with the selected Discord Web tab open. This is not a cloud connector."
+          "Discord’s optional extension remains local and requires Chrome with the selected Discord Web tab open. The separate experimental cloud connector continues on the server, subject to Discord’s account restrictions."
         ]
       },
       {
@@ -705,7 +719,7 @@ export const guides = {
           "Only messages/events received by a collector can be archived. Past deleted messages cannot be recovered.",
           "Disappearing, self-destructing, and view-once content is excluded.",
           "Attachment names and metadata may be recorded. File contents are not downloaded.",
-          "Unofficial Signal and WhatsApp integrations can break when their platforms change. Discord cloud capture is unavailable."
+          "Unofficial Signal, WhatsApp, and Discord integrations can break when their platforms change. Discord forbids automated personal accounts and may terminate accounts using the experimental cloud connector."
         ]
       },
       {
@@ -730,6 +744,112 @@ export const guides = {
         "title": "Archive with authorization",
         "paragraphs": [
           "Connect only accounts you control and retain only conversations you are authorized to keep. Captured copies may remain after a participant edits or deletes the original."
+        ]
+      }
+    ]
+  },
+  "discord-extension": {
+    "title": "Use the optional Discord browser extension",
+    "description": "Capture DMs and group DMs delivered to your own Discord Web tab.",
+    "category": "BROWSER EXTENSION · EXPERIMENTAL",
+    "platform": "discord",
+    "sections": [
+      {
+        "id": "coverage",
+        "title": "Your DMs, in your own account",
+        "paragraphs": [
+          "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
+          "This is a passive browser collector. You sign into Discord normally; Afterword does not request your Discord password or token, install a server bot, send messages, or open another Discord API session."
+        ],
+        "note": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required."
+      },
+      {
+        "id": "before",
+        "title": "Before you start",
+        "bullets": [
+          "Chrome 125 or newer on a computer",
+          "Your own account signed in to Discord Web",
+          "Permission to load the extension and observe your chosen tab"
+        ],
+        "note": "The extension is a downloadable beta, not a Chrome Web Store release. Chrome shows a broad debugging-permission notice: the implementation attaches only to the Discord tab you select and reads incoming Gateway frames. It ignores outgoing frames, HTTP bodies, cookies, and headers. Captured copies upload to your chosen Afterword archive."
+      },
+      {
+        "id": "platform-setup",
+        "title": "Install and pair the extension",
+        "steps": [
+          "In Connections, choose Connect Discord, name the source, and continue.",
+          "Download and extract the Afterword Discord extension ZIP.",
+          "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
+          "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
+          "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
+        ],
+        "links": [
+          {
+            "label": "Open Discord Web",
+            "url": "https://discord.com/channels/@me"
+          },
+          {
+            "label": "Chrome: load an unpacked extension",
+            "url": "https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked"
+          },
+          {
+            "label": "Discord platform terms",
+            "url": "https://discord.com/terms"
+          }
+        ],
+        "note": "No Node.js, terminal, bot token, server selection, or developer application is needed. Keep the extracted extension folder: Chrome loads the extension from that location. Treat the Afterword pairing code as private."
+      },
+      {
+        "id": "verify",
+        "title": "Check that your first message arrived",
+        "paragraphs": [
+          "“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates."
+        ],
+        "steps": [
+          "In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.",
+          "Edit that message. Open its history in Afterword and check that both versions are present.",
+          "Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text."
+        ],
+        "note": "Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you."
+      },
+      {
+        "id": "keep-running",
+        "title": "Keep Discord Web open",
+        "paragraphs": [
+          "Keep Chrome running with your selected Discord Web tab open and signed in. Background tabs can receive events, but browser suspension, sleep, network gaps, and canceled debugging can interrupt capture.",
+          "After restarting Chrome or updating the extension, open it and click Start capturing DMs again. Starting reloads the tab once so the collector sees the new Discord connection."
+        ],
+        "bullets": [
+          "Stop capturing detaches from the tab while queued events can still upload.",
+          "Pausing the source in Afterword discards incoming activity, matching other sources. Resume does not recover paused events.",
+          "Use a separate Afterword source and Chrome profile for a different Discord account. A detected account switch stops capture to prevent mixing archives."
+        ]
+      },
+      {
+        "id": "storage",
+        "title": "Local copies and your archive",
+        "paragraphs": [
+          "The extension keeps its archive key, DM metadata, and retry queue encrypted in its private IndexedDB storage. The encryption key lives in the same browser profile; this does not protect against someone who controls that profile or device.",
+          "Queued events survive a browser restart and are removed after the server acknowledges them. A queue limit stops capture instead of silently dropping deliveries. Recent message metadata used to merge partial edits expires after seven days or on message deletion. Attachment metadata is stored; files are not downloaded.",
+          "The hosted archive uses the retention setting in your Afterword workspace. Disconnecting the extension clears its local connection and metadata once the queue is empty. Uninstalling it removes local extension storage; export any required data first."
+        ]
+      },
+      {
+        "id": "fixes",
+        "title": "If messages do not appear",
+        "bullets": [
+          "Finish ordinary Discord sign-in in the selected tab and click Start capturing DMs in the extension.",
+          "Close DevTools for that Discord tab; another debugger can displace capture. Restart if Chrome’s debugging notice was canceled.",
+          "Check the extension status. Paired only confirms the archive link. Waiting for Discord is not a verified message delivery.",
+          "Only identified DMs and group DMs are captured. A server message, old message, or event Discord never delivers will not appear.",
+          "If archive access is down, events remain encrypted locally. Restore access before the queue reaches its 10,000-event limit.",
+          "Unsupported encoding/compression or an account switch stops capture visibly. Update the extension or create a separate account connection. Do not paste a Discord user token to work around an error."
+        ],
+        "links": [
+          {
+            "label": "Privacy and retention",
+            "url": "/docs/privacy"
+          }
         ]
       }
     ]

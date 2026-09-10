@@ -1,6 +1,6 @@
 # Afterword
 
-A hosted message archive for individuals, with per-account workspaces and hosted collectors for personal Telegram, Signal and WhatsApp accounts, plus an experimental Chrome extension for personal Discord DMs and group DMs. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
+A hosted message archive for individuals, with per-account workspaces and hosted collectors for personal Telegram, Signal and WhatsApp accounts. Personal Discord has an explicitly experimental cloud connector and an optional browser extension. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
 
 ## User onboarding and documentation
 
@@ -28,12 +28,12 @@ The production API serves the compiled UI on port 4318. Copy `.env.example` to `
 
 | Platform | Implementation | Coverage |
 | --- | --- | --- |
-| Discord | Passive Chrome extension (experimental) | Identified personal DMs and group DMs delivered to a selected Discord Web tab; create, edit, delete. No server channels or bot tokens. |
+| Discord | Unofficial personal cloud session; optional Chrome extension | Identified personal DMs and group DMs delivered to the session; create, edit, delete. No server channels. Cloud access can violate Discord's rules and put accounts at risk. |
 | Telegram | Personal account through teleproto / MTProto | Ordinary cloud chats; new messages, edits, delivered deletion updates |
 | Signal | Unofficial signal-cli linked device | Incoming and synced outgoing ordinary messages, edits and remote deletes |
 | WhatsApp | Unofficial Baileys linked device | New deliveries, edits and revoke events exposed by the linked session |
 
-**This is not universal access to every message on all four platforms.** Discord uses the extension rather than a bot. It requires Chrome 125+, debugging permission, and an open signed-in Discord Web tab. Automated compressed-stream and archive tests pass; live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. Signal/WhatsApp linked-device compatibility is experimental until validated against the user's live accounts. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
+**This is not universal access to every message on all four platforms.** Discord's cloud connector requires phone approval and acknowledgement that Discord forbids automated personal accounts and may terminate them. It is not an approved integration. Its optional extension requires Chrome 125+, debugging permission, and an open signed-in Discord Web tab. Live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
 
 ## Architecture
 
@@ -52,6 +52,8 @@ The production API serves the compiled UI on port 4318. Copy `.env.example` to `
 Set `HOSTED_COLLECTORS=true`, configure `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` once for the application, and set `HOSTED_MAX_COLLECTORS` to a capacity tested on your server. The production image includes checksum-verified signal-cli 0.14.7. Its private working files use `/tmp` mounted as tmpfs. Large native libraries expand into separate per-worker directories on the `signal-native-cache` disk volume; that cache contains no account sessions and is cleared on worker exit and service startup. Keep `ARCHIVE_KEY` stable and separately backed up: all hosted queue keys derive from it.
 
 For the managed deployment, private `~/.config/afterword/hosted-config.json` supplies `enabled`, `max_collectors`, `telegram_api_id`, and `telegram_api_hash`; these never belong in Git. Customers do not need developer API credentials or a local installation. The default global limit is four collectors for the current small server; additional customers require capacity work, not merely enabling public signup.
+
+`DISCORD_PERSONAL_CLOUD=true` (managed field `discord_personal_cloud`) enables the separate Discord experiment. It is disabled by default. Every user must acknowledge its account risk before the API permits linking. A phone-approved personal session is encrypted in the source queue and never returned to the frontend. The connector sends only authentication/resume/heartbeat traffic, filters incoming events to identified private channels, and stops for verification challenges or revoked credentials. It never attempts CAPTCHA solving. A live unauthenticated QR handshake succeeded from DigitalOcean; full phone approval and capture are not yet verified.
 
 ## Deployment
 

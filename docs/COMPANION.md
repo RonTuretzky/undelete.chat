@@ -2,7 +2,7 @@
 
 Your companion receives messages on your computer and sends captured versions to your private Afterword archive. Start with the connection setup screen in the web app; it fills in your server address and follows your progress.
 
-For Discord, follow the [browser extension guide](guides/discord.md). The terminal instructions below apply to Telegram, Signal, and WhatsApp.
+For Discord, follow the [browser extension guide](guides/discord-extension.md). The terminal instructions below apply to Telegram, Signal, and WhatsApp.
 
 ## First connection
 
@@ -21,7 +21,7 @@ Platform credentials and sessions stay on the computer running the companion. Yo
 - [Start your first archive](guides/getting-started.md) — includes Windows, macOS, and Linux terminal instructions.
 - [Connect WhatsApp](guides/whatsapp.md) — linked-device QR pairing through unofficial Baileys.
 - [Connect Telegram](guides/telegram.md) — application credentials, phone sign-in, and verification.
-- [Connect your personal Discord](guides/discord.md) — use the separate Chrome extension; no terminal or bot setup.
+- [Connect your personal Discord](guides/discord-extension.md) — use the separate Chrome extension; no terminal or bot setup.
 - [Connect Signal](guides/signal.md) — install signal-cli and link your phone by QR code.
 - [Troubleshooting](guides/troubleshooting.md) — expired codes, missing messages, bad credentials, and relinking.
 - [Continuous capture and local storage](guides/running.md) — resume, additional accounts, updates, and background operation.

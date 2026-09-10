@@ -20,6 +20,7 @@ hosted = json.loads(hosted_path.read_text()) if hosted_path.exists() else {}
 env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values['invite_code'], 'PUBLIC_ORIGIN=' + state['url'], 'NODE_ENV=production',
     'HOSTED_COLLECTORS=' + ('true' if hosted.get('enabled') else 'false'),
     'HOSTED_MAX_COLLECTORS=' + str(int(hosted.get('max_collectors', 4))),
+    'DISCORD_PERSONAL_CLOUD=' + ('true' if hosted.get('discord_personal_cloud') else 'false'),
     'TELEGRAM_API_ID=' + str(int(hosted.get('telegram_api_id', 0))),
     'TELEGRAM_API_HASH=' + str(hosted.get('telegram_api_hash', ''))]) + '\n'
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)

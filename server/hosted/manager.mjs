@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import QRCode from 'qrcode';
 
-const supported = ['telegram', 'signal', 'whatsapp'];
+const supported = ['telegram', 'signal', 'whatsapp', 'discord'];
 const failure = (message, status = 409) => Object.assign(new Error(message), { status, public: true });
 export function createCollectorManager(store, options) {
   const root = resolve(options.directory, 'collectors');
@@ -88,8 +88,10 @@ export function createCollectorManager(store, options) {
         if (message.type === 'config') {
           // Only application configuration is persisted here; login responses are
           // sent once over IPC and never stored or added to the application logs.
-          const clean = {};
+          const clean = { ...store.hostedConfig(c.id) };
           if (c.platform === 'telegram') { clean.apiId = Number(message.config?.apiId); clean.apiHash = String(message.config?.apiHash || ''); }
+          const discordAccount = message.config?.discordAccountId;
+          if (c.platform === 'discord' && typeof discordAccount === 'string' && /^\d{1,24}$/.test(discordAccount) && (!clean.discordAccountId || clean.discordAccountId === discordAccount)) clean.discordAccountId = discordAccount;
           store.saveHostedConfig(c.id, clean);
         }
         if (message.type === 'events' && Array.isArray(message.events) && message.events.length <= 50) {
@@ -107,7 +109,7 @@ export function createCollectorManager(store, options) {
       rmSync(runtimeDirectory, { recursive: true, force: true });
       if (nativeDirectory) rmSync(nativeDirectory, { recursive: true, force: true });
       if (closing || state.stopping || !connection(c.id) || !enabled(c.id)) return;
-      if (code === 2) { update(c.id, 'error', 'Sign-in was not completed. Choose Try again to connect.'); return; }
+      if (code === 2) { if (connection(c.id)?.health !== 'error') update(c.id, 'error', 'Sign-in was not completed. Choose Try again to connect.'); return; }
       update(c.id, 'reconnecting', 'Connection interrupted. Retrying automatically.');
       state.timer = setTimeout(() => { const current = connection(c.id); if (current && enabled(c.id)) launch(current, state.failures + 1); }, Math.min(60_000, 2000 * 2 ** Math.min(state.failures, 5)));
     };
@@ -136,14 +138,16 @@ export function createCollectorManager(store, options) {
     if (signalNative) rmSync(join(signalNative, id), { recursive: true, force: true });
   }
   const manager = {
-    capabilities() { return { enabled: true, platforms: { telegram: !!options.telegramApiId && !!options.telegramApiHash, signal: options.signalAvailable !== false, whatsapp: true, discord: false }, maxConnectionsPerAccount: 4 }; },
+    capabilities() { return { enabled: true, platforms: { telegram: !!options.telegramApiId && !!options.telegramApiHash, signal: options.signalAvailable !== false, whatsapp: true, discord: options.discordPersonalCloud === true }, maxConnectionsPerAccount: 4 }; },
     status: publicState,
-    start(id, userId, { restart = false, relink = false, consent = false } = {}) {
+    start(id, userId, { restart = false, relink = false, consent = false, experimentalConsent = false } = {}) {
       return serialize(id, async () => {
         const c = store.connection(id, userId);
         if (!c || c.revoked) throw failure('Connection not found.', 404);
-        if (!supported.includes(c.platform)) throw failure('Hosted personal Discord capture is not available.');
+        if (!supported.includes(c.platform)) throw failure('Hosted capture is not available for this platform.');
         if (!manager.capabilities().platforms[c.platform]) throw failure('This platform is not configured on the server yet.', 503);
+        const savedConfig = store.hostedConfig(id);
+        if (c.platform === 'discord' && !savedConfig.discordRiskAcceptedAt && !experimentalConsent) throw failure('Acknowledge Discord’s account restrictions before using this experimental connection.', 400);
         if (c.collector !== 'hosted' && !consent) throw failure('Confirm that Afterword may run this connection on the server.', 400);
         const active = store.hostedConnections().filter(x => x.enabled);
         if (!enabled(id) && active.length + reservations.size >= maxCollectors) throw failure('Hosted capacity is full. Please contact support.', 503);
@@ -153,7 +157,7 @@ export function createCollectorManager(store, options) {
         try {
         await stop(id);
         if (relink) rmSync(join(root, id), { recursive: true, force: true });
-        store.saveHostedConfig(id, store.hostedConfig(id));
+        store.saveHostedConfig(id, { ...savedConfig, ...(c.platform === 'discord' && experimentalConsent ? { discordRiskAcceptedAt: new Date().toISOString() } : {}) });
         store.db.prepare('UPDATE hosted_collectors SET enabled=1 WHERE connection_id=?').run(id);
         store.db.prepare("UPDATE connections SET collector='hosted',token_hash=NULL,paired_at=?,last_seen=?,health='waiting',detail='Starting hosted sign-in' WHERE id=?")
           .run(new Date().toISOString(), new Date().toISOString(), id);

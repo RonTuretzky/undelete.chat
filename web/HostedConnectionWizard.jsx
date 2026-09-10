@@ -6,28 +6,31 @@ import { platformGuides } from './guides.mjs';
 const phoneSteps = {
   whatsapp: 'WhatsApp → Settings (iPhone) or ⋮ (Android) → Linked devices → Link a device.',
   signal: 'Signal → your profile / Settings → Linked devices → Link a new device (or +).',
-  telegram: 'Telegram → Settings → Devices → Link Desktop Device.'
+  telegram: 'Telegram → Settings → Devices → Link Desktop Device.',
+  discord: 'Discord → your profile → Settings → Scan QR Code.'
 };
 export function ConnectionWizard(props) {
   const [capabilities, setCapabilities] = useState(null), [error, setError] = useState('');
   const [platform, setPlatform] = useState(props.initialConnection?.platform || props.initialPlatform || null);
+  const [local, setLocal] = useState(false);
   useEffect(() => { let active = true; props.api('/capabilities').then(r => { if (active) setCapabilities(r.hosted); }).catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, []);
   const { Modal, Platform, onClose } = props;
   if (!capabilities) return <Modal title="Connect an account" onClose={onClose}>{error ? <p className="form-error" role="alert">{error}</p> : <p className="modal-description"><LoaderCircle size={18} className="spin"/> Checking connection options…</p>}</Modal>;
-  if (!capabilities.enabled || platform === 'discord') return <LocalConnectionWizard {...props} initialPlatform={platform} />;
+  if (!capabilities.enabled || local || platform === 'discord' && !capabilities.platforms.discord) return <LocalConnectionWizard {...props} initialPlatform={platform} />;
   if (!platform) return <Modal title="Connect an account" wide onClose={onClose}>
     <p className="modal-description">Link your phone once. Afterword captures on the server, even when your computer is off.</p>
-    <div className="platform-choices">{['whatsapp', 'telegram', 'signal', 'discord'].map(p => <button key={p} onClick={() => setPlatform(p)}><Platform platform={p}/><span><strong>{platformGuides[p].name}</strong><small>{p === 'discord' ? 'Browser extension only · requires an open tab' : capabilities.platforms[p] ? 'Cloud capture · scan a QR code' : 'Cloud setup not configured'}</small></span><ChevronRight size={18}/></button>)}</div>
-    <div className="setup-footnote"><Cloud size={17}/><span>WhatsApp, Telegram, and Signal run in the cloud. Discord does not currently support hosted capture.</span></div>
+    <div className="platform-choices">{['whatsapp', 'telegram', 'signal', 'discord'].map(p => <button key={p} onClick={() => setPlatform(p)}><Platform platform={p}/><span><strong>{platformGuides[p].name}</strong><small>{p === 'discord' ? capabilities.platforms.discord ? 'Experimental cloud connection · account restrictions apply' : 'Browser extension only · requires an open tab' : capabilities.platforms[p] ? 'Cloud capture · scan a QR code' : 'Cloud setup not configured'}</small></span><ChevronRight size={18}/></button>)}</div>
+    <div className="setup-footnote"><Cloud size={17}/><span>Hosted connections run on Afterword’s server. Discord’s personal cloud connection is experimental and is not approved by Discord.</span></div>
   </Modal>;
-  return <HostedSetup {...props} key={platform} platform={platform} available={capabilities.platforms[platform]} onBack={() => setPlatform(null)}/>;
+  return <HostedSetup {...props} key={platform} platform={platform} available={capabilities.platforms[platform]} onBack={() => setPlatform(null)} onBrowser={() => setLocal(true)}/>;
 }
-function HostedSetup({ platform, available, initialConnection, Modal, Platform, api, onClose, onFinish, onChanged, onBack }) {
+function HostedSetup({ platform, available, initialConnection, Modal, Platform, api, onClose, onFinish, onChanged, onBack, onBrowser }) {
   const info = platformGuides[platform];
   const [connection, setConnection] = useState(initialConnection || null);
   const [setup, setSetup] = useState(null), [name, setName] = useState(initialConnection?.name || `My ${info.name}`);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [reply, setReply] = useState('');
   const [relink, setRelink] = useState(false), [now, setNow] = useState(Date.now());
+  const [experimentalConsent, setExperimentalConsent] = useState(false);
   const hosted = setup?.mode === 'hosted' || connection?.collector === 'hosted';
   const connected = hosted && setup?.running && setup.health === 'connected';
   const hasCapture = connection?.last_message_at && connection.last_message_at >= connection.paired_at;
@@ -52,7 +55,7 @@ function HostedSetup({ platform, available, initialConnection, Modal, Platform, 
     try {
       const c = connection || (await api('/connections', { method: 'POST', body: { platform, name } })).connection;
       setConnection(c);
-      const result = await api(`/connections/${c.id}/hosted/start`, { method: 'POST', body: { consent: true, ...options } });
+      const result = await api(`/connections/${c.id}/hosted/start`, { method: 'POST', body: { consent: true, experimentalConsent, ...options } });
       setSetup(result.setup); setRelink(false); onChanged();
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
@@ -66,14 +69,17 @@ function HostedSetup({ platform, available, initialConnection, Modal, Platform, 
     <div className="wizard-platform"><Platform platform={platform}/><div><strong>{info.name}</strong><span><Cloud size={14}/> Hosted account connection</span></div><a href={`/docs/${platform}`} target="_blank" rel="noreferrer">Setup guide</a></div>
     {!available ? <><div className="info-strip">This platform needs server configuration before you can connect. Your account has not been linked.</div><button className="button secondary" onClick={onBack}><ArrowLeft size={15}/>Choose another platform</button></> : !hosted ? <>
       <p className="modal-description">{info.coverage}</p>
+      {platform === 'discord' && <div className="info-strip"><strong>Experimental personal-account access</strong><p>Discord forbids automated personal accounts and may terminate an account for using them. This is an unofficial session, not Discord OAuth or an approved app. Approving the QR signs your account into Afterword’s server.</p><a href="https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots" target="_blank" rel="noreferrer">Read Discord’s policy</a></div>}
       <div className="prerequisite-card"><h3>Have your phone ready</h3><p>Open {info.name} on your primary phone. You’ll scan a code here{platform === 'telegram' ? ' and enter your two-step verification password if you use one' : ' and approve a new linked device'}.</p><p>No downloads, terminal commands, or computer left running.</p></div>
       <form onSubmit={e => { e.preventDefault(); start(); }}>
         <label>Connection name<input value={name} onChange={e => setName(e.target.value)} maxLength={100} required disabled={!!connection}/></label>
         <label className="checkbox-label"><input type="checkbox" required/><span>I authorize Afterword to connect to this account on its server and store copies of conversations I’m authorized to retain. Copies can remain after messages are edited or deleted.</span></label>
+        {platform === 'discord' && <label className="checkbox-label"><input type="checkbox" required checked={experimentalConsent} onChange={e => setExperimentalConsent(e.target.checked)}/><span>I understand that this experimental connection can put my Discord account at risk, including account termination.</span></label>}
         {connection?.collector && <div className="info-strip">Moving this source to the cloud stops its old local collector from uploading. Your existing archive stays available.</div>}
         <div className="wizard-actions"><button type="button" className="button secondary" onClick={onBack}><ArrowLeft size={15}/>Back</button><button className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16}/> : <Cloud size={16}/>} {connection?.collector ? 'Move connection to cloud' : 'Show my QR code'}</button></div>
       </form>
       <p className="wizard-smallprint">Your linked session and messages are stored on Afterword’s server. Saved credentials and message content are encrypted at rest; the server can decrypt them to provide the service.</p>
+      {platform === 'discord' && !connection && <button className="text-button" onClick={onBrowser}>Use the optional browser extension instead (requires an open tab)</button>}
     </> : connected ? <>
       <div className="hosted-success"><CheckCheck size={30}/><h3>{setup.paused ? 'Connected, with capture paused' : 'Your cloud connection is running'}</h3><p>{setup.paused ? 'Resume capture in Connections when you are ready.' : 'You can close this page and turn off your computer. Afterword will keep receiving messages on the server.'}</p></div>
       <div className="verification-check"><Check size={16}/><span>Platform sign-in complete</span></div>

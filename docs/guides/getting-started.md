@@ -8,7 +8,7 @@ Connect your accounts without installing anything on your computer.
 
 1. Choose Create your archive. Use a username and a unique password of at least 12 characters.
 2. Enter the invitation code if your Afterword instance requires one.
-3. Open Connections and choose WhatsApp, Telegram, or Signal. Discord currently has a separate browser-only integration.
+3. Open Connections and choose an account. WhatsApp, Telegram, and Signal use hosted phone linking. Discord offers an explicitly experimental personal cloud connection when the operator enables it, plus an optional browser extension.
 
 > The signed-out preview contains sample messages. Your own archive starts empty. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key.
 
@@ -19,7 +19,7 @@ Connect your accounts without installing anything on your computer.
 Hosted setup needs no downloads, extension, terminal commands, or personal developer credentials. Initial scanning is easiest with a second screen.
 
 1. Read the platform’s coverage and authorize Afterword to host your linked session.
-2. Open Linked devices (or Devices in Telegram) in the phone app and scan the code shown in Afterword.
+2. Open the phone’s linking screen: Linked devices for WhatsApp/Signal, Devices for Telegram, or Scan QR Code in Discord Settings. Scan the code shown in Afterword.
 3. Complete any requested password or phone approval. Keep the setup page open until it shows Connected.
 
 <a id="verify"></a>
@@ -48,7 +48,7 @@ A platform outage, expired linked device, or server interruption can still leave
 
 ## Discord availability
 
-The current Discord integration uses a Chrome extension and an open Discord Web tab. It covers personal DMs and group DMs, not server channels. It does not provide continuous cloud capture while your computer is off.
+Discord offers an experimental personal cloud connection when the operator enables it. It can run while your computer is off, but Discord forbids automated personal accounts and may terminate them. Read its account-risk notice before linking. The optional browser extension still requires an open Discord Web tab.
 
 - [Discord coverage and setup](./discord.md)
 
