@@ -9,6 +9,7 @@ Run from the repository with the private deployment credentials in `~/.config/af
 ```sh
 python3 deploy/operations.py status
 python3 deploy/operations.py uptime-status
+python3 deploy/operations.py backup-status
 ```
 
 These commands do not print the DigitalOcean token or platform credentials. The recorded deployment must identify the Afterword Droplet. Public `/api/health` verifies the web process can query SQLite; it does not prove that every platform is connected or that backups are current. Check Connections for each platform's state. An idle conversation can have no new messages while its collector is healthy.
@@ -37,7 +38,7 @@ cd /opt/afterword
 docker compose -f deploy/compose.yaml exec -T app node server/backup.mjs
 ```
 
-Confirm a new manifest exists and contains the archive and expected collector queues. A successful enablement action proves the schedule was configured; it does not prove an image has been created. Inspect `operations.py status` for completed backup IDs and dates. Automatic replication of application snapshots to a separate storage account and backup-freshness alerts remain outstanding.
+Confirm a new manifest exists and contains the archive and expected collector queues. A successful enablement action proves the schedule was configured; it does not prove an image has been created. Inspect `operations.py status` for completed backup IDs and dates. Encrypted off-server replication, retry scheduling, and offline restore commands are implemented but storage activation and a real provider round trip remain outstanding; see [offsite setup](OFFSITE-BACKUPS.md). Backup-freshness alerts are not yet configured.
 
 ## Restore procedure
 

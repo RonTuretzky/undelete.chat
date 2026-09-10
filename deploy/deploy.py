@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Upload a reviewed build, run it behind HTTPS, and initialize a private owner."""
-import json, pathlib, secrets, subprocess, tarfile, tempfile, shlex
+import json, pathlib, secrets, subprocess, tarfile, tempfile, shlex, re
+from urllib.parse import urlsplit
 root = pathlib.Path(__file__).resolve().parent.parent
 private = pathlib.Path.home() / '.config' / 'afterword'
 state = json.loads((private / 'deployment.json').read_text())
@@ -19,6 +20,20 @@ hosted_path = private / 'hosted-config.json'
 hosted = json.loads(hosted_path.read_text()) if hosted_path.exists() else {}
 capacity_path = private / 'capacity-config.json'
 capacity = json.loads(capacity_path.read_text()) if capacity_path.exists() else {}
+offsite_path = private / 'offsite-config.json'
+offsite = json.loads(offsite_path.read_text()) if offsite_path.exists() else {}
+if offsite_path.exists() and (not isinstance(offsite, dict) or not offsite):
+    raise SystemExit('Offsite configuration must contain all four storage settings. Remove the file to disable offsite replication.')
+offsite_names = {'endpoint': 'BACKUP_S3_ENDPOINT', 'bucket': 'BACKUP_S3_BUCKET',
+                 'access_key': 'BACKUP_S3_ACCESS_KEY', 'secret_key': 'BACKUP_S3_SECRET_KEY'}
+if offsite and any(not isinstance(offsite.get(name), str) or not offsite[name] or any(c in offsite[name] for c in '\r\n\x00') for name in offsite_names):
+    raise SystemExit('Offsite storage requires endpoint, bucket, access_key, and secret_key strings without newlines.')
+if offsite:
+    endpoint = urlsplit(offsite['endpoint'])
+    if endpoint.scheme != 'https' or not re.fullmatch(r'[a-z]+\d\.digitaloceanspaces\.com', endpoint.netloc) or endpoint.path not in ('', '/') or endpoint.query or endpoint.fragment:
+        raise SystemExit('Offsite endpoint must be a DigitalOcean Spaces regional HTTPS endpoint.')
+    if not re.fullmatch(r'[a-z0-9][a-z0-9-]{1,61}[a-z0-9]', offsite['bucket']) or any(not re.fullmatch(r'[A-Za-z0-9/+=_-]+', offsite[name]) for name in ('access_key', 'secret_key')):
+        raise SystemExit('Invalid offsite bucket or credential format.')
 capacity_env = {'ARCHIVE_ACCOUNT_BYTES': capacity.get('account_bytes', 128 * 1024**2),
                 'ARCHIVE_SERVER_BYTES': capacity.get('server_bytes', 1024**3),
                 'ARCHIVE_MIN_FREE_BYTES': capacity.get('minimum_free_bytes', 2 * 1024**3)}
@@ -30,7 +45,8 @@ env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values
     'DISCORD_PERSONAL_CLOUD=' + ('true' if hosted.get('discord_personal_cloud') else 'false'),
     'TELEGRAM_API_ID=' + str(int(hosted.get('telegram_api_id', 0))),
     'TELEGRAM_API_HASH=' + str(hosted.get('telegram_api_hash', '')),
-    *[name + '=' + str(value) for name, value in capacity_env.items()]]) + '\n'
+    *[name + '=' + str(value) for name, value in capacity_env.items()],
+    *[env_name + '=' + offsite[name] for name, env_name in offsite_names.items() if offsite]]) + '\n'
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)
 invite_path = private / 'invitation-code.txt'; invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
 credentials = private / 'owner-credentials.txt'

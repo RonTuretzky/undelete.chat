@@ -2,6 +2,7 @@
 """Inspect and configure Afterword's own DigitalOcean operating controls."""
 import argparse
 import json
+import subprocess
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -101,6 +102,19 @@ class DigitalOcean:
         return {'configured': True, 'check': check, 'state': state,
                 'alertCount': len(alerts)}
 
+    def backup_status(self):
+        options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',
+                   '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.private / 'known_hosts'), '-o', 'ConnectTimeout=15']
+        script = """import {readFile,readdir} from 'node:fs/promises';
+let status; try { status=JSON.parse(await readFile('/data/backup-status.json','utf8')); } catch(e) { if(e.code!=='ENOENT') throw e; status={state:'not_recorded'}; }
+const snapshots=(await readdir('/data/backups',{withFileTypes:true})).filter(e=>e.isDirectory() && /^\\d{4}-\\d{2}-\\d{2}T/.test(e.name)).map(e=>e.name).sort();
+console.log(JSON.stringify({status,localSnapshots:snapshots.length,latestLocalSnapshot:snapshots.at(-1)}));
+"""
+        result = subprocess.run(['ssh', *options, 'root@' + self.state['ip'],
+                                 'cd /opt/afterword && docker compose -f deploy/compose.yaml exec -T app node --input-type=module'],
+                                input=script, text=True, capture_output=True, timeout=30, check=True)
+        return json.loads(result.stdout)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -108,6 +122,7 @@ def main():
     commands.add_parser('status')
     commands.add_parser('enable-uptime')
     commands.add_parser('uptime-status')
+    commands.add_parser('backup-status')
     backups = commands.add_parser('enable-daily-backups')
     backups.add_argument('--hour', type=int, choices=[0, 4, 8, 12, 16, 20], default=20)
     action = commands.add_parser('action')
@@ -118,6 +133,7 @@ def main():
     elif args.command == 'enable-daily-backups': result = client.enable_daily_backups(args.hour)
     elif args.command == 'enable-uptime': result = client.enable_uptime()
     elif args.command == 'uptime-status': result = client.uptime_status()
+    elif args.command == 'backup-status': result = client.backup_status()
     else: result = client.request('GET', 'actions/' + str(args.id))
     print(json.dumps(result, indent=2))
 

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createStore } from './store.mjs';
 import { createApp } from './app.mjs';
-import { createBackup } from './backup.mjs';
+import { createBackupService, clearBackupStaging } from './backup-service.mjs';
 import { createCollectorManager } from './hosted/manager.mjs';
 import { MiB, positiveBytes } from './capacity.mjs';
 try { process.loadEnvFile('.env'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
@@ -38,15 +38,13 @@ const collectors = process.env.HOSTED_COLLECTORS === 'true' ? createCollectorMan
 const app = createApp(store, { collectors, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
 const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`Afterword listening on port ${process.env.PORT || 4318}`));
 await collectors?.restore();
-let backupRunning = null;
-const runBackup = () => {
-  if (!backupRunning) backupRunning = createBackup(dir, { minimumFreeBytes: store.capacity.limits.minimumFreeBytes }).then(() => console.log('Archive backup completed.')).catch(() => console.error('Archive backup failed.')).finally(() => { backupRunning = null; });
-};
-const backupTimer = production ? setInterval(runBackup, 24 * 60 * 60_000).unref() : null;
-if (production) runBackup();
+const backups = production ? createBackupService(dir, { key, minimumFreeBytes: store.capacity.limits.minimumFreeBytes }) : null;
+if (production) await clearBackupStaging(dir);
+const backupTimer = backups ? setInterval(() => backups.run(), 15 * 60_000).unref() : null;
+backups?.run();
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
   if (stopping) return; stopping = true; clearInterval(timer); clearInterval(backupTimer);
   const closed = new Promise(resolve => server.close(resolve));
-  await collectors?.close(); await backupRunning; await closed; store.close(); process.exit(0);
+  await Promise.all([collectors?.close(), backups?.close()]); await closed; store.close(); process.exit(0);
 });
