@@ -69,7 +69,7 @@ python3 deploy/operations.py alert-status
 
 ## Server maintenance
 
-The Droplet runs Ubuntu 24.04 LTS with `unattended-upgrades` installing security updates daily. SSH accepts only the deployment key: password authentication is disabled and root login is limited to public keys (`/etc/ssh/sshd_config.d/70-afterword.conf`). `ufw` allows only 22, 80, and 443/tcp; HTTP/3 is advertised by Caddy but 443/udp is intentionally not opened. The application container runs read-only as an unprivileged user with all capabilities dropped.
+The Droplet runs Ubuntu 24.04 LTS with `unattended-upgrades` installing security updates daily. Caddy comes from the official `dl.cloudsmith.io/public/caddy/stable` apt repository rather than Ubuntu's community-maintained package, so `apt-get upgrade` tracks Caddy's own security releases; version 2.11.4 was installed on September 10 and the certificates in `/var/lib/caddy` were preserved across the upgrade. SSH accepts only the deployment key: password authentication is disabled and root login is limited to public keys (`/etc/ssh/sshd_config.d/70-afterword.conf`). `ufw` allows only 22, 80, and 443/tcp; HTTP/3 is advertised by Caddy but 443/udp is intentionally not opened. The application container runs read-only as an unprivileged user with all capabilities dropped.
 
 Kernel updates leave `/var/run/reboot-required` behind. A reboot restarts Caddy, Docker, and the application; the supervisor restores every enabled hosted session afterwards, so customers do not need to relink. Expect about one to two minutes of downtime, which is below the `down_global` alert period. Reboot during a quiet period and verify recovery:
 

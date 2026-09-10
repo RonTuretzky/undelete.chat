@@ -30,8 +30,14 @@ else:
         cloud = '''#cloud-config
 package_update: true
 ssh_pwauth: false
-packages: [docker.io, docker-compose-v2, caddy, ufw]
+packages: [docker.io, docker-compose-v2, ufw, debian-keyring, debian-archive-keyring, apt-transport-https, curl]
 runcmd:
+  # Ubuntu's own caddy package is community-maintained; the official stable
+  # repository receives security releases for the public HTTPS edge.
+  - [sh, -c, "curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg"]
+  - [sh, -c, "curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt > /etc/apt/sources.list.d/caddy-stable.list"]
+  - [apt-get, update]
+  - [apt-get, install, -y, caddy]
   - [systemctl, enable, --now, docker]
   - [ufw, allow, OpenSSH]
   - [ufw, allow, 80/tcp]
