@@ -147,6 +147,38 @@ export function createArchiveReader(db, crypt) {
     }
   }
 
+  async function messageHistory(id, userId, { offset = 0, snapshot: requestedSnapshot, signal } = {}) {
+    signal?.throwIfAborted();
+    const current = snapshot({ id, user_id: userId });
+    if (!current) return null;
+    const maxSequence = requestedSnapshot === undefined ? current.maxSequence : Math.min(requestedSnapshot, current.maxSequence);
+    const counts = db.prepare(`SELECT count(*) AS total,coalesce(sum(kind!='delete'),0) AS versionCount
+      FROM events WHERE message_id=? AND id<=?`).get(id, maxSequence);
+    const limit = 30;
+    const selected = db.prepare(`SELECT *,${rank} AS kind_rank FROM events WHERE message_id=? AND id<=?
+      ORDER BY occurred_at DESC,${rank} DESC,id DESC LIMIT ? OFFSET ?`).all(id, maxSequence, limit, offset).reverse();
+    const firstContent = selected.find(event => event.kind !== 'delete');
+    let versionNumber = 0, previousVersion = null;
+    if (firstContent) {
+      const key = [firstContent.occurred_at, firstContent.kind_rank, firstContent.id];
+      versionNumber = db.prepare(`SELECT count(*) AS n FROM events WHERE message_id=? AND id<=? AND kind!='delete'
+        AND (occurred_at,${rank},id)<(?,?,?)`).get(id, maxSequence, ...key).n;
+      const previous = db.prepare(`SELECT * FROM events WHERE message_id=? AND id<=? AND kind!='delete'
+        AND (occurred_at,${rank},id)<(?,?,?) ORDER BY occurred_at DESC,${rank} DESC,id DESC LIMIT 1`).get(id, maxSequence, ...key);
+      if (previous) previousVersion = { ...open(current.row, previous), versionNumber };
+    }
+    const versions = selected.map(event => ({ ...open(current.row, event), versionNumber: event.kind === 'delete' ? null : ++versionNumber }));
+    const preview = await summary(current.row, { signal, maxSequence: current.maxSequence });
+    signal?.throwIfAborted();
+    if (!db.prepare('SELECT 1 FROM messages WHERE id=? AND user_id=?').get(id, userId)) return null;
+    return { message: { ...preview, versions }, history: {
+      total: counts.total, versionCount: counts.versionCount, offset, pageSize: limit,
+      snapshot: maxSequence, latestSequence: current.maxSequence,
+      hasOlder: offset + selected.length < counts.total, hasNewer: offset > 0 && counts.total > 0,
+      previousVersion,
+    } };
+  }
+
   async function* exportArchive(userId, { signal } = {}) {
     signal?.throwIfAborted();
     const readId = randomUUID();
@@ -184,5 +216,5 @@ export function createArchiveReader(db, crypt) {
       db.prepare('DELETE FROM archive_selection WHERE read_id=?').run(readId);
     }
   }
-  return { listMessages, messageStats: stats, exportArchive };
+  return { listMessages, messageStats: stats, messageHistory, exportArchive };
 }

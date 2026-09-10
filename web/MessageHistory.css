@@ -1,0 +1,22 @@
+.history-pagination{padding:12px 22px;border-bottom:1px solid var(--border);background:#f8faf8;flex-shrink:0}
+.history-range,.history-page-controls,.history-jumps,.history-new-activity{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.history-range{font-size:10px;color:#6b7f71;margin-bottom:10px}
+.history-page-controls{gap:6px}
+.history-page-controls form,.history-page-controls label{display:flex;align-items:center;gap:5px;font-size:10px;color:#536b5c}
+.history-page-controls input{width:43px;height:30px;text-align:center;border:1px solid #d8e2da;border-radius:5px;background:#fff;padding:3px;appearance:textfield;-moz-appearance:textfield}
+.history-page-controls input::-webkit-inner-spin-button,.history-page-controls input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.history-page-controls .button{font-size:10px;padding:5px 8px}
+.history-jumps{margin-top:9px}
+.history-jumps button{font-size:10px;color:var(--green);padding:3px 0;text-decoration:underline;text-underline-offset:3px}
+.history-new-activity{padding:10px 22px;background:#edf5ef;border-block:1px solid #d7e6dc;font-size:11px;color:#386a4c;flex-shrink:0}
+.history-new-activity button{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--green)}
+.history-error{margin:12px 22px;padding:12px;background:#fcf2ef;border:1px solid #ecd6cd;border-radius:6px;display:flex;align-items:center;gap:10px;font-size:12px;color:#875143;flex-shrink:0}
+.history-error p{flex:1}
+.history-loading{display:flex;justify-content:center;align-items:center;gap:8px;color:#718477;padding:35px 10px;font-size:12px}
+.detail-loading{gap:10px;font-size:12px;color:#718477}
+.history-empty{font-size:12px;line-height:1.8;color:#718477;padding:12px 0}
+.diff-block .diff-explanation{font-size:11px;line-height:1.65;color:#788576;margin:0 0 12px}
+.diff-full-copy{padding:10px;border:1px solid #e3e9e3;border-radius:5px;margin-top:8px;background:#fbfcfa}
+.diff-full-copy>strong{display:block;font-size:10px;color:#637765;margin-bottom:6px}
+.diff-full-copy p,.message-bubble p,.diff-block p{overflow-wrap:anywhere}
+@media(max-width:480px){.history-pagination{padding-inline:17px}.history-page-controls .button{padding:5px 6px;gap:3px}.history-page-controls label{gap:4px}.history-page-controls input{width:38px}.history-new-activity{padding-inline:17px}.history-error{margin-inline:17px}}

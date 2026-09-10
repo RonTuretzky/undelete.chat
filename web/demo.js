@@ -1,11 +1,11 @@
 const base = Date.now();
 const ago = minutes => new Date(base - minutes * 60_000).toISOString();
 const definitions = [
-  ['discord', 'Maya Chen', 'Design team · #general', ['Let’s ship the new onboarding on Thursday.', 'Let’s ship the new onboarding on Friday.'], false, 8],
+  ['discord', 'Maya Chen', 'Maya Chen · direct message', ['Let’s ship the new onboarding on Thursday.', 'Let’s ship the new onboarding on Friday.'], false, 8],
   ['telegram', 'Alex Rivera', 'Weekend plans', ['Table booked for 7:30 at the usual place.'], true, 24],
   ['signal', 'Jamie Park', 'Jamie Park', ['The spare key is with the neighbor.', 'The spare key is with Sam, next door.'], false, 46],
   ['whatsapp', 'Sofia Patel', 'Studio group', ['Here’s the first draft. Feedback welcome!'], false, 67],
-  ['discord', 'Leo Martin', 'Product team · #launch', ['Launch checklist is ready for review.', 'Launch checklist is ready — please add your notes by 3pm.', 'Launch checklist is ready — please add your notes by 4pm.'], false, 91],
+  ['discord', 'Leo Martin', 'Launch planning · group DM', ['Launch checklist is ready for review.', 'Launch checklist is ready — please add your notes by 3pm.', 'Launch checklist is ready — please add your notes by 4pm.'], false, 91],
   ['whatsapp', 'Noah Williams', 'Saturday dinner', ['I can bring dessert!'], true, 123],
   ['telegram', 'Emma Wilson', 'Book club', ['Next up: The Creative Act. Who’s in?'], false, 165],
   ['signal', 'Oliver Kim', 'Oliver Kim', ['Can you take a look at this before the meeting?'], true, 198],

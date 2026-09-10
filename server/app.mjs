@@ -183,11 +183,14 @@ export function createApp(store, config = {}) {
     if (!store.authenticate(req.sessionToken)) return res.status(401).json({ error: 'Sign in to continue.' });
     res.json(result);
   }));
-  app.get('/api/messages/:id', auth, (req, res) => {
+  app.get('/api/messages/:id', auth, (req, res) => archiveRead(req, res, false, async signal => {
     store.purge();
-    const message = store.message(req.params.id, req.user.id);
-    return message ? res.json({ message }) : res.status(404).json({ error: 'Message not found.' });
-  });
+    const input = z.object({ offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
+      snapshot: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional() }).parse(req.query);
+    const result = await store.messageHistory(req.params.id, req.user.id, { ...input, signal });
+    if (!store.authenticate(req.sessionToken)) return res.status(401).json({ error: 'Sign in to continue.' });
+    return result ? res.json(result) : res.status(404).json({ error: 'Message not found.' });
+  }));
   app.patch('/api/messages/:id', auth, (req, res) => {
     const { saved } = z.object({ saved: z.boolean() }).parse(req.body);
     const result = store.db.prepare('UPDATE messages SET saved=? WHERE id=? AND user_id=?').run(+saved, req.params.id, req.user.id);

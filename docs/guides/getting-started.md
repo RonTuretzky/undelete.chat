@@ -34,6 +34,17 @@ Connected confirms a running platform session. It does not prove all message typ
 
 > Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion.
 
+<a id="history"></a>
+
+## Read edits and deleted messages
+
+1. Open a message in your archive. Timeline shows the captured events, newest first; each saved text revision has a version number.
+2. Choose Compare changes to see additions and removals between consecutive captured versions. Very long or substantially different revisions show both complete texts instead.
+3. For longer histories, use Older, Newer, or the page number. First captured activity jumps to the beginning; Latest activity returns to the most recent page.
+4. If another event arrives while you read, choose Refresh history when you are ready. Your current page stays in place until then.
+
+> A page contains up to 30 events, including deletions. Version comparisons continue across page boundaries. Export includes every stored version, regardless of the page you are viewing.
+
 <a id="keep-running"></a>
 
 ## Capture continues in the cloud

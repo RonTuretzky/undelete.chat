@@ -32,7 +32,8 @@ try {
     insert(String(n), `${n}-edit`, 'edit', `Replacement ${n} ` + 'b'.repeat(2048));
     if (n % 100 === 0) sample();
   }
-  for (let n = 0; n < 2000; n++) insert('many-versions', `history-${n}`, n ? 'edit' : 'create', 'c'.repeat(4096));
+  let historyId;
+  for (let n = 0; n < 2000; n++) historyId = insert('many-versions', `history-${n}`, n ? 'edit' : 'create', 'c'.repeat(40000)).id;
   const buildMs = performance.now() - buildStarted;
   const pageStarted = performance.now();
   const page = await store.listMessages(user.id);
@@ -42,6 +43,14 @@ try {
   const searched = await store.listMessages(user.id, { q: 'Original needle', offset: 50 });
   assert.equal(searched.total, count); assert.equal(searched.messages.length, 50);
   const searchMs = performance.now() - searchStarted;
+  const historyStarted = performance.now();
+  const recentHistory = await store.messageHistory(historyId, user.id);
+  const oldestHistory = await store.messageHistory(historyId, user.id, { offset: 1980, snapshot: recentHistory.history.snapshot });
+  assert.equal(recentHistory.message.versions.length, 30);
+  assert.equal(recentHistory.message.versions.at(-1).versionNumber, 2000);
+  assert.equal(oldestHistory.message.versions.length, 20);
+  assert.equal(oldestHistory.message.versions[0].versionNumber, 1);
+  const historyMs = performance.now() - historyStarted;
   let bytes = 0;
   const exportStarted = performance.now();
   await pipeline(Readable.from(store.exportArchive(user.id), { objectMode: false, highWaterMark: 65536 }),
@@ -51,6 +60,7 @@ try {
   assert.equal(store.db.prepare('SELECT count(*) AS n FROM archive_selection').get().n, 0);
   console.log(JSON.stringify({ messages: count + 1, versions: count * 2 + 2000,
     heapLimitMB: 64, buildMs: Math.round(buildMs), pageMs: Math.round(pageMs), searchMs: Math.round(searchMs),
+    historyPagesMs: Math.round(historyMs), historyTextCharsPerVersion: 40000,
     exportMs: Math.round(exportMs), exportedMB: +(bytes / 1048576).toFixed(1),
     peakHeapMB: +(peakHeap / 1048576).toFixed(1), peakRSSMB: +(peakRSS / 1048576).toFixed(1) }, null, 2));
 } finally {
