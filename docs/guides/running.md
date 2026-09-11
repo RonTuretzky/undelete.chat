@@ -1,16 +1,16 @@
-# Continuous capture and recovery
+# Continuous watching and recovery
 
 How hosted connections behave when you close the browser or a connection drops.
 
 <a id="keep-running"></a>
 
-## Capture continues in the cloud
+## The watch continues in the cloud
 
-Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.
+Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.
 
-A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
+A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
-- [Continuous capture and recovery](./running.md)
+- [Continuous watching and recovery](./running.md)
 
 <a id="restart"></a>
 
@@ -18,22 +18,22 @@ A platform outage, expired linked device, or server interruption can still leave
 
 Hosted sessions are saved in encrypted per-connection storage. The service resumes enabled connections after a normal server restart and retries unexpected collector exits with a delay. Expired logins may require a fresh scan.
 
-Signal requires working session files while running. These live on a temporary in-memory filesystem in production and are checkpointed into encrypted storage every five seconds. A sudden machine failure can lose the latest checkpoint interval; the service cannot promise gap-free capture through an outage.
+Signal requires working session files while running. These live on a temporary in-memory filesystem in production and are checkpointed into encrypted storage every five seconds. A sudden machine failure can lose the latest checkpoint interval; the service cannot promise that every deletion is seen through an outage.
 
 <a id="controls"></a>
 
 ## Pause, disconnect, and relink
 
-- Pause: keep the platform session connected but discard new captured events.
-- Disconnect: stop the collector and remove its stored cloud session. Previously captured messages remain.
-- Relink: reset one connection’s platform login and scan again. Previously captured messages remain.
-- A message that changes before Afterword receives it cannot be reconstructed.
+- Pause: keep the platform session connected but discard new events. A message deleted while paused is not kept.
+- Disconnect: stop the collector and remove its stored cloud session. Deleted messages already in your archive remain.
+- Relink: reset one connection’s platform login and scan again. Deleted messages already in your archive remain.
+- A message that changes or is deleted before Undelete receives it cannot be reconstructed.
 
 <a id="local"></a>
 
 ## Older local connections and Discord
 
-Connections identifies whether each source captures in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.
+Connections identifies whether each source watches in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.
 
 Discord’s optional extension remains local and requires Chrome with the selected Discord Web tab open. The separate experimental cloud connector continues on the server, subject to Discord’s account restrictions.
 

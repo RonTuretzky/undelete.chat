@@ -131,3 +131,41 @@ test('edits that leave text and attachments unchanged are acknowledged but not r
   assert.equal(store.ingest(source, event('edit', 'h', 'meet at seven', 35)).duplicate, false, 'an edit after a deletion tombstone is still preserved');
   assert.equal(store.ingest(source, event('edit', 'i', 'brand new', 1)).duplicate, false, 'a late edit with different text is preserved');
 });
+test('only deleted messages leave the watch buffer; held messages expire after the owner\'s watch window', async t => {
+  const { store, user, source } = await fixture(t);
+  const at = minutes => new Date(Date.now() - minutes * 60_000).toISOString();
+  const first = store.ingest(source, { ...event('create', 'a', 'kept for now'), externalId: 'held', occurredAt: at(5) });
+  assert.equal(first.held, true);
+  store.ingest(source, { ...event('create', 'b', 'gone for good'), externalId: 'removed', occurredAt: at(5) });
+  const removed = store.ingest(source, { ...event('delete', 'c', undefined), externalId: 'removed', occurredAt: at(4) });
+  assert.equal(removed.held, false);
+  assert.equal(store.ingest(source, { ...event('delete', 'd', undefined), externalId: 'never-seen', occurredAt: at(3) }).held, false, 'a tombstone alone is archived');
+  const listed = await store.listMessages(user.id);
+  assert.deepEqual(listed.messages.map(m => [m.externalId, m.originalMissing, m.text]).sort(), [['never-seen', true, ''], ['removed', false, 'gone for good']]);
+  assert.equal(listed.stats.held, 1); assert.equal(listed.stats.total, 2);
+  assert.equal(await store.messageHistory(first.id, user.id), null, 'held messages have no history page');
+  let text = ''; for await (const chunk of store.exportArchive(user.id)) text += chunk;
+  assert.deepEqual(JSON.parse(text).messages.map(m => m.externalId).sort(), ['never-seen', 'removed']);
+  assert.equal(store.connections(user.id)[0].message_count, 2); assert.equal(store.connections(user.id)[0].held_count, 1);
+  // The watch window is measured from the last activity, per user.
+  store.db.prepare('UPDATE users SET hold_days=1 WHERE id=?').run(user.id);
+  store.db.prepare("UPDATE messages SET last_seen=? WHERE id=?").run(at(60 * 25), first.id);
+  assert.equal(store.purge(), true);
+  assert.equal(store.messages(user.id).length, 2, 'the expired held message is discarded, deleted ones stay');
+  assert.equal(store.ingest(source, { ...event('delete', 'e', undefined), externalId: 'held', occurredAt: at(1) }).held, false, 'a late deletion still records a tombstone without content');
+  assert.equal((await store.listMessages(user.id)).messages.find(m => m.externalId === 'held').originalMissing, true);
+});
+test('the watch window is an account setting with fixed choices', async t => {
+  const { store, user } = await fixture(t);
+  const { createApp } = await import('../server/app.mjs');
+  const server = createApp(store, { origins: ['http://localhost'] }).listen(0, '127.0.0.1');
+  await new Promise(r => server.once('listening', r)); t.after(() => new Promise(r => server.close(r)));
+  const base = `http://127.0.0.1:${server.address().port}/api`, headers = { 'Content-Type': 'application/json', Cookie: `afterword=${store.session(user.id)}` };
+  assert.equal(store.getUser(user.id).hold_days, 7);
+  const ok = await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 3 }) });
+  assert.equal(ok.status, 200); assert.equal((await ok.json()).user.hold_days, 3);
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 5 }) })).status, 400);
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({}) })).status, 400);
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ retentionDays: 30 }) })).status, 200);
+  assert.equal(store.getUser(user.id).hold_days, 3); assert.equal(store.getUser(user.id).retention_days, 30);
+});

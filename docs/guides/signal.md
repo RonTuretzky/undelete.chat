@@ -4,11 +4,13 @@ Link Signal from your phone; no desktop installation is needed.
 
 <a id="coverage"></a>
 
-## What gets captured
+## What gets kept
 
-Captures ordinary incoming messages, synced outgoing messages, edits, and remote deletion events received by the linked device. signal-cli is unofficial and must stay current.
+Watches ordinary incoming messages, synced outgoing messages, and their edits received by the linked device, and keeps only the ones removed by a remote delete. signal-cli is unofficial and must stay current.
 
-> No disappearing or view-once messages, existing Signal Desktop database import, or attachment file downloads.
+Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept.
+
+> No disappearing or view-once messages, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads.
 
 <a id="before"></a>
 
@@ -23,35 +25,35 @@ Use a computer or a second screen to display the code while you scan with your p
 
 ## Link your account
 
-1. In Afterword, choose Connections → Signal, name the account, and authorize hosted capture.
+1. In Undelete, choose Connections → Signal, name the account, and authorize the hosted connection.
 2. On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).
-3. Scan the QR code shown in Afterword and approve the device named Afterword Cloud. Wait for Connected.
+3. Scan the QR code shown in Undelete and approve the device named Undelete Cloud. Wait for Connected.
 
-> The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app.
+> The QR code links your account to a server operated by Undelete. Keep it private and use the scanner inside the messaging app.
 
 - [Signal: linked devices](https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices)
 
 <a id="verify"></a>
 
-## Verify your first captured message
+## Verify your first deleted message
 
-Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive.
+Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into Undelete. The connection screen separately checks whether a deleted message has reached your archive.
 
-1. Send a harmless message in your own chat and check that it appears in Afterword.
-2. Edit that message and open its Afterword history to look for both versions.
-3. Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received.
+1. Send a harmless message in your own chat. It does not appear in Undelete yet.
+2. Optionally edit it once or twice. Edits alone do not keep a message.
+3. Delete it for everyone in Signal, then confirm it appears in Undelete marked Deleted, with each edit it had before deletion.
 
-> Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion.
+> Undelete never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion the platform never delivered.
 
 <a id="keep-running"></a>
 
-## Capture continues in the cloud
+## The watch continues in the cloud
 
-Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.
+Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.
 
-A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
+A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
-- [Continuous capture and recovery](./running.md)
+- [Continuous watching and recovery](./running.md)
 
 <a id="fixes"></a>
 
@@ -66,7 +68,7 @@ A platform outage, expired linked device, or server interruption can still leave
 
 ## Where your data lives
 
-Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
+Undelete stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
 
 - [Privacy and retention](./privacy.md)
 

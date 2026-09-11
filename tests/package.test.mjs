@@ -15,5 +15,5 @@ test('the downloadable companion loads its complete dependency graph and help co
   // Reuse the installed dependencies; the artifact must supply every own module.
   symlinkSync(join(root, 'node_modules'), join(extracted, 'node_modules'), 'dir');
   const output = execFileSync(process.execPath, ['companion/index.mjs', '--help'], { cwd: extracted, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-  assert.match(output, /Afterword companion/); assert.match(output, /pair --server URL/);
+  assert.match(output, /Undelete companion/); assert.match(output, /pair --server URL/);
 });

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect and configure Afterword's own DigitalOcean operating controls."""
+"""Inspect and configure Undelete's own DigitalOcean operating controls."""
 import argparse
 import json
 import subprocess
@@ -31,7 +31,7 @@ class DigitalOcean:
         resource = 'droplets/' + str(self.state['droplet_id'])
         droplet = self.request('GET', resource)['droplet']
         if droplet['name'] != 'afterword-saas':
-            raise RuntimeError('The recorded Droplet is not the Afterword server.')
+            raise RuntimeError('The recorded Droplet is not the Undelete server.')
         policy = self.request('GET', resource + '/backups/policy')['policy']
         backups = self.request('GET', resource + '/backups')['backups']
         return {'droplet': {k: droplet[k] for k in ['id', 'name', 'status', 'memory', 'disk']},
@@ -68,16 +68,16 @@ class DigitalOcean:
         origin = self.state['url'].rstrip('/')
         parsed = urlsplit(origin)
         if parsed.scheme != 'https' or parsed.hostname != self.state['hostname'] or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
-            raise RuntimeError('The recorded Afterword URL must be its public HTTPS origin.')
+            raise RuntimeError('The recorded Undelete URL must be its public HTTPS origin.')
         if path not in ('/api/health', '/api/monitor'):
-            raise RuntimeError('Unknown Afterword monitoring endpoint.')
+            raise RuntimeError('Unknown Undelete monitoring endpoint.')
         return origin + path
 
     def afterword_check(self, checks):
         targets = {self.uptime_target(), self.uptime_target('/api/monitor')}
-        matches = [check for check in checks if check['name'] == 'Afterword availability' and check['target'] in targets]
+        matches = [check for check in checks if check['name'] in ('Undelete availability', 'Undelete availability') and check['target'] in targets]
         if len(matches) > 1:
-            raise RuntimeError('Multiple Afterword availability checks exist; inspect them before changing monitoring.')
+            raise RuntimeError('Multiple Undelete availability checks exist; inspect them before changing monitoring.')
         return matches[0] if matches else None
 
     def enable_uptime(self):
@@ -89,7 +89,7 @@ class DigitalOcean:
         created = check is None
         if created:
             check = self.request('POST', 'uptime/checks', {
-                'enabled': True, 'name': 'Afterword availability',
+                'enabled': True, 'name': 'Undelete availability',
                 'regions': ['us_east', 'eu_west'],
                 'target': self.uptime_target(), 'type': 'https',
             })['check']
@@ -135,7 +135,7 @@ class DigitalOcean:
         self.status()
         check = self.afterword_check(self.uptime_checks())
         if check is None:
-            raise RuntimeError('Configure the Afterword availability check first.')
+            raise RuntimeError('Configure the Undelete availability check first.')
         probe = self.probe_service_monitor()
         target = self.uptime_target('/api/monitor')
         changed = check['target'] != target
@@ -159,8 +159,8 @@ class DigitalOcean:
         return account['email']
 
     droplet_alerts = (
-        ('Afterword disk utilization', 'v1/insights/droplet/disk_utilization_percent', 85),
-        ('Afterword memory utilization', 'v1/insights/droplet/memory_utilization_percent', 90),
+        ('Undelete disk utilization', 'v1/insights/droplet/disk_utilization_percent', 85),
+        ('Undelete memory utilization', 'v1/insights/droplet/memory_utilization_percent', 90),
     )
 
     def enable_alerts(self, email=None):
@@ -169,12 +169,12 @@ class DigitalOcean:
         recipient = self.alert_email(email)
         check = self.afterword_check(self.uptime_checks())
         if check is None:
-            raise RuntimeError('Configure the Afterword availability check first.')
+            raise RuntimeError('Configure the Undelete availability check first.')
         resource = 'uptime/checks/' + check['id']
         existing = self.request('GET', resource + '/alerts')['alerts']
         wanted = [
-            {'name': 'Afterword down', 'type': 'down_global', 'period': '2m', 'comparison': 'less_than', 'threshold': 0},
-            {'name': 'Afterword certificate expiry', 'type': 'ssl_expiry', 'threshold': 14, 'comparison': 'less_than', 'period': '2m'},
+            {'name': 'Undelete down', 'type': 'down_global', 'period': '2m', 'comparison': 'less_than', 'threshold': 0},
+            {'name': 'Undelete certificate expiry', 'type': 'ssl_expiry', 'threshold': 14, 'comparison': 'less_than', 'period': '2m'},
         ]
         uptime = []
         for alert in wanted:
@@ -236,7 +236,7 @@ class DigitalOcean:
         raise RuntimeError(f'Timed out waiting for the Droplet to be {wanted}.')
 
     def resize(self, size, disk):
-        """Resize the Afterword Droplet: graceful shutdown, resize, power on. A disk resize is permanent."""
+        """Resize the Undelete Droplet: graceful shutdown, resize, power on. A disk resize is permanent."""
         import time
         current = self.status()
         droplet = self.request('GET', 'droplets/' + str(self.state['droplet_id']))['droplet']

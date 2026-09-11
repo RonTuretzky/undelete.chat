@@ -20,18 +20,21 @@ async function fixture(t) {
   t.after(() => store.close());
   return { store, user, source };
 }
-const oldStats = messages => ({ total: messages.length, edited: messages.filter(m => m.status === 'edited').length,
+// Only deleted messages are archived; held messages stay out of every listing and count.
+const archived = messages => messages.filter(m => !m.held);
+const oldStats = all => { const messages = archived(all); return { total: messages.length, edited: messages.filter(m => m.versions.some(v => v.kind === 'edit')).length,
   edits: messages.reduce((n, m) => n + m.versions.filter(v => v.kind === 'edit').length, 0),
-  deleted: messages.filter(m => m.status === 'deleted').length, saved: messages.filter(m => m.saved).length,
-  versions: messages.reduce((n, m) => n + m.versionCount, 0) });
+  deleted: messages.length, saved: messages.filter(m => m.saved).length,
+  versions: messages.reduce((n, m) => n + m.versionCount, 0), held: all.length - messages.length }; };
+const remove = (store, source, id, seconds = 1) => store.ingest(source, event(id, 'delete', undefined, seconds));
 
 test('SQL pagination decrypts only the requested page and keeps metadata counts tenant-scoped', async t => {
   const { store, user, source } = await fixture(t);
-  for (let n = 0; n < 61; n++) store.ingest(source, event(n));
+  for (let n = 0; n < 61; n++) { store.ingest(source, event(n)); remove(store, source, n); }
   const other = await store.createUser('bob', 'a-different-long-password');
   const otherSource = store.connectionByToken(store.createConnection(other.id, 'signal', 'Private').token);
-  store.ingest(otherSource, event('bob'));
-  const original = store.messages(user.id), expected = original.slice(0, 50).map(({ versions, ...m }) => m);
+  store.ingest(otherSource, event('bob')); remove(store, otherSource, 'bob');
+  const original = archived(store.messages(user.id)), expected = original.slice(0, 50).map(({ versions, ...m }) => m);
   const damaged = original.at(-1);
   store.db.prepare("UPDATE events SET payload='invalid-ciphertext' WHERE message_id=? OR connection_id=?").run(damaged.id, otherSource.id);
   const page = await store.listMessages(user.id);
@@ -55,13 +58,15 @@ test('metadata stays correct through out-of-order events, duplicate replay, book
   const { id } = store.ingest(source, first);
   store.ingest(source, event('one', 'edit', 'between', 10));
   store.ingest(source, first); store.ingest(source, deletion);
-  store.ingest(source, event('two', 'edit', 'original unavailable', 10));
+  store.ingest(source, event('two', 'edit', 'original unavailable', 10)); remove(store, source, 'two', 20);
   store.db.prepare('UPDATE messages SET saved=1 WHERE id=?').run(id);
   assert.deepEqual(store.messageStats(user.id), oldStats(store.messages(user.id)));
   const saved = await store.listMessages(user.id, { status: 'deleted', saved: true });
   assert.equal(saved.total, 1); assert.equal(saved.messages[0].versionCount, 3);
   assert.equal(saved.messages[0].originalMissing, false);
-  assert.equal((await store.listMessages(user.id, { status: 'edited' })).messages[0].originalMissing, true);
+  assert.equal((await store.listMessages(user.id)).messages.find(m => m.externalId === 'two').originalMissing, true);
+  store.ingest(source, event('three', 'create', 'never deleted'));
+  assert.equal((await store.listMessages(user.id)).total, 2, 'a held message is not listed'); assert.equal(store.messageStats(user.id).held, 1);
   store.forgetMessage(id, user.id);
   assert.deepEqual(store.messageStats(user.id), oldStats(store.messages(user.id)));
 });
@@ -70,15 +75,15 @@ test('encrypted search preserves substring, old revision and name matching witho
   const { store, user, source } = await fixture(t);
   for (let n = 0; n < 67; n++) {
     store.ingest(source, event(n, 'create', `Old private needle ${n}`));
-    store.ingest(source, event(n, 'edit', `Replacement ${n}`, 10));
+    store.ingest(source, event(n, 'edit', `Replacement ${n}`, 10)); remove(store, source, n, 20);
   }
   const other = await store.createUser('bob', 'a-different-long-password');
   const otherSource = store.connectionByToken(store.createConnection(other.id, 'telegram', 'Private').token);
-  store.ingest(otherSource, event('other', 'create', 'Old private needle'));
-  const all = store.messages(user.id);
+  store.ingest(otherSource, event('other', 'create', 'Old private needle')); remove(store, otherSource, 'other');
+  const all = archived(store.messages(user.id));
   for (const q of ['PRIVATE NEEDLE', 'Alice Friends', 'needle 0 Replacement 0', 'no match']) {
     const expected = all.filter(m => `${m.authorName} ${m.chatName} ${m.versions.map(v => v.text || '').join(' ')}`.toLowerCase().includes(q.toLowerCase()));
-    const page = await store.listMessages(user.id, { q, offset: 50, platform: 'telegram', status: 'edited' });
+    const page = await store.listMessages(user.id, { q, offset: 50, platform: 'telegram', status: 'deleted' });
     assert.equal(page.total, expected.length);
     assert.deepEqual(page.messages.map(m => m.id), expected.slice(50, 100).map(m => m.id));
   }
@@ -100,7 +105,7 @@ test('existing archives migrate counts without rewriting ciphertext and reopenin
   store.ingest(source, event('one', 'delete', undefined, 20));
   store.ingest(source, event('one', 'edit', 'changed', 10));
   store.ingest(source, event('one'));
-  const expected = store.messages(user.id), payloads = store.db.prepare('SELECT payload FROM events ORDER BY id').all();
+  const expected = archived(store.messages(user.id)), payloads = store.db.prepare('SELECT payload FROM events ORDER BY id').all();
   store.close();
   const legacy = new DatabaseSync(path);
   legacy.exec('DROP INDEX messages_status_page; ALTER TABLE messages DROP COLUMN status; ALTER TABLE messages DROP COLUMN version_count; ALTER TABLE messages DROP COLUMN edit_count;');
@@ -123,16 +128,18 @@ test('page previews retain metadata fallbacks and chronological ordering for par
   store.ingest(source, { ...event('one', 'delete'), occurredAt: sameTime });
   store.ingest(source, { ...event('missing', 'delete'), authorName: 'Deleted sender', chatName: '' });
   for (let n = 0; n < 80; n++) store.ingest(source, { ...event('blank', 'edit', 'revision', n / 2), authorName: '', chatName: '', chatId: 'fallback chat' });
-  const expected = store.messages(user.id).map(({ versions, ...m }) => m);
+  remove(store, source, 'blank', 41);
+  const expected = archived(store.messages(user.id)).map(({ versions, ...m }) => m);
   assert.deepEqual((await store.listMessages(user.id)).messages, expected);
   assert.equal((await store.listMessages(user.id, { q: 'fallback chat' })).total, 1);
 });
 
 test('streaming exports retain every version, respect backpressure and clean up on cancellation', async t => {
   const { store, user, source } = await fixture(t);
-  for (let n = 0; n < 70; n++) store.ingest(source, event(n));
+  for (let n = 0; n < 70; n++) { store.ingest(source, event(n)); remove(store, source, n); }
   for (let n = 1; n <= 80; n++) store.ingest(source, event('many', 'edit', `revision ${n}`, n / 2));
-  const expected = store.messages(user.id);
+  remove(store, source, 'many', 41);
+  const expected = archived(store.messages(user.id));
   let text = '';
   for await (const chunk of store.exportArchive(user.id)) text += chunk;
   assert.deepEqual(JSON.parse(text).messages, expected);
@@ -153,7 +160,7 @@ test('streaming exports retain every version, respect backpressure and clean up 
 
 test('HTTP archive reads validate pagination, stream downloads and release slots after cancellation', async t => {
   const { store, user, source } = await fixture(t);
-  for (let n = 0; n < 60; n++) store.ingest(source, event(n));
+  for (let n = 0; n < 60; n++) { store.ingest(source, event(n)); remove(store, source, n); }
   const server = createApp(store).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
@@ -163,7 +170,7 @@ test('HTTP archive reads validate pagination, stream downloads and release slots
   assert.equal(page.messages.length, 10); assert.equal(page.stats.total, 60);
   const exported = await fetch(base + '/export', { headers });
   assert.equal(exported.status, 200); assert.match(exported.headers.get('content-disposition'), /attachment/);
-  assert.deepEqual((await exported.json()).messages, store.messages(user.id));
+  assert.deepEqual((await exported.json()).messages, archived(store.messages(user.id)));
   assert.equal((await fetch(base + '/export')).status, 401);
   const realList = store.listMessages;
   const pending = [];
@@ -188,8 +195,8 @@ test('HTTP archive reads validate pagination, stream downloads and release slots
 
 test('an edit during download cannot make a preview disagree with its exported versions', async t => {
   const { store, user, source } = await fixture(t);
-  for (let n = 0; n < 3; n++) store.ingest(source, event(n));
-  const before = store.messages(user.id), first = before[0], removed = before.at(-1);
+  for (let n = 0; n < 3; n++) { store.ingest(source, event(n)); remove(store, source, n); }
+  const before = archived(store.messages(user.id)), first = before[0], removed = before.at(-1);
   const iterator = store.exportArchive(user.id);
   let output = (await iterator.next()).value;
   output += (await iterator.next()).value;
@@ -205,7 +212,7 @@ test('an edit during download cannot make a preview disagree with its exported v
 test('deletion of an in-progress exported message fails the download rather than completing truncated history', async t => {
   const { store, user, source } = await fixture(t);
   const { id } = store.ingest(source, event('one'));
-  store.ingest(source, event('one', 'edit', 'changed', 10));
+  store.ingest(source, event('one', 'edit', 'changed', 10)); remove(store, source, 'one', 20);
   const iterator = store.exportArchive(user.id);
   await iterator.next(); await iterator.next(); await iterator.next();
   store.forgetMessage(id, user.id);

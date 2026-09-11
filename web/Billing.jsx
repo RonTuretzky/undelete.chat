@@ -22,7 +22,7 @@ export function PlanBanner({ billing, onManage }) {
 }
 export function PlanCard({ billing, isDemo, busy, onCheckout, onPortal, onSignIn }) {
   if (isDemo && !billing?.enabled) return null;
-  if (isDemo) return <section className="settings-card"><div className="section-icon"><CreditCard size={20}/></div><h2>Your plan</h2><p>{billing?.enabled ? `New accounts start with a ${billing.trialDays}-day free trial. No card is needed to try Afterword.` : 'Sign in to view your plan.'}</p><button className="button secondary" onClick={onSignIn}>Sign in<ArrowRight size={16}/></button></section>;
+  if (isDemo) return <section className="settings-card"><div className="section-icon"><CreditCard size={20}/></div><h2>Your plan</h2><p>{billing?.enabled ? `New accounts start with a ${billing.trialDays}-day free trial. No card is needed to try Undelete.` : 'Sign in to view your plan.'}</p><button className="button secondary" onClick={onSignIn}>Sign in<ArrowRight size={16}/></button></section>;
   if (!billing?.enabled) return null;
   const state = planState(billing), subscribed = ['active', 'trialing', 'past_due'].includes(billing.status);
   const statusLabel = billing.reason === 'exempt' ? 'Operator account' : billing.reason === 'trial' ? 'Free trial' : billing.status === 'active' ? 'Active' : billing.status === 'trialing' ? 'Trial (card on file)' : billing.status === 'past_due' ? 'Payment past due' : billing.reason === 'trial_ended' ? 'Trial ended' : billing.status === 'canceled' ? 'Cancelled' : 'Inactive';

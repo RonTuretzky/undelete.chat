@@ -15,7 +15,7 @@ export class PersonalDiscord {
     if (p.t === 'READY') {
       if (!id(d.user?.id)) throw new Error('Discord did not identify the signed-in account.');
       const prior = await this.store.get('identity');
-      if (prior && prior.id !== d.user.id) throw new AccountChanged('A different Discord account signed in. Pair a separate Afterword source for that account.');
+      if (prior && prior.id !== d.user.id) throw new AccountChanged('A different Discord account signed in. Pair a separate Undelete source for that account.');
       // Clear stale channel membership on a new session, while preserving binding.
       await this.store.clearPrefix('channel:');
       await this.store.set('identity', { id: d.user.id, name: label(d.user.global_name || d.user.username) });

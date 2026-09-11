@@ -1,6 +1,6 @@
 # Get your connection back on track
 
-Clear next steps for QR codes, cloud sessions, and missing messages.
+Clear next steps for QR codes, cloud sessions, and deleted messages that do not show up.
 
 <a id="qr"></a>
 
@@ -20,16 +20,17 @@ Wait briefly while the server retries. If the error persists, open Connection ch
 
 <a id="missing"></a>
 
-## Connected, but a message is missing
+## Connected, but a deleted message is missing
 
 - Confirm this is your real workspace rather than the signed-out demo.
-- Send a new ordinary message to your own chat after the connection shows Connected.
+- Remember that messages which were never deleted are not shown. Send a new ordinary message to your own chat after the connection shows Connected, then delete it for everyone.
+- Check that the message was sent after the connection was Connected and deleted within your watch window. A message deleted after its watch window ended has already been discarded.
 - Check whether the source is paused and whether the conversation/message type is covered.
-- Deletion events are not guaranteed on every platform. Messages edited or deleted during a capture gap may be incomplete.
+- Deletion events are not guaranteed on every platform. A message whose deletion the platform never delivered, or that was deleted during a connection gap, cannot be kept.
 
 <a id="account"></a>
 
-## Cannot sign in to Afterword
+## Cannot sign in to Undelete
 
 Check your username and password. New accounts may require an invitation code. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored.
 

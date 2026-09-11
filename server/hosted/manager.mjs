@@ -190,7 +190,7 @@ export function createCollectorManager(store, options) {
         if (!manager.capabilities().platforms[c.platform]) throw failure('This platform is not configured on the server yet.', 503);
         const savedConfig = store.hostedConfig(id);
         if (c.platform === 'discord' && !savedConfig.discordRiskAcceptedAt && !experimentalConsent) throw failure('Acknowledge Discord’s account restrictions before using this experimental connection.', 400);
-        if (c.collector !== 'hosted' && !consent) throw failure('Confirm that Afterword may run this connection on the server.', 400);
+        if (c.collector !== 'hosted' && !consent) throw failure('Confirm that Undelete may run this connection on the server.', 400);
         const active = store.hostedConnections().filter(x => x.enabled);
         if (!enabled(id) && active.length + reservations.size >= maxCollectors) throw failure('Hosted capacity is full. Please contact support.', 503);
         if (!enabled(id) && active.filter(x => x.user_id === userId).length + [...reservations.values()].filter(x => x === userId).length >= 4) throw failure('This account already has four hosted connections.');

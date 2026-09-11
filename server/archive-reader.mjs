@@ -17,21 +17,22 @@ export function createArchiveReader(db, crypt) {
   const open = (row, event) => ({ ...crypt.open(event.payload, `${row.user_id}:${row.id}:${event.event_uid}`), receivedAt: event.received_at, sequence: event.id });
 
   function snapshot(row) {
-    const current = db.prepare('SELECT * FROM messages WHERE id=? AND user_id=?').get(row.id, row.user_id);
+    const current = db.prepare('SELECT * FROM messages WHERE id=? AND user_id=? AND held=0').get(row.id, row.user_id);
     if (!current) return null;
     const maxSequence = db.prepare('SELECT coalesce(max(id),0) AS n FROM events WHERE message_id=?').get(row.id).n;
     return { row: current, maxSequence };
   }
 
   function stats(userId) {
-    return { ...db.prepare(`SELECT count(*) AS total, coalesce(sum(status='edited'),0) AS edited,
-      coalesce(sum(edit_count),0) AS edits, coalesce(sum(status='deleted'),0) AS deleted,
-      coalesce(sum(saved),0) AS saved, coalesce(sum(version_count),0) AS versions FROM messages WHERE user_id=?`).get(userId) };
+    return { ...db.prepare(`SELECT count(*) AS total, coalesce(sum(edit_count>0),0) AS edited,
+      coalesce(sum(edit_count),0) AS edits, count(*) AS deleted,
+      coalesce(sum(saved),0) AS saved, coalesce(sum(version_count),0) AS versions FROM messages WHERE user_id=? AND held=0`).get(userId),
+      held: db.prepare('SELECT count(*) AS n FROM messages WHERE user_id=? AND held=1').get(userId).n };
   }
 
   async function* events(row, { signal, reverse = false, maxSequence, requirePresent = false } = {}) {
     maxSequence ??= db.prepare('SELECT coalesce(max(id),0) AS n FROM events WHERE message_id=?').get(row.id).n;
-    const present = requirePresent ? db.prepare('SELECT 1 FROM messages WHERE id=? AND user_id=?') : null;
+    const present = requirePresent ? db.prepare('SELECT 1 FROM messages WHERE id=? AND user_id=? AND held=0') : null;
     const check = () => {
       signal?.throwIfAborted();
       if (present && !present.get(row.id, row.user_id)) throw Object.assign(new Error('The archive changed during this download. Export it again.'), { public: true, status: 503 });
@@ -68,7 +69,7 @@ export function createArchiveReader(db, crypt) {
       }
     }
     return { id: row.id, platform: row.platform, connectionId: row.connection_id,
-      firstSeen: row.first_seen, lastSeen: row.last_seen, saved: !!row.saved, status: row.status,
+      firstSeen: row.first_seen, lastSeen: row.last_seen, held: !!row.held, saved: !!row.saved, status: row.status,
       authorName: meta?.authorName || 'Unknown sender', authorId: meta?.authorId || '',
       chatName: meta?.chatName || meta?.chatId || 'Unknown conversation', externalId: meta?.externalId || '',
       text: last?.text ?? '', attachments: last?.attachments || [],
@@ -76,7 +77,7 @@ export function createArchiveReader(db, crypt) {
   }
 
   function filters(userId, { platform, status, saved } = {}) {
-    const clauses = ['m.user_id=?'], params = [userId];
+    const clauses = ['m.user_id=?', 'm.held=0'], params = [userId];
     if (platform) { clauses.push('m.platform=?'); params.push(platform); }
     if (status) { clauses.push('m.status=?'); params.push(status); }
     if (saved) clauses.push('m.saved=1');
@@ -170,7 +171,7 @@ export function createArchiveReader(db, crypt) {
     const versions = selected.map(event => ({ ...open(current.row, event), versionNumber: event.kind === 'delete' ? null : ++versionNumber }));
     const preview = await summary(current.row, { signal, maxSequence: current.maxSequence });
     signal?.throwIfAborted();
-    if (!db.prepare('SELECT 1 FROM messages WHERE id=? AND user_id=?').get(id, userId)) return null;
+    if (!db.prepare('SELECT 1 FROM messages WHERE id=? AND user_id=? AND held=0').get(id, userId)) return null;
     return { message: { ...preview, versions }, history: {
       total: counts.total, versionCount: counts.versionCount, offset, pageSize: limit,
       snapshot: maxSequence, latestSequence: current.maxSequence,
@@ -185,14 +186,14 @@ export function createArchiveReader(db, crypt) {
     // Freeze the message order as IDs, without buffering content. Re-check
     // ownership when reading each batch so deleted accounts/items stay gone.
     db.prepare(`INSERT INTO archive_selection SELECT ?,id,row_number() OVER (ORDER BY last_seen DESC,id)
-      FROM messages WHERE user_id=?`).run(readId, userId);
+      FROM messages WHERE user_id=? AND held=0`).run(readId, userId);
     try {
       yield `{"exportedAt":${JSON.stringify(new Date().toISOString())},"version":1,"messages":[`;
       let cursor = 0, firstMessage = true;
       while (true) {
         signal?.throwIfAborted();
         const rows = db.prepare(`SELECT m.*,s.position FROM archive_selection s JOIN messages m ON m.id=s.message_id
-          WHERE s.read_id=? AND m.user_id=? AND s.position>? ORDER BY s.position LIMIT 25`).all(readId, userId, cursor);
+          WHERE s.read_id=? AND m.user_id=? AND m.held=0 AND s.position>? ORDER BY s.position LIMIT 25`).all(readId, userId, cursor);
         if (!rows.length) break;
         for (const row of rows) {
           signal?.throwIfAborted();

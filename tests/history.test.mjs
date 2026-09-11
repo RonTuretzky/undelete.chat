@@ -52,7 +52,7 @@ test('history pages retain every event and every adjacent comparison across a st
 
 test('bounded history does not decrypt unrelated old ciphertext and all page sizes stay bounded', async t => {
   const { store, user, ingest } = await fixture(t);
-  const { id } = ingest(0);
+  const { id } = ingest(0); ingest(-1, 'delete');
   for (let n = 1; n < 92; n++) ingest(n);
   const oldest = store.message(id, user.id).versions[0].sequence;
   store.db.prepare("UPDATE events SET payload='corrupt old ciphertext' WHERE id=?").run(oldest);
@@ -84,7 +84,7 @@ test('delete-only pages and same-time out-of-order revisions have correct compar
 
 test('history HTTP access is owner-only, validates cursors and never accepts an unbounded page', async t => {
   const { store, user, ingest } = await fixture(t);
-  const { id } = ingest(0);
+  const { id } = ingest(0); ingest(-1, 'delete');
   for (let n = 1; n < 65; n++) ingest(n);
   const other = await store.createUser('bob', 'another-long-private-password');
   const server = createApp(store).listen(0, '127.0.0.1');
@@ -96,9 +96,9 @@ test('history HTTP access is owner-only, validates cursors and never accepts an 
   assert.equal((await fetch(base, { headers: { Cookie: `afterword=${store.session(other.id)}` } })).status, 404);
   for (const query of ['offset=-1', 'offset=1.5', 'snapshot=Infinity', 'snapshot=-4']) assert.equal((await fetch(`${base}?${query}`, { headers })).status, 400);
   const first = await (await fetch(base + '?limit=1000000', { headers })).json();
-  assert.equal(first.message.versions.length, 30); assert.equal(first.history.total, 65);
+  assert.equal(first.message.versions.length, 30); assert.equal(first.history.total, 66);
   const oldest = await (await fetch(`${base}?offset=60&snapshot=${first.history.snapshot}`, { headers })).json();
-  assert.equal(oldest.message.versions.length, 5); assert.equal(oldest.message.versions[0].versionNumber, 1);
+  assert.equal(oldest.message.versions.length, 6); assert.equal(oldest.message.versions.find(v => v.kind !== 'delete').versionNumber, 1);
   assert.equal(oldest.history.hasOlder, false); assert.equal(oldest.history.hasNewer, true);
   store.forgetMessage(id, user.id);
   assert.equal((await fetch(base, { headers })).status, 404);

@@ -1,23 +1,24 @@
+import { privacyPolicy } from './privacy-policy.mjs';
 export const platformOrder = ["whatsapp","telegram","signal","discord"];
 export const discordBrowserGuide = {
   "name": "Discord",
   "mode": "Personal account · browser beta",
   "effort": "Chrome extension · no terminal",
   "available": true,
-  "summary": "Capture DMs and group DMs delivered to your own Discord Web tab.",
-  "coverage": "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
+  "summary": "Watch DMs and group DMs delivered to your own Discord Web tab and keep the ones that get deleted.",
+  "coverage": "The experimental Undelete extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. Only messages that are later deleted are kept. It excludes server channels. Chrome and that tab must remain open.",
   "needs": [
     "Chrome 125 or newer on a computer",
     "Your own account signed in to Discord Web",
     "Permission to load the extension and observe your chosen tab"
   ],
   "finish": [
-    "Download and extract the Afterword Discord extension ZIP.",
+    "Download and extract the Undelete Discord extension ZIP.",
     "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
-    "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
+    "Open the Undelete extension, enter your archive address and pairing code, and allow access to that archive.",
     "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
   ],
-  "exclusions": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required.",
+  "exclusions": "Only identified DMs and group DMs delivered after the watch starts and deleted within the watch window. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required.",
   "resources": [
     {
       "label": "Open Discord Web",
@@ -37,19 +38,19 @@ export const platformGuides = {
   "whatsapp": {
     "name": "WhatsApp",
     "mode": "Cloud linked device · unofficial",
-    "effort": "Scan a QR code · cloud capture",
-    "summary": "Link WhatsApp from your phone and capture in the cloud.",
-    "coverage": "Captures ordinary messages, edits, and deletions delivered to your linked device. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt capture.",
+    "effort": "Scan a QR code · watched in the cloud",
+    "summary": "Link WhatsApp from your phone and keep the messages that get deleted.",
+    "coverage": "Watches ordinary messages and their edits delivered to your linked device, and keeps only the ones that are later deleted. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt the watch.",
     "needs": [
       "Your phone, signed in to WhatsApp",
       "An available linked-device slot"
     ],
     "finish": [
-      "In Afterword, choose Connections → WhatsApp, name the account, and authorize hosted capture.",
+      "In Undelete, choose Connections → WhatsApp, name the account, and authorize the hosted connection.",
       "iPhone: WhatsApp → Settings → Linked devices → Link a device. Android: WhatsApp → ⋮ → Linked devices → Link a device.",
-      "Unlock your phone if asked, scan the code shown in Afterword, and approve the link. Wait for Connected."
+      "Unlock your phone if asked, scan the code shown in Undelete, and approve the link. Wait for Connected."
     ],
-    "exclusions": "No view-once or disappearing messages, past deleted content, or attachment file downloads.",
+    "exclusions": "No view-once or disappearing messages, messages deleted before linking, messages that outlive the watch window, or attachment file downloads.",
     "resources": [
       {
         "label": "WhatsApp: link a device",
@@ -63,20 +64,20 @@ export const platformGuides = {
   },
   "telegram": {
     "name": "Telegram",
-    "mode": "Personal account · cloud capture",
-    "effort": "Scan a QR code · cloud capture",
-    "summary": "Scan a Telegram QR code. Afterword keeps capturing on its server.",
-    "coverage": "Captures ordinary cloud-chat messages, revisions, and deletion events Telegram delivers. Telegram sometimes omits deletion notifications.",
+    "mode": "Personal account · watched in the cloud",
+    "effort": "Scan a QR code · watched in the cloud",
+    "summary": "Scan a Telegram QR code. Undelete keeps watching on its server.",
+    "coverage": "Watches ordinary cloud-chat messages and their edits, and keeps only the ones Telegram later reports as deleted. Telegram sometimes omits deletion notifications, so some deleted messages are missed.",
     "needs": [
       "Your phone, signed in to Telegram",
       "Your two-step verification password, if enabled"
     ],
     "finish": [
-      "In Afterword, choose Connections → Telegram, name the account, and authorize hosted capture.",
-      "On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in Afterword.",
-      "If prompted, enter your Telegram two-step verification password in Afterword. Wait for Connected."
+      "In Undelete, choose Connections → Telegram, name the account, and authorize the hosted connection.",
+      "On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in Undelete.",
+      "If prompted, enter your Telegram two-step verification password in Undelete. Wait for Connected."
     ],
-    "exclusions": "No secret chats, self-destructing messages, historical backfill, or attachment file downloads.",
+    "exclusions": "No secret chats, self-destructing messages, historical backfill, messages that outlive the watch window, or attachment file downloads.",
     "resources": [
       {
         "label": "Telegram: application setup",
@@ -93,18 +94,18 @@ export const platformGuides = {
     "mode": "Personal cloud session · experimental",
     "effort": "Phone QR approval · account restrictions apply",
     "available": true,
-    "summary": "An experimental personal session can capture DMs on the server after phone approval.",
-    "coverage": "Captures identified personal DMs and group DMs delivered to a hosted Discord session, including revisions and deletion events. Server channels are excluded. Discord forbids automated personal accounts and may terminate accounts that use them.",
+    "summary": "An experimental personal session can watch DMs on the server after phone approval.",
+    "coverage": "Watches identified personal DMs and group DMs delivered to a hosted Discord session, and keeps only the ones later deleted, together with the edits received before deletion. Server channels are excluded. Discord forbids automated personal accounts and may terminate accounts that use them.",
     "needs": [
       "Your phone, signed in to your own Discord account",
       "Acceptance of the account risk before starting this unofficial connection"
     ],
     "finish": [
-      "In Afterword, choose Connections → Discord. Read the account-risk notice, name the source, and acknowledge both consent boxes.",
-      "On your phone, open Discord → your profile → Settings → Scan QR Code. Scan the code generated in your signed-in Afterword workspace.",
-      "Review the phone approval screen and approve the login only if you intend to give Afterword a personal session on its server. Wait for Connected, then verify a harmless DM in your archive."
+      "In Undelete, choose Connections → Discord. Read the account-risk notice, name the source, and acknowledge both consent boxes.",
+      "On your phone, open Discord → your profile → Settings → Scan QR Code. Scan the code generated in your signed-in Undelete workspace.",
+      "Review the phone approval screen and approve the login only if you intend to give Undelete a personal session on its server. Wait for Connected, then send and delete a harmless DM to confirm it appears in your archive."
     ],
-    "exclusions": "Experimental and not approved by Discord. No server channels, historical backfill, ephemeral interactions, or attachment file downloads. Discord restrictions, missing events, or revoked sessions can interrupt capture.",
+    "exclusions": "Experimental and not approved by Discord. No server channels, historical backfill, ephemeral interactions, messages that outlive the watch window, or attachment file downloads. Discord restrictions, missing events, or revoked sessions can interrupt the watch.",
     "resources": [
       {
         "label": "Discord: personal-account automation policy",
@@ -119,19 +120,19 @@ export const platformGuides = {
   "signal": {
     "name": "Signal",
     "mode": "Cloud linked device · unofficial",
-    "effort": "Scan a QR code · cloud capture",
+    "effort": "Scan a QR code · watched in the cloud",
     "summary": "Link Signal from your phone; no desktop installation is needed.",
-    "coverage": "Captures ordinary incoming messages, synced outgoing messages, edits, and remote deletion events received by the linked device. signal-cli is unofficial and must stay current.",
+    "coverage": "Watches ordinary incoming messages, synced outgoing messages, and their edits received by the linked device, and keeps only the ones removed by a remote delete. signal-cli is unofficial and must stay current.",
     "needs": [
       "Your phone, signed in to Signal",
       "An available linked-device slot"
     ],
     "finish": [
-      "In Afterword, choose Connections → Signal, name the account, and authorize hosted capture.",
+      "In Undelete, choose Connections → Signal, name the account, and authorize the hosted connection.",
       "On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).",
-      "Scan the QR code shown in Afterword and approve the device named Afterword Cloud. Wait for Connected."
+      "Scan the QR code shown in Undelete and approve the device named Undelete Cloud. Wait for Connected."
     ],
-    "exclusions": "No disappearing or view-once messages, existing Signal Desktop database import, or attachment file downloads.",
+    "exclusions": "No disappearing or view-once messages, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads.",
     "resources": [
       {
         "label": "Signal: linked devices",
@@ -143,8 +144,8 @@ export const platformGuides = {
 
 export const guides = {
   "getting-started": {
-    "title": "Start your cloud archive",
-    "description": "Connect your accounts without installing anything on your computer.",
+    "title": "Start keeping deleted messages",
+    "description": "Connect your accounts without installing anything on your computer. Undelete keeps only the messages that are later deleted.",
     "category": "START HERE",
     "sections": [
       {
@@ -152,17 +153,17 @@ export const guides = {
         "title": "Create your workspace",
         "steps": [
           "Choose Create your archive. Use a username and a unique password of at least 12 characters.",
-          "Enter the invitation code if your Afterword instance requires one.",
+          "Enter the invitation code if your Undelete instance requires one.",
           "Open Connections and choose an account. WhatsApp, Telegram, and Signal use hosted phone linking. Discord offers an explicitly experimental personal cloud connection when the operator enables it, plus an optional browser extension."
         ],
-        "note": "The signed-out preview contains sample messages. Your own archive starts empty. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key."
+        "note": "The signed-out preview contains sample deleted messages. Your own archive starts empty and stays empty until a message you are watching is deleted. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key."
       },
       {
         "id": "pair",
-        "title": "Scan once, capture in the cloud",
+        "title": "Scan once, watch in the cloud",
         "steps": [
-          "Read the platform’s coverage and authorize Afterword to host your linked session.",
-          "Open the phone’s linking screen: Linked devices for WhatsApp/Signal, Devices for Telegram, or Scan QR Code in Discord Settings. Scan the code shown in Afterword.",
+          "Read the platform’s coverage and authorize Undelete to host your linked session.",
+          "Open the phone’s linking screen: Linked devices for WhatsApp/Signal, Devices for Telegram, or Scan QR Code in Discord Settings. Scan the code shown in Undelete.",
           "Complete any requested password or phone approval. Keep the setup page open until it shows Connected."
         ],
         "paragraphs": [
@@ -171,38 +172,38 @@ export const guides = {
       },
       {
         "id": "verify",
-        "title": "Verify your first captured message",
+        "title": "Verify your first deleted message",
         "paragraphs": [
-          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+          "Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into Undelete. The connection screen separately checks whether a deleted message has reached your archive."
         ],
         "steps": [
-          "Send a harmless message in your own chat and check that it appears in Afterword.",
-          "Edit that message and open its Afterword history to look for both versions.",
-          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+          "Send a harmless message in your own chat. It does not appear in Undelete yet.",
+          "Optionally edit it once or twice. Edits alone do not keep a message.",
+          "Delete it for everyone in the original app, then confirm it appears in Undelete marked Deleted, with each edit it had before deletion."
         ],
-        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+        "note": "Undelete never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion the platform never delivered."
       },
       {
         "id": "history",
-        "title": "Read edits and deleted messages",
+        "title": "Read a deleted message and its edits",
         "steps": [
-          "Open a message in your archive. Timeline shows the captured events, newest first; each saved text revision has a version number.",
-          "Choose Compare changes to see additions and removals between consecutive captured versions. Very long or substantially different revisions show both complete texts instead.",
+          "Open a deleted message in your archive. Timeline shows the events received before the deletion, newest first; each saved text revision has a version number.",
+          "Choose Compare changes to see additions and removals between consecutive versions. Very long or substantially different revisions show both complete texts instead.",
           "For longer histories, use Older, Newer, or the page number. First captured activity jumps to the beginning; Latest activity returns to the most recent page.",
           "If another event arrives while you read, choose Refresh history when you are ready. Your current page stays in place until then."
         ],
-        "note": "A page contains up to 30 events, including deletions. Version comparisons continue across page boundaries. Export includes every stored version, regardless of the page you are viewing."
+        "note": "A page contains up to 30 events, including the deletion. Version comparisons continue across page boundaries. Export includes every stored version of every deleted message, regardless of the page you are viewing."
       },
       {
         "id": "keep-running",
-        "title": "Capture continues in the cloud",
+        "title": "The watch continues in the cloud",
         "paragraphs": [
-          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
-          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+          "Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
         ],
         "links": [
           {
-            "label": "Continuous capture and recovery",
+            "label": "Continuous watching and recovery",
             "url": "/docs/running"
           }
         ]
@@ -224,7 +225,7 @@ export const guides = {
         "id": "controls",
         "title": "Manage what stays",
         "paragraphs": [
-          "Settings lets you choose retention and export your archive. Pause stops storing new events while the cloud session stays connected. Disconnect removes the saved cloud login and stops capture; your archive remains until you delete it. Account deletion removes the archive and stored sessions."
+          "Settings lets you choose the watch window (1, 3, 7, or 30 days; 7 days by default), how long preserved deleted messages are retained, and export your archive. A message that is not deleted within its watch window is discarded and cannot be recovered later. Pause stops storing new events while the cloud session stays connected. Disconnect removes the saved cloud login and stops the watch; your archive remains until you delete it. Account deletion removes the archive, the messages waiting in the watch window, and stored sessions."
         ],
         "links": [
           {
@@ -245,7 +246,7 @@ export const guides = {
         "id": "access",
         "title": "Understand the account risk",
         "paragraphs": [
-          "Discord does not offer a supported general-purpose cloud API for archiving a personal account’s DMs. This connector uses an unofficial personal session. Discord forbids automated personal accounts and can terminate accounts that use them.",
+          "Discord does not offer a supported general-purpose cloud API for watching a personal account’s DMs. This connector uses an unofficial personal session. Discord forbids automated personal accounts and can terminate accounts that use them.",
           "The operator must enable this experiment. It is not an approved Discord integration, and phone approval does not make it compliant with Discord’s rules. Do not rely on uninterrupted access or a production service guarantee."
         ],
         "links": [
@@ -270,11 +271,11 @@ export const guides = {
         "id": "connect",
         "title": "Link your own account",
         "steps": [
-          "In Afterword, choose Connections → Discord. Read the account-risk notice, name the source, and acknowledge both consent boxes.",
-          "On your phone, open Discord → your profile → Settings → Scan QR Code. Scan the code generated in your signed-in Afterword workspace.",
-          "Review the phone approval screen and approve the login only if you intend to give Afterword a personal session on its server. Wait for Connected, then verify a harmless DM in your archive."
+          "In Undelete, choose Connections → Discord. Read the account-risk notice, name the source, and acknowledge both consent boxes.",
+          "On your phone, open Discord → your profile → Settings → Scan QR Code. Scan the code generated in your signed-in Undelete workspace.",
+          "Review the phone approval screen and approve the login only if you intend to give Undelete a personal session on its server. Wait for Connected, then send and delete a harmless DM to confirm it appears in your archive."
         ],
-        "note": "Approving this QR signs your personal account into Afterword’s server. Generate the code yourself inside your signed-in workspace and keep it private.",
+        "note": "Approving this QR signs your personal account into Undelete’s server. Generate the code yourself inside your signed-in workspace and keep it private.",
         "links": [
           {
             "label": "Discord: phone QR login",
@@ -284,29 +285,29 @@ export const guides = {
       },
       {
         "id": "verify",
-        "title": "Verify capture before relying on it",
+        "title": "Verify a deletion before relying on it",
         "steps": [
           "Wait until the platform connection reports Connected.",
-          "Send a harmless DM to a person who has agreed to help test, or use an existing conversation you are authorized to archive.",
-          "Check that the original appears in Afterword. Edit and delete the test message in Discord, then inspect the captured history.",
-          "Close the Afterword website and your computer. The hosted collector continues while its server and Discord session remain available."
+          "Send a harmless DM to a person who has agreed to help test, or use an existing conversation you are authorized to archive. It does not appear in Undelete yet; new messages wait privately in the watch window.",
+          "Delete the test message in Discord. Confirm it appears in Undelete marked Deleted, with any edits you made before deleting.",
+          "Close the Undelete website and your computer. The hosted collector continues while its server and Discord session remain available."
         ],
-        "note": "Only messages actually received while capture is active can be retained. Live account linking and message capture remain required to validate this experimental connector."
+        "note": "Only messages received while the watch is active and deleted within the watch window can be kept. Live account linking and deletion verification remain required to validate this experimental connector."
       },
       {
         "id": "privacy",
         "title": "What the server stores",
         "paragraphs": [
-          "The approved personal session is stored encrypted in the source’s private queue. It is never returned by the Afterword API or placed in application logs. The server holds the decryption key.",
-          "Only allowlisted fields from identified DMs/group DMs enter the archive. The connector does not send Discord messages, mark them read, download attachments, or retain server-channel messages. Temporary message metadata used for partial edits expires after seven days.",
-          "Pause drops new activity while keeping the session connected. Disconnect stops capture and deletes the saved session from active storage; existing archived messages remain. Use Discord’s device/session controls to revoke its login as well. Restricted backups can retain older encrypted copies until rotation."
+          "The approved personal session is stored encrypted in the source’s private queue. It is never returned by the Undelete API or placed in application logs. The server holds the decryption key.",
+          "Only allowlisted fields from identified DMs/group DMs enter the encrypted holding buffer, where they wait for the length of your watch window. A message Discord never deletes is discarded at the end of that window. A deleted one moves to your archive with the edits received before the deletion. The connector does not send Discord messages, mark them read, download attachments, or retain server-channel messages. Temporary message metadata used for partial edits expires after seven days.",
+          "Pause drops new activity while keeping the session connected. Disconnect stops the watch and deletes the saved session from active storage; deleted messages already in your archive remain. Use Discord’s device/session controls to revoke its login as well. Restricted backups can retain older encrypted copies until rotation."
         ]
       },
       {
         "id": "fixes",
-        "title": "When linking or capture stops",
+        "title": "When linking or the watch stops",
         "paragraphs": [
-          "Expired code: request a fresh one from Afterword and approve it before it expires.",
+          "Expired code: request a fresh one from Undelete and approve it before it expires.",
           "Additional verification or CAPTCHA: this connector stops. Complete account checks in the official Discord app; it does not solve or bypass verification challenges.",
           "Session revoked: choose Relink, review the warning again, and approve the intended account. The original source is bound to one Discord account; use another source for a different account.",
           "Repeated protocol failures or account restrictions require operator attention. Do not repeatedly retry a rejected login."
@@ -329,17 +330,18 @@ export const guides = {
   },
   "whatsapp": {
     "title": "Connect WhatsApp in the cloud",
-    "description": "Link WhatsApp from your phone and capture in the cloud.",
+    "description": "Link WhatsApp from your phone and keep the messages that get deleted.",
     "category": "HOSTED ACCOUNT LINKING",
     "platform": "whatsapp",
     "sections": [
       {
         "id": "coverage",
-        "title": "What gets captured",
+        "title": "What gets kept",
         "paragraphs": [
-          "Captures ordinary messages, edits, and deletions delivered to your linked device. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt capture."
+          "Watches ordinary messages and their edits delivered to your linked device, and keeps only the ones that are later deleted. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt the watch.",
+          "Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept."
         ],
-        "note": "No view-once or disappearing messages, past deleted content, or attachment file downloads."
+        "note": "No view-once or disappearing messages, messages deleted before linking, messages that outlive the watch window, or attachment file downloads."
       },
       {
         "id": "before",
@@ -356,9 +358,9 @@ export const guides = {
         "id": "platform-setup",
         "title": "Link your account",
         "steps": [
-          "In Afterword, choose Connections → WhatsApp, name the account, and authorize hosted capture.",
+          "In Undelete, choose Connections → WhatsApp, name the account, and authorize the hosted connection.",
           "iPhone: WhatsApp → Settings → Linked devices → Link a device. Android: WhatsApp → ⋮ → Linked devices → Link a device.",
-          "Unlock your phone if asked, scan the code shown in Afterword, and approve the link. Wait for Connected."
+          "Unlock your phone if asked, scan the code shown in Undelete, and approve the link. Wait for Connected."
         ],
         "links": [
           {
@@ -370,31 +372,31 @@ export const guides = {
             "url": "https://github.com/WhiskeySockets/Baileys"
           }
         ],
-        "note": "The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app."
+        "note": "The QR code links your account to a server operated by Undelete. Keep it private and use the scanner inside the messaging app."
       },
       {
         "id": "verify",
-        "title": "Verify your first captured message",
+        "title": "Verify your first deleted message",
         "paragraphs": [
-          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+          "Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into Undelete. The connection screen separately checks whether a deleted message has reached your archive."
         ],
         "steps": [
-          "Send a harmless message in your own chat and check that it appears in Afterword.",
-          "Edit that message and open its Afterword history to look for both versions.",
-          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+          "Send a harmless message in your own chat. It does not appear in Undelete yet.",
+          "Optionally edit it once or twice. Edits alone do not keep a message.",
+          "Delete it for everyone in WhatsApp, then confirm it appears in Undelete marked Deleted, with each edit it had before deletion."
         ],
-        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+        "note": "Undelete never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion the platform never delivered."
       },
       {
         "id": "keep-running",
-        "title": "Capture continues in the cloud",
+        "title": "The watch continues in the cloud",
         "paragraphs": [
-          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
-          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+          "Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
         ],
         "links": [
           {
-            "label": "Continuous capture and recovery",
+            "label": "Continuous watching and recovery",
             "url": "/docs/running"
           }
         ]
@@ -413,7 +415,7 @@ export const guides = {
         "id": "privacy",
         "title": "Where your data lives",
         "paragraphs": [
-          "Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+          "Undelete stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
         ],
         "links": [
           {
@@ -426,17 +428,18 @@ export const guides = {
   },
   "telegram": {
     "title": "Connect Telegram in the cloud",
-    "description": "Scan a Telegram QR code. Afterword keeps capturing on its server.",
+    "description": "Scan a Telegram QR code. Undelete keeps watching on its server.",
     "category": "HOSTED ACCOUNT LINKING",
     "platform": "telegram",
     "sections": [
       {
         "id": "coverage",
-        "title": "What gets captured",
+        "title": "What gets kept",
         "paragraphs": [
-          "Captures ordinary cloud-chat messages, revisions, and deletion events Telegram delivers. Telegram sometimes omits deletion notifications."
+          "Watches ordinary cloud-chat messages and their edits, and keeps only the ones Telegram later reports as deleted. Telegram sometimes omits deletion notifications, so some deleted messages are missed.",
+          "Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept."
         ],
-        "note": "No secret chats, self-destructing messages, historical backfill, or attachment file downloads."
+        "note": "No secret chats, self-destructing messages, historical backfill, messages that outlive the watch window, or attachment file downloads."
       },
       {
         "id": "before",
@@ -453,9 +456,9 @@ export const guides = {
         "id": "platform-setup",
         "title": "Link your account",
         "steps": [
-          "In Afterword, choose Connections → Telegram, name the account, and authorize hosted capture.",
-          "On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in Afterword.",
-          "If prompted, enter your Telegram two-step verification password in Afterword. Wait for Connected."
+          "In Undelete, choose Connections → Telegram, name the account, and authorize the hosted connection.",
+          "On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in Undelete.",
+          "If prompted, enter your Telegram two-step verification password in Undelete. Wait for Connected."
         ],
         "links": [
           {
@@ -467,31 +470,31 @@ export const guides = {
             "url": "https://core.telegram.org/api/terms"
           }
         ],
-        "note": "Afterword’s operator configures the Telegram application credentials. You do not need to create your own Telegram developer application. Your sign-in password is used for the current step and is not stored in application logs."
+        "note": "Undelete’s operator configures the Telegram application credentials. You do not need to create your own Telegram developer application. Your sign-in password is used for the current step and is not stored in application logs."
       },
       {
         "id": "verify",
-        "title": "Verify your first captured message",
+        "title": "Verify your first deleted message",
         "paragraphs": [
-          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+          "Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into Undelete. The connection screen separately checks whether a deleted message has reached your archive."
         ],
         "steps": [
-          "Send a harmless message in your own chat and check that it appears in Afterword.",
-          "Edit that message and open its Afterword history to look for both versions.",
-          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+          "Send a harmless message in your own chat. It does not appear in Undelete yet.",
+          "Optionally edit it once or twice. Edits alone do not keep a message.",
+          "Delete it for everyone in Telegram, then confirm it appears in Undelete marked Deleted, with each edit it had before deletion."
         ],
-        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+        "note": "Undelete never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion Telegram never delivered."
       },
       {
         "id": "keep-running",
-        "title": "Capture continues in the cloud",
+        "title": "The watch continues in the cloud",
         "paragraphs": [
-          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
-          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+          "Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
         ],
         "links": [
           {
-            "label": "Continuous capture and recovery",
+            "label": "Continuous watching and recovery",
             "url": "/docs/running"
           }
         ]
@@ -510,7 +513,7 @@ export const guides = {
         "id": "privacy",
         "title": "Where your data lives",
         "paragraphs": [
-          "Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+          "Undelete stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
         ],
         "links": [
           {
@@ -529,11 +532,12 @@ export const guides = {
     "sections": [
       {
         "id": "coverage",
-        "title": "What gets captured",
+        "title": "What gets kept",
         "paragraphs": [
-          "Captures ordinary incoming messages, synced outgoing messages, edits, and remote deletion events received by the linked device. signal-cli is unofficial and must stay current."
+          "Watches ordinary incoming messages, synced outgoing messages, and their edits received by the linked device, and keeps only the ones removed by a remote delete. signal-cli is unofficial and must stay current.",
+          "Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept."
         ],
-        "note": "No disappearing or view-once messages, existing Signal Desktop database import, or attachment file downloads."
+        "note": "No disappearing or view-once messages, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads."
       },
       {
         "id": "before",
@@ -550,9 +554,9 @@ export const guides = {
         "id": "platform-setup",
         "title": "Link your account",
         "steps": [
-          "In Afterword, choose Connections → Signal, name the account, and authorize hosted capture.",
+          "In Undelete, choose Connections → Signal, name the account, and authorize the hosted connection.",
           "On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).",
-          "Scan the QR code shown in Afterword and approve the device named Afterword Cloud. Wait for Connected."
+          "Scan the QR code shown in Undelete and approve the device named Undelete Cloud. Wait for Connected."
         ],
         "links": [
           {
@@ -560,31 +564,31 @@ export const guides = {
             "url": "https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices"
           }
         ],
-        "note": "The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app."
+        "note": "The QR code links your account to a server operated by Undelete. Keep it private and use the scanner inside the messaging app."
       },
       {
         "id": "verify",
-        "title": "Verify your first captured message",
+        "title": "Verify your first deleted message",
         "paragraphs": [
-          "Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive."
+          "Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into Undelete. The connection screen separately checks whether a deleted message has reached your archive."
         ],
         "steps": [
-          "Send a harmless message in your own chat and check that it appears in Afterword.",
-          "Edit that message and open its Afterword history to look for both versions.",
-          "Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received."
+          "Send a harmless message in your own chat. It does not appear in Undelete yet.",
+          "Optionally edit it once or twice. Edits alone do not keep a message.",
+          "Delete it for everyone in Signal, then confirm it appears in Undelete marked Deleted, with each edit it had before deletion."
         ],
-        "note": "Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion."
+        "note": "Undelete never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion the platform never delivered."
       },
       {
         "id": "keep-running",
-        "title": "Capture continues in the cloud",
+        "title": "The watch continues in the cloud",
         "paragraphs": [
-          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
-          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+          "Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
         ],
         "links": [
           {
-            "label": "Continuous capture and recovery",
+            "label": "Continuous watching and recovery",
             "url": "/docs/running"
           }
         ]
@@ -603,7 +607,7 @@ export const guides = {
         "id": "privacy",
         "title": "Where your data lives",
         "paragraphs": [
-          "Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+          "Undelete stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
         ],
         "links": [
           {
@@ -616,7 +620,7 @@ export const guides = {
   },
   "troubleshooting": {
     "title": "Get your connection back on track",
-    "description": "Clear next steps for QR codes, cloud sessions, and missing messages.",
+    "description": "Clear next steps for QR codes, cloud sessions, and deleted messages that do not show up.",
     "category": "HELP",
     "sections": [
       {
@@ -638,17 +642,18 @@ export const guides = {
       },
       {
         "id": "missing",
-        "title": "Connected, but a message is missing",
+        "title": "Connected, but a deleted message is missing",
         "bullets": [
           "Confirm this is your real workspace rather than the signed-out demo.",
-          "Send a new ordinary message to your own chat after the connection shows Connected.",
+          "Remember that messages which were never deleted are not shown. Send a new ordinary message to your own chat after the connection shows Connected, then delete it for everyone.",
+          "Check that the message was sent after the connection was Connected and deleted within your watch window. A message deleted after its watch window ended has already been discarded.",
           "Check whether the source is paused and whether the conversation/message type is covered.",
-          "Deletion events are not guaranteed on every platform. Messages edited or deleted during a capture gap may be incomplete."
+          "Deletion events are not guaranteed on every platform. A message whose deletion the platform never delivered, or that was deleted during a connection gap, cannot be kept."
         ]
       },
       {
         "id": "account",
-        "title": "Cannot sign in to Afterword",
+        "title": "Cannot sign in to Undelete",
         "paragraphs": [
           "Check your username and password. New accounts may require an invitation code. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
         ]
@@ -656,20 +661,20 @@ export const guides = {
     ]
   },
   "running": {
-    "title": "Continuous capture and recovery",
+    "title": "Continuous watching and recovery",
     "description": "How hosted connections behave when you close the browser or a connection drops.",
-    "category": "USING AFTERWORD",
+    "category": "USING UNDELETE",
     "sections": [
       {
         "id": "keep-running",
-        "title": "Capture continues in the cloud",
+        "title": "The watch continues in the cloud",
         "paragraphs": [
-          "Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.",
-          "A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
+          "Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.",
+          "A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention."
         ],
         "links": [
           {
-            "label": "Continuous capture and recovery",
+            "label": "Continuous watching and recovery",
             "url": "/docs/running"
           }
         ]
@@ -679,24 +684,24 @@ export const guides = {
         "title": "Restarts and connection gaps",
         "paragraphs": [
           "Hosted sessions are saved in encrypted per-connection storage. The service resumes enabled connections after a normal server restart and retries unexpected collector exits with a delay. Expired logins may require a fresh scan.",
-          "Signal requires working session files while running. These live on a temporary in-memory filesystem in production and are checkpointed into encrypted storage every five seconds. A sudden machine failure can lose the latest checkpoint interval; the service cannot promise gap-free capture through an outage."
+          "Signal requires working session files while running. These live on a temporary in-memory filesystem in production and are checkpointed into encrypted storage every five seconds. A sudden machine failure can lose the latest checkpoint interval; the service cannot promise that every deletion is seen through an outage."
         ]
       },
       {
         "id": "controls",
         "title": "Pause, disconnect, and relink",
         "bullets": [
-          "Pause: keep the platform session connected but discard new captured events.",
-          "Disconnect: stop the collector and remove its stored cloud session. Previously captured messages remain.",
-          "Relink: reset one connection’s platform login and scan again. Previously captured messages remain.",
-          "A message that changes before Afterword receives it cannot be reconstructed."
+          "Pause: keep the platform session connected but discard new events. A message deleted while paused is not kept.",
+          "Disconnect: stop the collector and remove its stored cloud session. Deleted messages already in your archive remain.",
+          "Relink: reset one connection’s platform login and scan again. Deleted messages already in your archive remain.",
+          "A message that changes or is deleted before Undelete receives it cannot be reconstructed."
         ]
       },
       {
         "id": "local",
         "title": "Older local connections and Discord",
         "paragraphs": [
-          "Connections identifies whether each source captures in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.",
+          "Connections identifies whether each source watches in the cloud or uses a local companion. Older local companions still depend on their computer. Choose Continue setup and authorize Move connection to cloud to replace one with a hosted session.",
           "Discord’s optional extension remains local and requires Chrome with the selected Discord Web tab open. The separate experimental cloud connector continues on the server, subject to Discord’s account restrictions."
         ]
       },
@@ -709,85 +714,22 @@ export const guides = {
       }
     ]
   },
-  "privacy": {
-    "title": "Your data, privacy, and retention",
-    "description": "What Afterword stores and how to remove it.",
-    "category": "PRIVACY",
-    "sections": [
-      {
-        "id": "storage",
-        "title": "Hosted sessions and message copies",
-        "paragraphs": [
-          "Hosted collectors run on Afterword’s server. Platform login sessions, ordinary captured messages, and the revisions received by each collector are stored separately for each source. QR codes and pending login responses are temporary and visible only through the authenticated owner’s setup.",
-          "Saved platform credentials and message bodies are encrypted at rest. The server has the decryption keys and can read them to provide the service; this is not end-to-end encrypted storage.",
-          "Full-server recovery backups include the server’s decryption keys. Access to those backups is restricted to infrastructure operators; our hosting provider does not encrypt those server images at rest.",
-          "Legacy local collectors keep their platform sessions on that computer. The Discord extension stores its own queue in the browser and uploads captured messages to the archive."
-        ]
-      },
-      {
-        "id": "allowance",
-        "title": "Archive allowance and full storage",
-        "paragraphs": [
-          "Settings shows your current storage allowance and usage, shared by all connected platforms. Each captured revision counts, including copies of deleted messages. Usage includes encrypted content and associated archive records; it is not the size of an exported JSON file.",
-          "If an event will not fit, its hosted collector stops and keeps copies already in its encrypted queue. Other connections may also stop as they reach the limit. Queues have their own bounds, so an outage cannot grow them indefinitely. Activity during a stop may not be recoverable."
-        ],
-        "steps": [
-          "Export any history you want to keep elsewhere. Exporting alone does not release storage.",
-          "Delete messages you no longer need from their history panel, or choose a shorter retention period in Settings to remove older messages. Small deletion markers remain to prevent retries from restoring removed items.",
-          "Open Connections, choose Resume capture for a stopped hosted source, then Try again. Its saved session and queued copies are reused. Legacy local collectors must be restarted on their computer; the optional Discord extension can retry uploads, but you must start capture again.",
-          "If the notice says server storage or a connection queue is full, contact the operator. Deleting your archive may not resolve a server-wide or session-storage issue."
-        ]
-      },
-      {
-        "id": "coverage",
-        "title": "Coverage and limits",
-        "bullets": [
-          "Only messages/events received by a collector can be archived. Past deleted messages cannot be recovered.",
-          "Disappearing, self-destructing, and view-once content is excluded.",
-          "Attachment names and metadata may be recorded. File contents are not downloaded.",
-          "Unofficial Signal, WhatsApp, and Discord integrations can break when their platforms change. Discord forbids automated personal accounts and may terminate accounts using the experimental cloud connector."
-        ]
-      },
-      {
-        "id": "retention",
-        "title": "Retention and export",
-        "paragraphs": [
-          "Choose 7, 30, 90, or 365 days, or keep messages until you delete them. Retention is measured from first capture and applies to saved messages as well. Lowering retention immediately removes older messages. Export includes all captured versions in JSON."
-        ]
-      },
-      {
-        "id": "deletion",
-        "title": "Disconnecting and deleting",
-        "bullets": [
-          "Disconnect removes the hosted login for that source and stops capture; it keeps your existing archive.",
-          "Deleting an archived message removes its revisions and prevents later retries from recreating that item.",
-          "Account deletion removes that account’s archive, sign-in sessions, and hosted platform sessions.",
-          "Deleting here does not delete messages in the messaging platform. You can also unlink Afterword from the platform’s device settings. Deleted archive data may remain in restricted operational backups until they expire. Application backups keep the latest seven snapshots; daily server backups are retained for seven days."
-        ]
-      },
-      {
-        "id": "use",
-        "title": "Archive with authorization",
-        "paragraphs": [
-          "Connect only accounts you control and retain only conversations you are authorized to keep. Captured copies may remain after a participant edits or deletes the original."
-        ]
-      }
-    ]
-  },
+  privacy: privacyPolicy,
   "discord-extension": {
     "title": "Use the optional Discord browser extension",
-    "description": "Capture DMs and group DMs delivered to your own Discord Web tab.",
+    "description": "Watch DMs and group DMs delivered to your own Discord Web tab and keep the ones that get deleted.",
     "category": "BROWSER EXTENSION · EXPERIMENTAL",
     "platform": "discord",
     "sections": [
       {
         "id": "coverage",
-        "title": "Your DMs, in your own account",
+        "title": "Your deleted DMs, in your own account",
         "paragraphs": [
-          "The experimental Afterword extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. It excludes server channels. Chrome and that tab must remain open.",
-          "This is a passive browser collector. You sign into Discord normally; Afterword does not request your Discord password or token, install a server bot, send messages, or open another Discord API session."
+          "The experimental Undelete extension observes personal DM messages, edits, and deletions received by your signed-in Discord Web tab. Only messages that are later deleted are kept. It excludes server channels. Chrome and that tab must remain open.",
+          "This is a passive browser collector. You sign into Discord normally; Undelete does not request your Discord password or token, install a server bot, send messages, or open another Discord API session.",
+          "The extension uploads what it observes to your archive, where each message waits privately in the encrypted holding buffer for your watch window. A message Discord never deletes is discarded at the end of that window. A deleted one is kept with the edits received before the deletion."
         ],
-        "note": "Only identified DMs and group DMs delivered after capture starts. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required."
+        "note": "Only identified DMs and group DMs delivered after the watch starts and deleted within the watch window. No server channels, native-app capture, historical recovery, ephemeral interactions, or attachment file downloads. This unofficial beta may break or conflict with Discord policies; live account verification is still required."
       },
       {
         "id": "before",
@@ -797,16 +739,16 @@ export const guides = {
           "Your own account signed in to Discord Web",
           "Permission to load the extension and observe your chosen tab"
         ],
-        "note": "The extension is a downloadable beta, not a Chrome Web Store release. Chrome shows a broad debugging-permission notice: the implementation attaches only to the Discord tab you select and reads incoming Gateway frames. It ignores outgoing frames, HTTP bodies, cookies, and headers. Captured copies upload to your chosen Afterword archive."
+        "note": "The extension is a downloadable beta, not a Chrome Web Store release. Chrome shows a broad debugging-permission notice: the implementation attaches only to the Discord tab you select and reads incoming Gateway frames. It ignores outgoing frames, HTTP bodies, cookies, and headers. Observed messages upload to your chosen Undelete archive."
       },
       {
         "id": "platform-setup",
         "title": "Install and pair the extension",
         "steps": [
           "In Connections, choose Connect Discord, name the source, and continue.",
-          "Download and extract the Afterword Discord extension ZIP.",
+          "Download and extract the Undelete Discord extension ZIP.",
           "Open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted afterword-discord-extension folder.",
-          "Open the Afterword extension, enter your archive address and pairing code, and allow access to that archive.",
+          "Open the Undelete extension, enter your archive address and pairing code, and allow access to that archive.",
           "Choose your signed-in Discord tab and click Start capturing DMs. The tab reloads once, so send or clear drafts first. Keep Chrome’s debugging notice active."
         ],
         "links": [
@@ -823,32 +765,32 @@ export const guides = {
             "url": "https://discord.com/terms"
           }
         ],
-        "note": "No Node.js, terminal, bot token, server selection, or developer application is needed. Keep the extracted extension folder: Chrome loads the extension from that location. Treat the Afterword pairing code as private."
+        "note": "No Node.js, terminal, bot token, server selection, or developer application is needed. Keep the extracted extension folder: Chrome loads the extension from that location. Treat the Undelete pairing code as private."
       },
       {
         "id": "verify",
-        "title": "Check that your first message arrived",
+        "title": "Check that your first deleted message arrived",
         "paragraphs": [
-          "“Connected” means the platform session is running. A captured message confirms the full route to your archive works. The setup screen checks this automatically; allow up to 30 seconds for status updates."
+          "“Connected” means the platform session is running. A deleted message in your archive confirms the full route works. New messages wait privately in the watch window and are not shown until they are deleted. The setup screen checks this automatically; allow up to 30 seconds for status updates."
         ],
         "steps": [
-          "In a covered conversation, send a harmless test message such as “Afterword connection test.” Wait for it to appear in the archive.",
-          "Edit that message. Open its history in Afterword and check that both versions are present.",
-          "Delete it in the original app. If the platform delivers the deletion event, Afterword will show Deleted while preserving the captured text."
+          "In a covered conversation, send a harmless test message such as “Undelete connection test.” It does not appear in the archive yet.",
+          "Optionally edit that message. Edits alone do not keep it.",
+          "Delete it in Discord. Confirm it appears in Undelete marked Deleted, with each edit it had before deletion."
         ],
-        "note": "Test with your own messages in conversations you are authorized to archive. Afterword does not send a test message for you."
+        "note": "Test with your own messages in conversations you are authorized to archive. Undelete does not send or delete a test message for you."
       },
       {
         "id": "keep-running",
         "title": "Keep Discord Web open",
         "paragraphs": [
-          "Keep Chrome running with your selected Discord Web tab open and signed in. Background tabs can receive events, but browser suspension, sleep, network gaps, and canceled debugging can interrupt capture.",
+          "Keep Chrome running with your selected Discord Web tab open and signed in. Background tabs can receive events, but browser suspension, sleep, network gaps, and canceled debugging can interrupt the watch, and a deletion that arrives during a gap is missed.",
           "After restarting Chrome or updating the extension, open it and click Start capturing DMs again. Starting reloads the tab once so the collector sees the new Discord connection."
         ],
         "bullets": [
           "Stop capturing detaches from the tab while queued events can still upload.",
-          "Pausing the source in Afterword discards incoming activity, matching other sources. Resume does not recover paused events.",
-          "Use a separate Afterword source and Chrome profile for a different Discord account. A detected account switch stops capture to prevent mixing archives."
+          "Pausing the source in Undelete discards incoming activity, matching other sources. Resume does not recover paused events.",
+          "Use a separate Undelete source and Chrome profile for a different Discord account. A detected account switch stops the watch to prevent mixing archives."
         ]
       },
       {
@@ -856,20 +798,20 @@ export const guides = {
         "title": "Local copies and your archive",
         "paragraphs": [
           "The extension keeps its archive key, DM metadata, and retry queue encrypted in its private IndexedDB storage. The encryption key lives in the same browser profile; this does not protect against someone who controls that profile or device.",
-          "Queued events survive a browser restart and are removed after the server acknowledges them. A queue limit stops capture instead of silently dropping deliveries. Recent message metadata used to merge partial edits expires after seven days or on message deletion. Attachment metadata is stored; files are not downloaded.",
-          "The hosted archive uses the retention setting in your Afterword workspace. Disconnecting the extension clears its local connection and metadata once the queue is empty. Uninstalling it removes local extension storage; export any required data first."
+          "Queued events survive a browser restart and are removed after the server acknowledges them. A queue limit stops the watch instead of silently dropping deliveries. Recent message metadata used to merge partial edits expires after seven days or on message deletion. Attachment metadata is stored; files are not downloaded.",
+          "The hosted archive uses the watch window and retention settings in your Undelete workspace. Disconnecting the extension clears its local connection and metadata once the queue is empty. Uninstalling it removes local extension storage; export any required data first."
         ]
       },
       {
         "id": "fixes",
-        "title": "If messages do not appear",
+        "title": "If deleted messages do not appear",
         "bullets": [
           "Finish ordinary Discord sign-in in the selected tab and click Start capturing DMs in the extension.",
-          "Close DevTools for that Discord tab; another debugger can displace capture. Restart if Chrome’s debugging notice was canceled.",
-          "Check the extension status. Paired only confirms the archive link. Waiting for Discord is not a verified message delivery.",
-          "Only identified DMs and group DMs are captured. A server message, old message, or event Discord never delivers will not appear.",
+          "Close DevTools for that Discord tab; another debugger can displace the watch. Restart if Chrome’s debugging notice was canceled.",
+          "Check the extension status. Paired only confirms the archive link. Waiting for Discord is not a verified delivery.",
+          "Only identified DMs and group DMs are watched, and only deleted ones are kept. A server message, a message from before the watch started, a message that was never deleted, or an event Discord never delivers will not appear.",
           "If archive access is down, events remain encrypted locally. Restore access before the queue reaches its 10,000-event limit.",
-          "Unsupported encoding/compression or an account switch stops capture visibly. Update the extension or create a separate account connection. Do not paste a Discord user token to work around an error."
+          "Unsupported encoding/compression or an account switch stops the watch visibly. Update the extension or create a separate account connection. Do not paste a Discord user token to work around an error."
         ],
         "links": [
           {
@@ -884,14 +826,14 @@ export const guides = {
   "billing": {
     "title": "Plans, trials, and billing",
     "description": "How the free trial works, what a subscription covers, and how to cancel.",
-    "category": "USING AFTERWORD",
+    "category": "USING UNDELETE",
     "sections": [
       {
         "id": "trial",
         "title": "Your free trial",
         "paragraphs": [
-          "Every new workspace starts with a free trial. No payment method is needed to connect accounts and capture messages during the trial. Settings → Your plan shows the exact end date.",
-          "When the trial ends without a subscription, capture pauses: hosted connections stop and new events wait at the collector. Your archive stays available to read, search, and export, and nothing already captured is deleted by the pause. Retention settings still apply as usual."
+          "Every new workspace starts with a free trial. No payment method is needed to connect accounts and keep deleted messages during the trial. Settings → Your plan shows the exact end date.",
+          "When the trial ends without a subscription, the watch pauses: hosted connections stop and new events wait at the collector. Deleted messages already in your archive stay available to read, search, and export, and nothing already kept is deleted by the pause. Retention settings still apply as usual."
         ]
       },
       {
@@ -899,8 +841,8 @@ export const guides = {
         "title": "Starting a subscription",
         "steps": [
           "Open Settings → Your plan and choose Start subscription, or Add payment method during the trial.",
-          "Complete checkout on Stripe’s secure page. Afterword never sees your card number; it receives only a customer reference and the subscription status.",
-          "Return to Afterword. The plan card updates once Stripe confirms the subscription, usually within a few seconds.",
+          "Complete checkout on Stripe’s secure page. Undelete never sees your card number; it receives only a customer reference and the subscription status.",
+          "Return to Undelete. The plan card updates once Stripe confirms the subscription, usually within a few seconds.",
           "If any connection shows Capture stopped, open Connections and choose Resume capture."
         ],
         "note": "Adding a payment method during the trial does not shorten it. The first charge happens when the trial ends."
@@ -909,8 +851,8 @@ export const guides = {
         "id": "manage",
         "title": "Invoices, payment methods, and cancellation",
         "paragraphs": [
-          "Manage billing opens Stripe’s customer portal, where you can download invoices, change the payment method, or cancel. A cancelled subscription keeps capturing until the end of the paid period, shown as Access ends in Settings; you can reactivate before then.",
-          "If a payment fails, capture continues for a short grace period while Stripe retries. Update the payment method from Manage billing to avoid a pause.",
+          "Manage billing opens Stripe’s customer portal, where you can download invoices, change the payment method, or cancel. A cancelled subscription keeps watching until the end of the paid period, shown as Access ends in Settings; you can reactivate before then.",
+          "If a payment fails, the watch continues for a short grace period while Stripe retries. Update the payment method from Manage billing to avoid a pause.",
           "Deleting your account cancels the subscription and removes the archive; see the privacy guide for what deletion covers."
         ]
       }
@@ -918,22 +860,22 @@ export const guides = {
   },
   "terms": {
     "title": "Terms of service",
-    "description": "The agreement that applies to every Afterword workspace.",
+    "description": "The agreement that applies to every Undelete workspace.",
     "category": "PRIVACY",
     "sections": [
       {
         "id": "service",
         "title": "The service",
         "paragraphs": [
-          "Afterword is operated by [Operator legal name] (“we”). It captures messages delivered to personal messaging accounts that you link, and stores their revisions in a private workspace for you to read, search, and export.",
-          "Afterword is not affiliated with, endorsed by, or supported by Discord, Telegram, Signal, or WhatsApp. Linking a personal account uses that platform’s own device-linking or an unofficial method described in each platform guide. Some platforms restrict automated personal accounts; you are responsible for reviewing and complying with each platform’s terms, and you accept the risk of account limits or termination that a platform may impose."
+          "Undelete is operated by [Operator legal name] (“we”). It watches messages delivered to personal messaging accounts that you link, and keeps only the messages that are later deleted on the platform, together with the edits they had before deletion, in a private workspace for you to read, search, and export. Messages that are not deleted within your watch window are discarded and are never kept.",
+          "Undelete is not affiliated with, endorsed by, or supported by Discord, Telegram, Signal, or WhatsApp. Linking a personal account uses that platform’s own device-linking or an unofficial method described in each platform guide. Some platforms restrict automated personal accounts; you are responsible for reviewing and complying with each platform’s terms, and you accept the risk of account limits or termination that a platform may impose."
         ]
       },
       {
         "id": "responsibilities",
         "title": "Your responsibilities",
         "paragraphs": [
-          "You may only link accounts that belong to you, and you must have the right to store the messages you capture. Do not use Afterword to monitor another person without a lawful basis, and do not use it in a way that violates the law where you live or the rights of the people you communicate with.",
+          "You may only link accounts that belong to you, and you must have the right to keep the deleted messages the service preserves. Do not use Undelete to monitor another person without a lawful basis, and do not use it in a way that violates the law where you live or the rights of the people you communicate with.",
           "Keep your password and recovery key private. You are responsible for activity in your workspace. We cannot restore access to an account whose password and recovery key are both lost."
         ]
       },
@@ -941,7 +883,7 @@ export const guides = {
         "id": "payment",
         "title": "Trials, fees, and cancellation",
         "paragraphs": [
-          "New workspaces include a free trial. After the trial, continued capture requires a paid subscription billed in advance by Stripe at the price shown at checkout, plus any applicable taxes. You can cancel at any time from Manage billing; capture continues until the end of the paid period, and fees already paid are not refunded except where the law requires.",
+          "New workspaces include a free trial. After the trial, continued watching requires a paid subscription billed in advance by Stripe at the price shown at checkout, plus any applicable taxes. You can cancel at any time from Manage billing; the watch continues until the end of the paid period, and fees already paid are not refunded except where the law requires.",
           "We may change prices with at least 30 days’ notice shown in the app. Continuing to use a paid plan after the change takes effect means you accept the new price."
         ]
       },
@@ -949,7 +891,7 @@ export const guides = {
         "id": "limits",
         "title": "Coverage, availability, and liability",
         "paragraphs": [
-          "Capture depends on third-party platforms and on your linked sessions staying connected. Messages sent while a connection is offline, content deleted before capture, disappearing messages, and file bodies are not captured. The service is provided as is, without a guarantee of uninterrupted availability or complete capture.",
+          "The service depends on third-party platforms and on your linked sessions staying connected. Messages sent or deleted while a connection is offline, deletions the platform never delivers, messages deleted after their watch window ended, disappearing messages, and file bodies are not kept. The service is provided as is, without a guarantee of uninterrupted availability or that every deleted message is kept.",
           "To the fullest extent permitted by law, our total liability for any claim relating to the service is limited to the fees you paid in the twelve months before the claim. We are not liable for indirect or consequential loss, including loss of messages or platform account restrictions."
         ]
       },
@@ -958,7 +900,7 @@ export const guides = {
         "title": "Termination and changes",
         "paragraphs": [
           "You can delete your workspace at any time from Settings, which removes your archive and revokes every connection. We may suspend or end access for misuse, for non-payment after the trial, or if we discontinue the service, in which case we will give reasonable notice and a chance to export your archive where practical.",
-          "We may update these terms; material changes are announced in the app before they apply. These terms are governed by the laws of [Governing jurisdiction]. Questions go to [Support contact]. Last updated September 10, 2026."
+          "We may update these terms; material changes are announced in the app before they apply. These terms are governed by the laws of [Governing jurisdiction]. Questions go to [Support contact]. Last updated September 11, 2026."
         ]
       }
     ]

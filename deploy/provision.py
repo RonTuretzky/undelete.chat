@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provision one dedicated Afterword VM. Credentials remain outside the project."""
+"""Provision one dedicated Undelete VM. Credentials remain outside the project."""
 import json, pathlib, subprocess, urllib.request, urllib.error
 private = pathlib.Path.home() / '.config' / 'afterword'
 private.mkdir(parents=True, exist_ok=True, mode=0o700)

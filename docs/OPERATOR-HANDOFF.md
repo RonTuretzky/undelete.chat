@@ -1,6 +1,6 @@
-# Afterword operator handoff
+# Undelete operator handoff
 
-This is the credential and access handoff for the hosted Afterword service. It describes where secrets live and how they are used. **Secret values are intentionally not included in this repository or in chat.** Transfer them through a password manager or an encrypted file exchange, then rotate credentials that have been exposed or shared with a previous operator.
+This is the credential and access handoff for the hosted Undelete service. It describes where secrets live and how they are used. **Secret values are intentionally not included in this repository or in chat.** Transfer them through a password manager or an encrypted file exchange, then rotate credentials that have been exposed or shared with a previous operator.
 
 ## Service and source
 
@@ -9,7 +9,7 @@ This is the credential and access handoff for the hosted Afterword service. It d
 | Private source repository | [github.com/RonTuretzky/afterword](https://github.com/RonTuretzky/afterword) |
 | Branch | `main` |
 | Last pushed release | `a57c92c` |
-| Public service | [https://afterword-159-65-242-65.sslip.io](https://afterword-159-65-242-65.sslip.io) |
+| Public service | [https://undelete.chat](https://undelete.chat) |
 | DigitalOcean Droplet | `afterword-saas` (`159.65.242.65`, NYC3), `s-2vcpu-4gb`, 80 GB disk |
 | Private local store | `/Users/wk/.config/afterword` |
 
@@ -76,7 +76,7 @@ git push origin main
 
 The first five commands inspect state. `deploy.py` rebuilds and restarts the hosted service from the checked-out source and the private configuration. Review the diff and run `npm run check` before deploying source changes. Do not use `docker compose down -v`; it deletes the active archive volume. Do not start retired local collectors alongside the hosted service.
 
-After deployment, verify `https://afterword-159-65-242-65.sslip.io/api/health` and `/api/monitor`. `/api/health` only proves that the web process can query SQLite. `/api/monitor` also checks local backup freshness, disk reserve, collector heartbeats, queue delivery age, and the configured offsite destination. A warning for `offsite_unconfigured` is expected until Spaces is activated. The external Uptime check now targets `/api/monitor`, and outage, certificate, disk, and memory alerts go to the DigitalOcean account email; run `python3 deploy/operations.py enable-alerts --email new@example.com` to add the next operator's address.
+After deployment, verify `https://undelete.chat/api/health` and `/api/monitor`. `/api/health` only proves that the web process can query SQLite. `/api/monitor` also checks local backup freshness, disk reserve, collector heartbeats, queue delivery age, and the configured offsite destination. A warning for `offsite_unconfigured` is expected until Spaces is activated. The external Uptime check now targets `/api/monitor`, and outage, certificate, disk, and memory alerts go to the DigitalOcean account email; run `python3 deploy/operations.py enable-alerts --email new@example.com` to add the next operator's address.
 
 ## Credentials and files intentionally excluded from handoff
 

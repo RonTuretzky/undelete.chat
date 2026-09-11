@@ -50,7 +50,7 @@ const billing = billingConfig() ? createBilling(store, { config: billingConfig()
 } }) : null;
 if (production && !billing) console.warn('Billing is not configured: every account is entitled without a subscription.');
 const app = createApp(store, { collectors, monitor, billing, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
-const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`Afterword listening on port ${process.env.PORT || 4318}`));
+const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`Undelete listening on port ${process.env.PORT || 4318}`));
 await collectors?.restore();
 const backups = production ? createBackupService(dir, { key, config: backupConfig, minimumFreeBytes: store.capacity.limits.minimumFreeBytes }) : null;
 if (production) await clearBackupStaging(dir);

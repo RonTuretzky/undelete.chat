@@ -1,0 +1,38 @@
+.how-it-works{margin:0 0 26px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:26px 26px 22px}
+.how-it-works .eyebrow{margin-bottom:6px}
+.how-it-works h2{font-size:22px;letter-spacing:-.4px;margin-bottom:6px}
+.how-it-works>p{color:var(--muted);max-width:640px;margin-bottom:20px}
+.how-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.how-step{border:1px solid var(--border);border-radius:12px;padding:16px 16px 18px;background:#fcfdfc;display:flex;flex-direction:column;gap:12px}
+.how-step-number{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:999px;background:var(--green);color:#fff;font-size:12px;font-weight:700}
+.how-step h3{font-size:15px}.how-step p{font-size:13px;color:#5c6763;line-height:1.5}
+.how-scene{position:relative;height:150px;border-radius:10px;background:var(--light);overflow:hidden;border:1px solid #e0eae4}
+.how-scene svg{position:absolute;inset:0;width:100%;height:100%}
+.how-scene .phone{fill:#fff;stroke:#c9d6cf;stroke-width:1.5}
+.how-scene .bubble{fill:#fff;stroke:#d5dfda}
+.how-scene .bubble.mine{fill:#dcefe6;stroke:#bfdccd}
+.how-scene text{font:600 9px var(--font);fill:#2f3d39}
+.how-scene text.muted{font-weight:500;fill:#7a8783}
+.how-scene .label{font:700 8px var(--font);fill:#fff;letter-spacing:.4px}
+/* Scene 1: link a phone by scanning a code */
+.how-qr{animation:how-qr 6s infinite}.how-scan{animation:how-scan 6s infinite;transform-origin:center}.how-linked{animation:how-linked 6s infinite;opacity:0}
+@keyframes how-qr{0%,55%{opacity:1}65%,100%{opacity:0}}
+@keyframes how-scan{0%{transform:translateY(-22px);opacity:0}10%{opacity:1}45%{transform:translateY(22px);opacity:1}55%,100%{transform:translateY(22px);opacity:0}}
+@keyframes how-linked{0%,60%{opacity:0;transform:translateY(6px)}70%,95%{opacity:1;transform:translateY(0)}100%{opacity:0}}
+/* Scene 2: messages pass through the watch window and fade */
+.how-flow .bubble-row{animation:how-flow 7s infinite;opacity:0}
+.how-flow .bubble-row:nth-child(2){animation-delay:1.2s}.how-flow .bubble-row:nth-child(3){animation-delay:2.4s}.how-flow .bubble-row:nth-child(4){animation-delay:3.6s}
+@keyframes how-flow{0%{opacity:0;transform:translateX(-30px)}8%{opacity:1;transform:translateX(0)}60%{opacity:1}80%,100%{opacity:0;transform:translateX(24px)}}
+.how-window{animation:how-window 7s infinite}
+@keyframes how-window{0%,100%{stroke-dashoffset:0}50%{stroke-dashoffset:-16}}
+/* Scene 3: a message is deleted in the chat and appears in Undelete */
+.how-target{animation:how-target 8s infinite;transform-origin:center}
+@keyframes how-target{0%,35%{opacity:1;transform:scale(1)}42%{opacity:.3;transform:scale(.96)}48%,100%{opacity:0;transform:scale(.9)}}
+.how-tombstone{animation:how-tombstone 8s infinite;opacity:0}
+@keyframes how-tombstone{0%,44%{opacity:0}52%,100%{opacity:1}}
+.how-recovered{animation:how-recovered 8s infinite;opacity:0}
+@keyframes how-recovered{0%,55%{opacity:0;transform:translateY(8px)}66%,100%{opacity:1;transform:translateY(0)}}
+.how-pulse{animation:how-pulse 8s infinite;opacity:0;transform-origin:center}
+@keyframes how-pulse{0%,58%{opacity:0;transform:scale(.6)}66%{opacity:.5;transform:scale(1)}78%,100%{opacity:0;transform:scale(1.4)}}
+@media (prefers-reduced-motion:reduce){.how-scene *{animation:none!important;opacity:1!important;transform:none!important}.how-qr{opacity:0!important}}
+@media (max-width:860px){.how-steps{grid-template-columns:1fr}.how-it-works{padding:20px 16px}}

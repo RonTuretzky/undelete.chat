@@ -6,8 +6,8 @@ The server can upload backups directly to DigitalOcean Spaces. No customer insta
 
 ## Activate storage
 
-1. Sign in to the DigitalOcean account that hosts Afterword. Create a **private dedicated bucket**, preferably in NYC3 beside the current server. Disable public file listing and leave the CDN off. Do not reuse a bucket containing another application's data.
-2. Create a Spaces access key with read/write permission limited to this bucket. Afterword needs to upload, list, read back, and expire its backup objects; it does not need a full-account Spaces key. [Bucket access](https://docs.digitalocean.com/products/spaces/how-to/manage-access/)
+1. Sign in to the DigitalOcean account that hosts Undelete. Create a **private dedicated bucket**, preferably in NYC3 beside the current server. Disable public file listing and leave the CDN off. Do not reuse a bucket containing another application's data.
+2. Create a Spaces access key with read/write permission limited to this bucket. Undelete needs to upload, list, read back, and expire its backup objects; it does not need a full-account Spaces key. [Bucket access](https://docs.digitalocean.com/products/spaces/how-to/manage-access/)
 3. Save a mode-600 file at `~/.config/afterword/offsite-config.json` with these fields, substituting the actual bucket and credentials. Do not commit this file or send its contents through chat:
 
    ```json
@@ -23,7 +23,7 @@ The server can upload backups directly to DigitalOcean Spaces. No customer insta
 5. Run `python3 deploy/operations.py backup-status`. Expect `offsiteConfigured: true`, `state: complete`, a recent `lastOffsiteAt`, and a snapshot identifier. `local_only` means the server has no offsite configuration. `failed` identifies snapshot, upload, cleanup, or disk-capacity failure without printing credentials.
 6. List and restore a committed backup using the procedure below. Record the actual storage endpoint, successful verification time, restored counts, integrity checks, and whether session decryption passed. Until this succeeds against the real service, test fixtures are not evidence of a working production backup.
 
-Configure a seven-day bucket lifecycle rule as an additional expiry mechanism if available; it continues to operate while Afterword is offline. The application also removes its own expired objects after a recent verified upload. Do not change lifecycle rules on shared storage. [Lifecycle support](https://docs.digitalocean.com/products/spaces/reference/s3-compatibility/)
+Configure a seven-day bucket lifecycle rule as an additional expiry mechanism if available; it continues to operate while Undelete is offline. The application also removes its own expired objects after a recent verified upload. Do not change lifecycle rules on shared storage. [Lifecycle support](https://docs.digitalocean.com/products/spaces/reference/s3-compatibility/)
 
 ## Operation and protection
 

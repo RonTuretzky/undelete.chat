@@ -15,7 +15,7 @@ const { values: flags, positionals } = parseArgs({ allowPositionals: true, optio
 const [command = 'run', requestedProfile = 'default'] = positionals;
 let profile = requestedProfile;
 if (command === 'help' || flags.help) {
-  console.log('Afterword companion\n\npair --server URL   Pair using a short code from Connections\nrun PROFILE         Resume a paired connection\ncredentials PROFILE Replace saved platform credentials\nrelink PROFILE      Reset a platform login while keeping your queue\ndoctor              Check your computer\nsetup PROFILE       Advanced: pair with a long-lived connection key\n\nNew here? Open Connections in your archive and follow the guided setup.'); process.exit(0);
+  console.log('Undelete companion\n\npair --server URL   Pair using a short code from Connections\nrun PROFILE         Resume a paired connection\ncredentials PROFILE Replace saved platform credentials\nrelink PROFILE      Reset a platform login while keeping your queue\ndoctor              Check your computer\nsetup PROFILE       Advanced: pair with a long-lived connection key\n\nNew here? Open Connections in your archive and follow the guided setup.'); process.exit(0);
 }
 if (command === 'doctor') {
   console.log(`Node.js ${process.versions.node} — Node 22.13 or newer required.`);
@@ -37,7 +37,7 @@ const ask = async (prompt, secret = false) => {
 const baseDirectory = resolve(process.env.AFTERWORD_COMPANION_DIR || join(homedir(), '.afterword'));
 if (command === 'pair') {
   try {
-    console.log('\nPair Afterword with your computer\nKeep the setup page open in your browser.\n');
+    console.log('\nPair Undelete with your computer\nKeep the setup page open in your browser.\n');
     const server = serverOrigin(flags.server || await ask('Archive server URL from Connections: '));
     const code = await ask('Pairing code from your browser: ', true);
     const connection = await redeemCode(server, code);
@@ -54,7 +54,7 @@ mkdirSync(directory, { recursive: true, mode: 0o700 });
 const configFile = join(directory, 'config.json');
 let config = existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) : {};
 const save = patch => { config = { ...config, ...patch }; writeFileSync(configFile, JSON.stringify(config, null, 2), { mode: 0o600 }); };
-console.log(`\nAfterword companion · ${profile}\n`);
+console.log(`\nUndelete companion · ${profile}\n`);
 if (command === 'setup') {
   try {
     const server = serverOrigin(await ask('Archive server URL: '));
@@ -80,7 +80,7 @@ if (command === 'credentials') {
   console.log(`Saved. Resume with: npm start -- run ${profile}`); rl.close(); process.exit(0);
 }
 if (command === 'relink') {
-  if (config.platform === 'discord') { console.log('Use Stop and Start in the Afterword browser extension. Pair a separate source for a different Discord account.'); rl.close(); process.exit(0); }
+  if (config.platform === 'discord') { console.log('Use Stop and Start in the Undelete browser extension. Pair a separate source for a different Discord account.'); rl.close(); process.exit(0); }
   console.log(`Stop any other companion for ${profile} before continuing. This clears its ${config.platform} login, but preserves your queued events and archive.`);
   if (await ask('Type RELINK to continue: ') !== 'RELINK') { console.log('No changes made.'); rl.close(); process.exit(0); }
   if (config.platform === 'telegram') { const q = openQueue(directory); q.delete('telegram-session'); q.close(); }

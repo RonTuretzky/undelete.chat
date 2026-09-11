@@ -59,7 +59,7 @@ env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)
 invite_path = private / 'invitation-code.txt'; invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
 credentials = private / 'owner-credentials.txt'
-credentials.write_text('Afterword owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\nInvitation code for new accounts: ' + values['invite_code'] + '\n\nKeep this file private. Change the owner password in Settings after signing in.\n')
+credentials.write_text('Undelete owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\nInvitation code for new accounts: ' + values['invite_code'] + '\n\nKeep this file private. Change the owner password in Settings after signing in.\n')
 credentials.chmod(0o600)
 with tempfile.TemporaryDirectory(prefix='afterword-deploy-') as tmp:
     archive = pathlib.Path(tmp) / 'source.tar.gz'
@@ -79,7 +79,15 @@ if(!store.userByName(input.username)) await store.createUser(input.username,inpu
 store.close(); console.log('Owner account initialized.');
 """.replace('REPLACE', json.dumps({'username': values['owner_username'], 'password': values['owner_password']}))
 remote('cd /opt/afterword && docker compose -f deploy/compose.yaml exec -T app node --input-type=module', input=seed)
-caddy = state['hostname'] + ' {\n encode zstd gzip\n reverse_proxy 127.0.0.1:4318\n header Strict-Transport-Security "max-age=31536000"\n}\n'
+site = '{\n encode zstd gzip\n reverse_proxy 127.0.0.1:4318\n header Strict-Transport-Security "max-age=31536000"\n}\n'
+caddy = state['hostname'] + ' ' + site
+# Aliases such as www redirect to the canonical origin.
+for alias in state.get('aliases', []):
+    caddy += alias + ' {\n redir ' + state['url'] + '{uri} permanent\n}\n'
+# The previous hostname keeps answering API calls (Stripe webhooks, companions
+# configured before the move) and redirects browsers to the new origin.
+if state.get('legacy_hostname') and state['legacy_hostname'] != state['hostname']:
+    caddy += state['legacy_hostname'] + ' {\n encode zstd gzip\n handle /api/* {\n  reverse_proxy 127.0.0.1:4318\n }\n handle {\n  redir ' + state['url'] + '{uri} permanent\n }\n}\n'
 remote('cat > /etc/caddy/Caddyfile && caddy validate --config /etc/caddy/Caddyfile && systemctl enable --now caddy && systemctl reload caddy', input=caddy)
 remote('cd /opt/afterword && docker compose -f deploy/compose.yaml ps')
 print('Deployed:', state['url'])

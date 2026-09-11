@@ -2,8 +2,8 @@ import { createHash, generateKeyPairSync, privateDecrypt, constants } from 'node
 import WebSocket from 'ws';
 
 export class DiscordSignInError extends Error {}
-export const discordClient = Object.freeze({ os: 'Linux', browser: 'Afterword', device: 'Afterword Cloud' });
-export const discordAgent = 'Afterword/0.1 (personal archive; experimental)';
+export const discordClient = Object.freeze({ os: 'Linux', browser: 'Undelete', device: 'Undelete Cloud' });
+export const discordAgent = 'Undelete/0.1 (personal archive; experimental)';
 const authGateway = 'wss://remote-auth-gateway.discord.gg/?v=2';
 const loginEndpoint = 'https://discord.com/api/v9/users/@me/remote-auth/login';
 

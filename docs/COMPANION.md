@@ -1,20 +1,20 @@
-# Afterword companion
+# Undelete companion
 
-Your companion receives messages on your computer and sends captured versions to your private Afterword archive. Start with the connection setup screen in the web app; it fills in your server address and follows your progress.
+Your companion receives messages on your computer and sends captured versions to your private Undelete archive. Start with the connection setup screen in the web app; it fills in your server address and follows your progress.
 
 For Discord, follow the [browser extension guide](guides/discord-extension.md). The terminal instructions below apply to Telegram, Signal, and WhatsApp.
 
 ## First connection
 
 1. Install [Node.js LTS](https://nodejs.org/en/download), version 22.13 or newer.
-2. In Afterword, open **Connections**, choose a platform, and review its access requirements.
+2. In Undelete, open **Connections**, choose a platform, and review its access requirements.
 3. Download the companion ZIP, extract it, and open a terminal in the `afterword-companion` folder.
 4. Run `npm ci --omit=dev` once. On Windows, use `npm.cmd` if needed.
 5. Copy the **pairing command** from the setup screen. It looks like `npm start -- pair --server https://YOUR-SERVER`.
 6. Enter the short pairing code when the terminal asks. Each code works once and expires after ten minutes.
 7. Follow the platform sign-in or QR prompts. Keep the browser setup open until it confirms connection, then send your own test message in a covered conversation.
 
-Platform credentials and sessions stay on the computer running the companion. Your Afterword server can decrypt captured message content; the cloud archive is encrypted at rest, not end-to-end encrypted.
+Platform credentials and sessions stay on the computer running the companion. Your Undelete server can decrypt captured message content; the cloud archive is encrypted at rest, not end-to-end encrypted.
 
 ## Step-by-step guides
 

@@ -1,14 +1,16 @@
 # Connect WhatsApp in the cloud
 
-Link WhatsApp from your phone and capture in the cloud.
+Link WhatsApp from your phone and keep the messages that get deleted.
 
 <a id="coverage"></a>
 
-## What gets captured
+## What gets kept
 
-Captures ordinary messages, edits, and deletions delivered to your linked device. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt capture.
+Watches ordinary messages and their edits delivered to your linked device, and keeps only the ones that are later deleted. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt the watch.
 
-> No view-once or disappearing messages, past deleted content, or attachment file downloads.
+Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept.
+
+> No view-once or disappearing messages, messages deleted before linking, messages that outlive the watch window, or attachment file downloads.
 
 <a id="before"></a>
 
@@ -23,36 +25,36 @@ Use a computer or a second screen to display the code while you scan with your p
 
 ## Link your account
 
-1. In Afterword, choose Connections → WhatsApp, name the account, and authorize hosted capture.
+1. In Undelete, choose Connections → WhatsApp, name the account, and authorize the hosted connection.
 2. iPhone: WhatsApp → Settings → Linked devices → Link a device. Android: WhatsApp → ⋮ → Linked devices → Link a device.
-3. Unlock your phone if asked, scan the code shown in Afterword, and approve the link. Wait for Connected.
+3. Unlock your phone if asked, scan the code shown in Undelete, and approve the link. Wait for Connected.
 
-> The QR code links your account to a server operated by Afterword. Keep it private and use the scanner inside the messaging app.
+> The QR code links your account to a server operated by Undelete. Keep it private and use the scanner inside the messaging app.
 
 - [WhatsApp: link a device](https://faq.whatsapp.com/1317564962315842/)
 - [Baileys project](https://github.com/WhiskeySockets/Baileys)
 
 <a id="verify"></a>
 
-## Verify your first captured message
+## Verify your first deleted message
 
-Connected confirms a running platform session. It does not prove all message types have been delivered. The connection screen separately checks whether a new message reached your archive.
+Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into Undelete. The connection screen separately checks whether a deleted message has reached your archive.
 
-1. Send a harmless message in your own chat and check that it appears in Afterword.
-2. Edit that message and open its Afterword history to look for both versions.
-3. Delete it in the original app. If the platform delivers the deletion, Afterword marks it Deleted and preserves the versions it received.
+1. Send a harmless message in your own chat. It does not appear in Undelete yet.
+2. Optionally edit it once or twice. Edits alone do not keep a message.
+3. Delete it for everyone in WhatsApp, then confirm it appears in Undelete marked Deleted, with each edit it had before deletion.
 
-> Afterword never sends a test message for you. It cannot recover content it did not receive before a change or deletion.
+> Undelete never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion the platform never delivered.
 
 <a id="keep-running"></a>
 
-## Capture continues in the cloud
+## The watch continues in the cloud
 
-Once a hosted connection is established, you can close Afterword, turn off your computer, and use your messaging apps normally. The server receives messages in the background.
+Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.
 
-A platform outage, expired linked device, or server interruption can still leave gaps. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
+A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
-- [Continuous capture and recovery](./running.md)
+- [Continuous watching and recovery](./running.md)
 
 <a id="fixes"></a>
 
@@ -67,7 +69,7 @@ A platform outage, expired linked device, or server interruption can still leave
 
 ## Where your data lives
 
-Afterword stores the linked session on its server so capture can continue while your devices are off. Stored credentials and captured message bodies are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
+Undelete stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
 
 - [Privacy and retention](./privacy.md)
 

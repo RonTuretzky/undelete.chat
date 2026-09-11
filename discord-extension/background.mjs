@@ -2,7 +2,7 @@ import { gatewayDecoder, gatewayOptions, discordPage, PersonalDiscord } from './
 import { openVault, archiveOrigin, archiveRequest } from './storage.mjs';
 
 let vault, config, tabId = null, model, chain = Promise.resolve(), flushing = false, queuedPackets = 0;
-let health = 'waiting', detail = 'Pair with your Afterword archive to begin.', lastTraffic = 0, captured = 0, uploadError = '';
+let health = 'waiting', detail = 'Pair with your Undelete archive to begin.', lastTraffic = 0, captured = 0, uploadError = '';
 let epoch = 0, serverPaused = false;
 const streams = new Map();
 const serial = fn => { const result = chain.then(fn); chain = result.catch(() => {}); return result; };
@@ -128,7 +128,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       if (flushing) throw new Error('Archive sync is finishing. Try pairing again in a moment.');
       if (config) throw new Error('Disconnect this archive before pairing another.');
       const server = archiveOrigin(message.server);
-      if (!await chrome.permissions.contains({ origins: [server + '/*'] })) throw new Error('Allow access to your Afterword server first.');
+      if (!await chrome.permissions.contains({ origins: [server + '/*'] })) throw new Error('Allow access to your Undelete server first.');
       const result = await archiveRequest({ server }, '/api/pair', { code: String(message.code || '').trim(), platform: 'discord' });
       const c = result.connection;
       if (c?.platform !== 'discord' || !/^aw_[\w-]{43}$/.test(c.token) || typeof c.connectionId !== 'string') throw new Error('Use the pairing code from a Discord connection.');

@@ -1,61 +1,94 @@
-# Your data, privacy, and retention
+# Privacy policy
 
-What Afterword stores and how to remove it.
+What Undelete stores, why, for how long, and who can see it.
 
-<a id="storage"></a>
+<a id="summary"></a>
 
-## Hosted sessions and message copies
+## In short
 
-Hosted collectors run on Afterword’s server. Platform login sessions, ordinary captured messages, and the revisions received by each collector are stored separately for each source. QR codes and pending login responses are temporary and visible only through the authenticated owner’s setup.
+Undelete watches the personal messaging accounts you link and keeps only messages that were later deleted on the platform. Every other message is held privately for your watch window (7 days by default, adjustable in Settings between 1 and 30 days) and then discarded. Nothing you did not link is watched, and nothing that was never deleted is kept beyond that window.
 
-Saved platform credentials and message bodies are encrypted at rest. The server has the decryption keys and can read them to provide the service; this is not end-to-end encrypted storage.
+Message content is encrypted at rest with a key held by the server. The server can decrypt your messages to show them to you; this is not end-to-end encryption, and the people who operate the server could technically read stored content. We do not sell, share, analyse, or use message content for anything other than showing it to you.
 
-Full-server recovery backups include the server’s decryption keys. Access to those backups is restricted to infrastructure operators; our hosting provider does not encrypt those server images at rest.
+This policy was last updated on September 11, 2026. It applies to the hosted service at undelete.chat.
 
-Legacy local collectors keep their platform sessions on that computer. The Discord extension stores its own queue in the browser and uploads captured messages to the archive.
+<a id="collected"></a>
 
-<a id="allowance"></a>
+## What we store
 
-## Archive allowance and full storage
+Account: a username you choose, a salted scrypt hash of your password, a hash of your recovery key, your retention and watch-window settings, and the date you registered. We do not require an email address or phone number to create an account.
 
-Settings shows your current storage allowance and usage, shared by all connected platforms. Each captured revision counts, including copies of deleted messages. Usage includes encrypted content and associated archive records; it is not the size of an exported JSON file.
+Sessions: a hash of each browser session token with its expiry. The only cookie is the session cookie; there are no analytics, advertising, or tracking cookies, and no third-party scripts run in the app.
 
-If an event will not fit, its hosted collector stops and keeps copies already in its encrypted queue. Other connections may also stop as they reach the limit. Queues have their own bounds, so an outage cannot grow them indefinitely. Activity during a stop may not be recoverable.
+Connections: the platform, the name you gave each linked account, its status, and timestamps. For hosted connections, the platform login session your phone approved (for example a WhatsApp or Signal linked-device session, or a Telegram session) is stored encrypted so the connection keeps running while your computer is off. Each connection has its own encryption key derived from the server key; workers never see other users’ sessions.
 
-1. Export any history you want to keep elsewhere. Exporting alone does not release storage.
-2. Delete messages you no longer need from their history panel, or choose a shorter retention period in Settings to remove older messages. Small deletion markers remain to prevent retries from restoring removed items.
-3. Open Connections, choose Resume capture for a stopped hosted source, then Try again. Its saved session and queued copies are reused. Legacy local collectors must be restarted on their computer; the optional Discord extension can retry uploads, but you must start capture again.
-4. If the notice says server storage or a connection queue is full, contact the operator. Deleting your archive may not resolve a server-wide or session-storage issue.
+Messages: for each watched message, the text, sender name, conversation name, platform identifiers, timestamps, and attachment names and types. File bodies, images, voice notes, and disappearing or view-once content are never stored. Reactions, link previews, pins, and formatting-only changes are not recorded. Held messages that are not deleted within your watch window are removed automatically. Deleted messages are kept with every edit they had before deletion until you remove them or your retention period ends.
 
-<a id="coverage"></a>
+Deletion markers: when you permanently remove a message from Undelete, a hashed marker is kept so a delayed delivery of the same message cannot bring it back. The marker contains no content.
 
-## Coverage and limits
+Billing: if you subscribe, Stripe’s customer and subscription identifiers, the subscription status, and the current period end. Card numbers and billing addresses are entered on Stripe’s pages and never reach our server.
 
-- Only messages/events received by a collector can be archived. Past deleted messages cannot be recovered.
-- Disappearing, self-destructing, and view-once content is excluded.
-- Attachment names and metadata may be recorded. File contents are not downloaded.
-- Unofficial Signal, WhatsApp, and Discord integrations can break when their platforms change. Discord forbids automated personal accounts and may terminate accounts using the experimental cloud connector.
+Support and operations: the server logs record only error codes, service status, and backup results. They do not record message content, usernames, IP addresses, or request paths. The reverse proxy does not keep an access log.
 
 <a id="retention"></a>
 
-## Retention and export
+## How long we keep it
 
-Choose 7, 30, 90, or 365 days, or keep messages until you delete them. Retention is measured from first capture and applies to saved messages as well. Lowering retention immediately removes older messages. Export includes all captured versions in JSON.
+Held messages: until the end of your watch window, measured from the last activity on that message.
 
-<a id="deletion"></a>
+Deleted messages: until you remove them, delete your account, or your retention setting expires them (7 days to 1 year, or until you delete them).
 
-## Disconnecting and deleting
+Platform sessions: until you disconnect the connection or delete your account. Disconnecting removes the stored session; relinking requires a fresh approval on your phone.
 
-- Disconnect removes the hosted login for that source and stops capture; it keeps your existing archive.
-- Deleting an archived message removes its revisions and prevents later retries from recreating that item.
-- Account deletion removes that account’s archive, sign-in sessions, and hosted platform sessions.
-- Deleting here does not delete messages in the messaging platform. You can also unlink Afterword from the platform’s device settings. Deleted archive data may remain in restricted operational backups until they expire. Application backups keep the latest seven snapshots; daily server backups are retained for seven days.
+Sessions: browser sessions expire after 30 days and end when you sign out or change your password.
 
-<a id="use"></a>
+Backups: encrypted application snapshots of the database are taken daily and kept for seven days on the server. The hosting provider also keeps daily full-server images for seven days; those images include the server’s decryption keys and are protected by the provider’s access controls rather than by a separate key. Data you delete can therefore persist in backups for up to seven days.
 
-## Archive with authorization
+Account deletion: removes your messages, events, connections, stored platform sessions, billing links, and sessions immediately, cancels any hosted collector, and cancels your subscription. Backups age out within seven days.
 
-Connect only accounts you control and retain only conversations you are authorized to keep. Captured copies may remain after a participant edits or deletes the original.
+<a id="processors"></a>
+
+## Who else handles your data
+
+DigitalOcean (New York data centre) hosts the server, its disk, daily server images, and the external availability check that requests the public status endpoint. DigitalOcean can access the physical infrastructure under its own privacy policy.
+
+Stripe processes payments and holds your card details and billing address. We receive only identifiers and subscription status. Stripe’s privacy policy applies to the checkout and billing portal pages.
+
+Cloudflare provides DNS for undelete.chat only. Traffic to the site does not pass through Cloudflare’s proxy.
+
+The messaging platforms you link (Telegram, WhatsApp, Signal, Discord) see a linked device or session named Undelete on your account, exactly as they would for a desktop client. We do not send them anything beyond what their protocols require to receive your messages.
+
+No other third party receives data. We do not use analytics, error-tracking, email, or advertising services.
+
+<a id="security"></a>
+
+## How it is protected
+
+All traffic uses HTTPS with HSTS. Message content and platform sessions are encrypted with AES-256-GCM, bound to the owning account so records cannot be moved between accounts. Passwords use salted scrypt and are never stored in clear text. Session and connection tokens are stored only as SHA-256 digests.
+
+The application runs as an unprivileged user in a read-only container with all Linux capabilities dropped. Each hosted collector is a separate process that receives only its own connection’s derived key. Administrative access to the server is limited to the operator’s SSH key.
+
+The server key that decrypts the archive is kept outside the database and outside backups of the application. Off-server backups, when enabled, are encrypted before upload with a key derived from it.
+
+No system is perfectly secure. If we learn of a breach affecting your data we will tell you through the app and, where we have it, your contact address, as soon as reasonably possible.
+
+<a id="rights"></a>
+
+## Your choices and rights
+
+You can export everything Undelete holds for you as JSON from Settings at any time, remove individual messages, disconnect any account, shorten or lengthen the watch window and retention period, and delete your account outright. None of these actions requires contacting us.
+
+Depending on where you live, you may have legal rights to access, correct, delete, restrict, or port your personal data, or to object to its processing. The controls above are how we honour those rights; if they are not enough, contact us at the address in the terms of service and we will respond within 30 days.
+
+The messages you capture include other people’s words. You are responsible for having a lawful basis to keep them, and for not using Undelete to monitor someone without their knowledge where that is unlawful.
+
+Undelete is not intended for children under 16 and we do not knowingly create accounts for them.
+
+<a id="changes"></a>
+
+## Changes to this policy
+
+When we change what we store or who processes it, we update this page and announce material changes in the app before they take effect. The date at the top shows the current version.
 
 Instructions reviewed September 10, 2026. Platform screens may change.
 

@@ -107,7 +107,7 @@ try {
     await expect(dialog.getByRole('heading', { name: `${name} is connected`, exact: true })).toBeVisible({ timeout: 10000 });
     await expect(dialog.getByText('Waiting for your first captured message', { exact: true })).toBeVisible();
     const occurredAt = new Date().toISOString();
-    const result = await (await page.request.post(`${base}/api/ingest`, { headers, data: { events: [{ eventId: `onboard-${platform}`, kind: 'create', scope: 'test', externalId: platform, chatId: 'test', chatName: 'Setup check', authorName: 'Test sender', text: `Afterword ${name} connection test`, occurredAt }] } })).json();
+    const result = await (await page.request.post(`${base}/api/ingest`, { headers, data: { events: [{ eventId: `onboard-${platform}`, kind: 'create', scope: 'test', externalId: platform, chatId: 'test', chatName: 'Setup check', authorName: 'Test sender', text: `Undelete ${name} connection test`, occurredAt }] } })).json();
     expect(result.results[0].error).toBeUndefined();
     await expect(dialog.getByText('A message has reached your archive', { exact: true })).toBeVisible({ timeout: 10000 });
     await page.screenshot({ path: join(output, `${platform}-verified.png`) });

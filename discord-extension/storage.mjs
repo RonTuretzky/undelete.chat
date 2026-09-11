@@ -59,12 +59,12 @@ export async function openVault(factory = indexedDB, name = 'afterword-discord-v
 
 export function archiveOrigin(value) {
   const u = new URL(value);
-  if (u.username || u.password || u.search || u.hash || u.pathname !== '/' || !(u.protocol === 'https:' || u.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(u.hostname))) throw new Error('Use your HTTPS Afterword server address, without a path or credentials.');
+  if (u.username || u.password || u.search || u.hash || u.pathname !== '/' || !(u.protocol === 'https:' || u.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(u.hostname))) throw new Error('Use your HTTPS Undelete server address, without a path or credentials.');
   return u.origin;
 }
 export async function archiveRequest(config, path, body, fetcher = fetch) {
   const response = await fetcher(archiveOrigin(config.server) + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}) }, body: JSON.stringify(body), credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(15000) });
-  if (response.status === 401) throw Object.assign(new Error('Afterword pairing was revoked. Pair again to resume.'), { revoked: true });
+  if (response.status === 401) throw Object.assign(new Error('Undelete pairing was revoked. Pair again to resume.'), { revoked: true });
   if (!response.ok) throw new Error(`Archive request failed (${response.status}). Check the server address and pairing code.`);
   return response.json();
 }

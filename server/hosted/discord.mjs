@@ -21,7 +21,7 @@ export async function startDiscordCloud(ctx, { socketFactory = (url, options) =>
   let credentials = ctx.queue.get('discord-auth-session');
   if (!credentials?.token) {
     try {
-      credentials = await authorize({ signal: controller.signal, onQR: (value, expiry) => { ctx.showQR(value, expiry); ctx.health('waiting', 'Scan this code in Discord → Settings → Scan QR Code'); }, onWaiting: () => ctx.health('waiting', 'Approve Afterword’s Discord session on your phone.') });
+      credentials = await authorize({ signal: controller.signal, onQR: (value, expiry) => { ctx.showQR(value, expiry); ctx.health('waiting', 'Scan this code in Discord → Settings → Scan QR Code'); }, onWaiting: () => ctx.health('waiting', 'Approve Undelete’s Discord session on your phone.') });
       if (stopped) return stop;
     } catch (error) { if (!stopped) fail(error instanceof DiscordSignInError ? error.message : 'Discord sign-in could not be completed. Please try again later.'); return stop; }
   }

@@ -6,8 +6,8 @@ function paint(s) {
   $('pairing').hidden = s.paired; $('connection').hidden = !s.paired;
   $('connection-name').textContent = s.name || 'Your archive';
   $('identity').textContent = s.identity ? `Discord account: ${s.identity}` : s.server || '';
-  $('status-title').textContent = s.paused ? 'Paused in Afterword' : s.health === 'connected' ? 'Capturing personal messages' : s.health === 'error' ? 'Needs attention' : s.active ? 'Waiting for Discord' : 'Ready to start';
-  $('status-detail').textContent = s.uploadError || (s.paused ? 'Resume this source in Afterword. Activity received while paused is discarded.' : s.detail);
+  $('status-title').textContent = s.paused ? 'Paused in Undelete' : s.health === 'connected' ? 'Capturing personal messages' : s.health === 'error' ? 'Needs attention' : s.active ? 'Waiting for Discord' : 'Ready to start';
+  $('status-detail').textContent = s.uploadError || (s.paused ? 'Resume this source in Undelete. Activity received while paused is discarded.' : s.detail);
   $('light').classList.toggle('live', s.health === 'connected' && !s.paused);
   $('counts').textContent = `${s.captured} events captured this session · ${s.queued} queued${s.rejected ? ` · ${s.rejected} rejected` : ''}`;
   $('start-controls').hidden = s.active; $('stop').hidden = !s.active;
@@ -19,7 +19,7 @@ $('pair-form').addEventListener('submit', async e => {
   const button = e.target.querySelector('button'); button.disabled = true;
   try {
     const server = archiveOrigin(e.target.elements.server.value.trim());
-    if (!await chrome.permissions.request({ origins: [server + '/*'] })) throw new Error('Allow your Afterword server so the extension can upload captured messages.');
+    if (!await chrome.permissions.request({ origins: [server + '/*'] })) throw new Error('Allow your Undelete server so the extension can upload captured messages.');
     paint(await send('pair', { server, code: e.target.elements.code.value })); e.target.elements.code.value = ''; await tabs();
   } catch (e) { error(e); } finally { button.disabled = false; }
 });

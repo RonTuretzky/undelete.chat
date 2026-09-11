@@ -249,9 +249,11 @@ export function createApp(store, config = {}) {
     await pipeline(Readable.from(store.exportArchive(req.user.id, { signal }), { objectMode: false, highWaterMark: 64 * 1024 }), res, { signal });
   }));
   app.patch('/api/settings', auth, (req, res) => {
-    const { retentionDays } = z.object({ retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365), z.literal(0)]) }).parse(req.body);
-    store.db.prepare('UPDATE users SET retention_days=? WHERE id=?').run(retentionDays, req.user.id);
-    purge();
+    const input = z.object({ retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365), z.literal(0)]).optional(),
+      holdDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(30)]).optional() }).refine(v => v.retentionDays !== undefined || v.holdDays !== undefined, 'Choose a setting to change.').parse(req.body);
+    if (input.retentionDays !== undefined) store.db.prepare('UPDATE users SET retention_days=? WHERE id=?').run(input.retentionDays, req.user.id);
+    if (input.holdDays !== undefined) store.db.prepare('UPDATE users SET hold_days=? WHERE id=?').run(input.holdDays, req.user.id);
+    lastPurge = 0; purge();
     res.json({ user: store.getUser(req.user.id) });
   });
   app.delete('/api/account', auth, authLimit, async (req, res) => {

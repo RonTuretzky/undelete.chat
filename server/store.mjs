@@ -50,7 +50,7 @@ export function createStore(path, encryptionKey, options = {}) {
     CREATE INDEX IF NOT EXISTS events_message ON events(message_id,occurred_at,id);
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);`);
   const messageColumns = new Set(db.prepare('PRAGMA table_info(messages)').all().map(c => c.name));
-  const addedColumns = { status: "TEXT NOT NULL DEFAULT 'captured'", version_count: 'INTEGER NOT NULL DEFAULT 0', edit_count: 'INTEGER NOT NULL DEFAULT 0' };
+  const addedColumns = { status: "TEXT NOT NULL DEFAULT 'captured'", version_count: 'INTEGER NOT NULL DEFAULT 0', edit_count: 'INTEGER NOT NULL DEFAULT 0', held: 'INTEGER NOT NULL DEFAULT 0' };
   if (Object.keys(addedColumns).some(name => !messageColumns.has(name))) {
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -72,6 +72,7 @@ export function createStore(path, encryptionKey, options = {}) {
     CREATE INDEX IF NOT EXISTS messages_scan ON messages(user_id,id);
     CREATE INDEX IF NOT EXISTS messages_connection ON messages(connection_id,last_seen DESC);
     CREATE INDEX IF NOT EXISTS messages_retention ON messages(user_id,first_seen);
+    CREATE INDEX IF NOT EXISTS messages_held ON messages(user_id,held,last_seen);
     CREATE INDEX IF NOT EXISTS events_history ON events(message_id,occurred_at,CASE kind WHEN 'create' THEN 0 WHEN 'edit' THEN 1 ELSE 2 END,id);`);
   const reader = createArchiveReader(db, crypt);
   db.exec(`CREATE TABLE IF NOT EXISTS forgotten (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE);`);
@@ -80,6 +81,10 @@ export function createStore(path, encryptionKey, options = {}) {
   for (const [name, definition] of Object.entries({ billing_customer_id: 'TEXT', billing_subscription_id: 'TEXT', billing_status: 'TEXT', billing_period_end: 'TEXT',
     billing_cancel_at_period_end: 'INTEGER NOT NULL DEFAULT 0', billing_updated_at: 'TEXT', trial_ends_at: 'TEXT' })) if (!userColumns.has(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_billing_customer ON users(billing_customer_id) WHERE billing_customer_id IS NOT NULL');
+  if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'hold_days')) db.exec('ALTER TABLE users ADD COLUMN hold_days INTEGER NOT NULL DEFAULT 7');
+  // Only deleted messages belong to the archive. Anything else is a held
+  // message in the watch buffer; this also converts pre-existing archives.
+  db.prepare("UPDATE messages SET held=1 WHERE status!='deleted' AND held=0").run();
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'paired_at')) db.exec('ALTER TABLE connections ADD COLUMN paired_at TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'collector')) db.exec('ALTER TABLE connections ADD COLUMN collector TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'connected_at')) {
@@ -106,9 +111,10 @@ export function createStore(path, encryptionKey, options = {}) {
     config TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL
   );`);
   const capacity = createArchiveCapacity(db, path, options);
-  const getUser = id => db.prepare('SELECT id,username,created_at,retention_days,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id);
+  const getUser = id => db.prepare('SELECT id,username,created_at,retention_days,hold_days,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id);
   const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
-    (SELECT count(*) FROM messages WHERE connection_id=connections.id) AS message_count,
+    (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=0) AS message_count,
+    (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=1) AS held_count,
     (SELECT max(last_seen) FROM messages WHERE connection_id=connections.id) AS last_message_at
     FROM connections WHERE user_id=? ORDER BY created_at`).all(user);
   function details(row) {
@@ -120,7 +126,7 @@ export function createStore(path, encryptionKey, options = {}) {
     const deleted = versions.some(v => v.kind === 'delete');
     const edited = versions.some(v => v.kind === 'edit');
     return { id: row.id, platform: row.platform, connectionId: row.connection_id, firstSeen: row.first_seen, lastSeen: row.last_seen,
-      saved: !!row.saved, status: deleted ? 'deleted' : edited ? 'edited' : 'captured',
+      held: !!row.held, saved: !!row.saved, status: deleted ? 'deleted' : edited ? 'edited' : 'captured',
       authorName: meta?.authorName || 'Unknown sender', authorId: meta?.authorId || '', chatName: meta?.chatName || meta?.chatId || 'Unknown conversation',
       externalId: meta?.externalId || '', text: last?.text ?? '', attachments: last?.attachments || [],
       originalMissing: !versions.some(v => v.kind === 'create'), versionCount: contents.length, versions };
@@ -155,8 +161,11 @@ export function createStore(path, encryptionKey, options = {}) {
       }
       const payload = crypt.seal(e, `${connection.user_id}:${id}:${uid}`), bytes = eventBytes(payload, uid);
       capacity.assertRoom(connection.user_id, bytes + (existing ? 0 : MESSAGE_BYTES));
-      db.prepare(`INSERT INTO messages (id,user_id,connection_id,platform,first_seen,last_seen) VALUES (?,?,?,?,?,?)
-        ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen`).run(id, connection.user_id, connection.id, connection.platform, now, now);
+      // A message enters the archive only when the platform deletes it. Until
+      // then it is held privately and discarded after the owner's watch window.
+      db.prepare(`INSERT INTO messages (id,user_id,connection_id,platform,first_seen,last_seen,held) VALUES (?,?,?,?,?,?,?)
+        ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen,held=CASE WHEN excluded.held=0 THEN 0 ELSE messages.held END`)
+        .run(id, connection.user_id, connection.id, connection.platform, now, now, e.kind === 'delete' ? 0 : 1);
       db.prepare('INSERT INTO events (message_id,connection_id,event_uid,kind,occurred_at,received_at,payload,user_id,storage_bytes) VALUES (?,?,?,?,?,?,?,?,?)')
         .run(id, connection.id, uid, e.kind, e.occurredAt, now, payload, connection.user_id, bytes);
       db.prepare(`UPDATE messages SET version_count=version_count+?,edit_count=edit_count+?,
@@ -164,7 +173,7 @@ export function createStore(path, encryptionKey, options = {}) {
           WHEN status='edited' OR ?='edit' THEN 'edited' ELSE 'captured' END WHERE id=?`)
         .run(+(e.kind !== 'delete'), +(e.kind === 'edit'), e.kind, e.kind, id);
       db.exec('COMMIT');
-      return { id, duplicate: false };
+      return { id, duplicate: false, held: e.kind !== 'delete' && !!db.prepare('SELECT held FROM messages WHERE id=?').get(id).held };
     } catch (error) { db.exec('ROLLBACK'); if (error.capacity) capacity.block(connection.id, error); throw error; }
   }
   // Expired messages are removed in small indexed batches so a large retention
@@ -187,6 +196,17 @@ export function createStore(path, encryptionKey, options = {}) {
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
         if (removed < 500) break;
+      }
+      if (!complete) break;
+    }
+    // Held messages that were never deleted leave the watch buffer without a
+    // suppression marker: a later deletion may still arrive as a tombstone.
+    const heldBatch = 'SELECT id FROM messages WHERE user_id=? AND held=1 AND last_seen<? ORDER BY last_seen LIMIT 500';
+    for (const u of db.prepare('SELECT id,hold_days FROM users').all()) {
+      const cutoff = new Date(started - Math.max(1, u.hold_days) * 86400_000).toISOString();
+      while (true) {
+        if (Date.now() - started > budgetMs) { complete = false; break; }
+        if (db.prepare(`DELETE FROM messages WHERE id IN (${heldBatch})`).run(u.id, cutoff).changes < 500) break;
       }
       if (!complete) break;
     }

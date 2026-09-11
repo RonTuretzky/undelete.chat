@@ -1,6 +1,6 @@
-# Afterword
+# Undelete
 
-A hosted message archive for individuals, with per-account workspaces and hosted collectors for personal Telegram, Signal and WhatsApp accounts. Personal Discord has an explicitly experimental cloud connector and an optional browser extension. New deliveries are captured before later edits or deletes. The archive includes searchable revision history, word-level comparisons, bookmarks, JSON exports, retention controls, and connection status.
+Undelete keeps the messages people delete. Link your personal WhatsApp, Telegram, or Signal account once, and Undelete runs a hosted linked device that watches new messages for a short window. Only a message the platform later reports as deleted is kept, together with any edits it had before deletion; everything else is discarded when the watch window ends. Personal Discord has an explicitly experimental cloud connector and an optional browser extension. The archive of deleted messages supports bookmarks, JSON export, retention controls, and connection status.
 
 ## User onboarding and documentation
 
@@ -30,16 +30,16 @@ Subscriptions run through Stripe Checkout and the Stripe customer portal; the se
 
 ## Capture coverage
 
-| Platform | Implementation | Coverage |
+| Platform | Implementation | What can be undeleted |
 | --- | --- | --- |
-| Discord | Unofficial personal cloud session; optional Chrome extension | Identified personal DMs and group DMs delivered to the session; create, edit, delete. No server channels. Cloud access can violate Discord's rules and put accounts at risk. |
-| Telegram | Personal account through teleproto / MTProto | Ordinary cloud chats; new messages, edits, delivered deletion updates |
-| Signal | Unofficial signal-cli linked device | Incoming and synced outgoing ordinary messages, edits and remote deletes |
-| WhatsApp | Unofficial Baileys linked device | New deliveries, edits and revoke events exposed by the linked session |
+| Discord | Unofficial personal cloud session; optional Chrome extension | Identified personal DMs and group DMs deleted while the session is connected. No server channels. Cloud access can violate Discord's rules and put accounts at risk. |
+| Telegram | Personal account through teleproto / MTProto | Ordinary cloud chat messages whose deletion update Telegram delivers to the linked session |
+| Signal | Unofficial signal-cli linked device | Incoming and synced outgoing messages that receive a remote delete |
+| WhatsApp | Unofficial Baileys linked device | Messages that receive a "delete for everyone" revoke while the linked device is connected |
 
-Platforms also deliver reactions, link previews, pins, and formatting changes as edit events. The archive acknowledges an edit whose text and attachments match the current version without recording a new revision, so the timeline only shows content changes.
+Platforms also deliver reactions, link previews, pins, and formatting changes as edit events. An edit whose text and attachments match the current version is ignored, so a deleted message's history only shows real content changes.
 
-**This is not universal access to every message on all four platforms.** Discord's cloud connector requires phone approval and acknowledgement that Discord forbids automated personal accounts and may terminate them. It is not an approved integration. Its optional extension requires Chrome 125+, debugging permission, and an open signed-in Discord Web tab. Live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
+**Only deletions the platform actually delivers can be undeleted.** A message deleted after the watch window ended, deleted before Undelete received it, or deleted while the linked device was offline cannot be recovered. The watch window defaults to 7 days and is adjustable per account between 1 and 30 days (`hold_days`). Discord's cloud connector requires phone approval and acknowledgement that Discord forbids automated personal accounts and may terminate them. It is not an approved integration. Its optional extension requires Chrome 125+, debugging permission, and an open signed-in Discord Web tab. Live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
 
 ## Architecture
 

@@ -53,6 +53,7 @@ test('expired, superseded, and revoked codes cannot be redeemed', async t => {
 test('repair keeps archived history and adds an exact profile without exposing keys in listings', async t => {
   const { store, alice, connection } = await fixture(t);
   store.ingest(store.connectionByToken(connection.token), { eventId: 'old', kind: 'create', scope: 'account', externalId: '1', text: 'Keep me', occurredAt: new Date().toISOString() });
+  store.ingest(store.connectionByToken(connection.token), { eventId: 'old-delete', kind: 'delete', scope: 'account', externalId: '1', occurredAt: new Date().toISOString() });
   const pairing = store.createPairing(connection.id, alice.id);
   const paired = store.redeemPairing(pairing.code);
   const [listed] = store.connections(alice.id);
@@ -91,6 +92,7 @@ test('personal browser onboarding provisions Discord while preserving other pair
   const { store, alice, connection } = await fixture(t);
   const legacy = store.createConnection(alice.id, 'discord', 'Earlier Discord source');
   store.ingest(store.connectionByToken(legacy.token), { eventId: 'legacy', kind: 'create', scope: 'test', externalId: '1', text: 'Existing record', occurredAt: new Date().toISOString() });
+  store.ingest(store.connectionByToken(legacy.token), { eventId: 'legacy-delete', kind: 'delete', scope: 'test', externalId: '1', occurredAt: new Date().toISOString() });
   const server = createApp(store).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
