@@ -19,6 +19,7 @@ export function billingConfig(env = process.env) {
     secretKey: env.STRIPE_SECRET_KEY, webhookSecret: env.STRIPE_WEBHOOK_SECRET || '', priceId: env.STRIPE_PRICE_ID || '',
     trialDays: env.BILLING_TRIAL_DAYS === undefined ? 14 : Number(env.BILLING_TRIAL_DAYS),
     exemptUsers: (env.BILLING_EXEMPT_USERS ?? 'owner').split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
+    priceLabel: String(env.BILLING_PRICE_LABEL || '').slice(0, 40),
     apiBase: env.STRIPE_API_BASE || 'https://api.stripe.com',
   };
   if (!/^[rs]k_(live|test)_[A-Za-z0-9]+$/.test(config.secretKey)) throw new Error('STRIPE_SECRET_KEY must be a Stripe secret or restricted key.');
@@ -91,7 +92,7 @@ export function createBilling(store, { config, origin, fetch = globalThis.fetch,
     return after;
   }
   return {
-    entitlement, trialDays: config.trialDays,
+    entitlement, trialDays: config.trialDays, priceLabel: config.priceLabel || null,
     summary(userId) { return entitlement(store.billingRecord(userId)); },
     entitled(userId) { return entitlement(store.billingRecord(userId)).entitled; },
     async checkout(userId) {

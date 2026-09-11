@@ -25,7 +25,7 @@ billing = json.loads(billing_path.read_text()) if billing_path.exists() else {}
 billing_names = {'stripe_secret_key': 'STRIPE_SECRET_KEY', 'stripe_webhook_secret': 'STRIPE_WEBHOOK_SECRET', 'stripe_price_id': 'STRIPE_PRICE_ID'}
 if billing_path.exists() and (not isinstance(billing, dict) or any(not isinstance(billing.get(name), str) or not re.fullmatch(r'[A-Za-z0-9_]+', billing[name]) for name in billing_names)):
     raise SystemExit('Billing configuration requires stripe_secret_key, stripe_webhook_secret, and stripe_price_id strings. Remove the file to disable billing.')
-if billing and not isinstance(billing.get('trial_days', 14), int):
+if billing and (not isinstance(billing.get('trial_days', 14), int) or not re.fullmatch(r'[A-Za-z0-9$€£ .,/-]{0,40}', str(billing.get('price_label', '')))):
     raise SystemExit('Billing trial_days must be a whole number.')
 offsite_path = private / 'offsite-config.json'
 offsite = json.loads(offsite_path.read_text()) if offsite_path.exists() else {}
@@ -55,7 +55,7 @@ env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values
     *[name + '=' + str(value) for name, value in capacity_env.items()],
     *[env_name + '=' + offsite[name] for name, env_name in offsite_names.items() if offsite],
     *([env_name + '=' + billing[name] for name, env_name in billing_names.items()] + ['BILLING_TRIAL_DAYS=' + str(billing.get('trial_days', 14)),
-      'BILLING_EXEMPT_USERS=' + ','.join(billing.get('exempt_users', [values['owner_username']]))] if billing else [])]) + '\n'
+      'BILLING_EXEMPT_USERS=' + ','.join(billing.get('exempt_users', [values['owner_username']])), 'BILLING_PRICE_LABEL=' + str(billing.get('price_label', ''))] if billing else [])]) + '\n'
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)
 invite_path = private / 'invitation-code.txt'; invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
 credentials = private / 'owner-credentials.txt'

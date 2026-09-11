@@ -92,7 +92,7 @@ export function createApp(store, config = {}) {
     const state = config.monitor?.publicState() || { ok: false, service: 'afterword' };
     res.status(state.ok ? 200 : 503).json({ ok: !!state.ok, service: 'afterword' });
   });
-  app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode, billing: req.user ? billingSummary(req.user.id) : { enabled: !!config.billing, trialDays: config.billing?.trialDays ?? null } }));
+  app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode, billing: req.user ? billingSummary(req.user.id) : { enabled: !!config.billing, trialDays: config.billing?.trialDays ?? null, priceLabel: config.billing?.priceLabel ?? null } }));
   app.get('/api/billing', auth, (req, res) => res.json({ billing: billingSummary(req.user.id) }));
   app.post('/api/billing/checkout', auth, authLimit, async (req, res, next) => {
     if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });

@@ -150,6 +150,6 @@ test('billing endpoints are absent when billing is disabled', async t => {
   t.after(async () => { await new Promise(r => server.close(r)); store.close(); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
   const me = await (await fetch(base + '/me')).json();
-  assert.deepEqual(me.billing, { enabled: false, trialDays: null });
+  assert.deepEqual(me.billing, { enabled: false, trialDays: null, priceLabel: null });
   assert.equal((await fetch(base + '/billing/webhook', { method: 'POST', body: '{}' })).status, 404);
 });

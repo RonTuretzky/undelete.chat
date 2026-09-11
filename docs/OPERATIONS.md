@@ -92,11 +92,12 @@ Subscription billing is optional and configured from private `~/.config/afterwor
   "stripe_webhook_secret": "whsec_...",
   "stripe_price_id": "price_...",
   "trial_days": 14,
-  "exempt_users": ["owner"]
+  "exempt_users": ["owner"],
+  "price_label": "$5"
 }
 ```
 
-Setup in the Stripe Dashboard: create a product with one recurring price and copy its `price_...` id; create a restricted key with write access to Checkout Sessions, Customer Portal sessions, and read access to Subscriptions (a full secret key also works); enable the customer portal with invoice history, payment-method updates, and cancellation at period end; and add a webhook endpoint for `https://<public origin>/api/billing/webhook` subscribed to `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, and `customer.subscription.resumed`, then copy its signing secret. Run `python3 deploy/deploy.py` after saving the file; the values reach the service only through the private `.env`. Use Stripe test keys first and confirm the plan card in Settings shows Active after a test checkout before switching to live keys.
+Setup in the Stripe Dashboard: create a product with one recurring price and copy its `price_...` id; create a restricted key with write access to Checkout Sessions, Customer Portal sessions, and read access to Subscriptions (a full secret key also works); enable the customer portal with invoice history, payment-method updates, and cancellation at period end; and add a webhook endpoint for `https://<public origin>/api/billing/webhook` subscribed to `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, and `customer.subscription.resumed`, then copy its signing secret. `price_label` is display text for the landing page and plan card; keep it in step with the Stripe price. Run `python3 deploy/deploy.py` after saving the file; the values reach the service only through the private `.env`. Use Stripe test keys first and confirm the plan card in Settings shows Active after a test checkout before switching to live keys.
 
 Entitlement is decided from the local database, so a Stripe outage cannot pause capture. When a subscription lapses, the server suspends that account's hosted collectors and marks them with a subscription message; the customer resumes them from Connections after paying. Companion and extension events stay queued at the client (bounded by the collector queue limit) and deliver after the subscription becomes active. Trial-only accounts are gated by their trial end date; pre-billing accounts receive the trial measured from their creation date. Operator usernames listed in `exempt_users` are never gated.
 
