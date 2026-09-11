@@ -9,5 +9,7 @@
 - [Continuous capture and recovery](./running.md)
 - [Your data, privacy, and retention](./privacy.md)
 - [Use the optional Discord browser extension](./discord-extension.md)
+- [Plans, trials, and billing](./billing.md)
+- [Terms of service](./terms.md)
 
 These guides also ship inside the companion download and appear at `/docs` in the app. Edit `web/guides.mjs` and run `npm run docs` to update all copies.

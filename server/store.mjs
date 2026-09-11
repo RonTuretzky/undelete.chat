@@ -76,6 +76,10 @@ export function createStore(path, encryptionKey, options = {}) {
   const reader = createArchiveReader(db, crypt);
   db.exec(`CREATE TABLE IF NOT EXISTS forgotten (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE);`);
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'recovery_hash')) db.exec('ALTER TABLE users ADD COLUMN recovery_hash TEXT');
+  const userColumns = new Set(db.prepare('PRAGMA table_info(users)').all().map(c => c.name));
+  for (const [name, definition] of Object.entries({ billing_customer_id: 'TEXT', billing_subscription_id: 'TEXT', billing_status: 'TEXT', billing_period_end: 'TEXT',
+    billing_cancel_at_period_end: 'INTEGER NOT NULL DEFAULT 0', billing_updated_at: 'TEXT', trial_ends_at: 'TEXT' })) if (!userColumns.has(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_billing_customer ON users(billing_customer_id) WHERE billing_customer_id IS NOT NULL');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'paired_at')) db.exec('ALTER TABLE connections ADD COLUMN paired_at TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'collector')) db.exec('ALTER TABLE connections ADD COLUMN collector TEXT');
   if (!db.prepare('PRAGMA table_info(connections)').all().some(c => c.name === 'connected_at')) {
@@ -261,6 +265,25 @@ export function createStore(path, encryptionKey, options = {}) {
       return getUser(id);
     },
     userByName(name) { return db.prepare('SELECT * FROM users WHERE username=?').get(name.toLowerCase()); },
+    billingRecord(userId) {
+      return db.prepare('SELECT id,username,created_at,billing_customer_id,billing_subscription_id,billing_status,billing_period_end,billing_cancel_at_period_end,trial_ends_at FROM users WHERE id=?').get(userId) || null;
+    },
+    userByCustomer(customerId) {
+      const row = db.prepare('SELECT id FROM users WHERE billing_customer_id=?').get(customerId);
+      return row ? this.billingRecord(row.id) : null;
+    },
+    startTrial(userId, endsAt) { db.prepare('UPDATE users SET trial_ends_at=? WHERE id=? AND trial_ends_at IS NULL').run(endsAt, userId); },
+    setBillingCustomer(userId, customerId) {
+      if (typeof customerId !== 'string' || !/^cus_[A-Za-z0-9]+$/.test(customerId)) throw new Error('Invalid billing customer identifier.');
+      db.prepare('UPDATE users SET billing_customer_id=?,billing_updated_at=? WHERE id=?').run(customerId, new Date().toISOString(), userId);
+    },
+    applySubscription(userId, { customerId, subscriptionId, status, periodEnd, cancelAtPeriodEnd }) {
+      if (typeof subscriptionId !== 'string' || !/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) throw new Error('Invalid subscription identifier.');
+      if (typeof status !== 'string' || !/^[a-z_]{1,32}$/.test(status)) throw new Error('Invalid subscription status.');
+      if (customerId !== undefined && customerId !== null && !/^cus_[A-Za-z0-9]+$/.test(String(customerId))) throw new Error('Invalid billing customer identifier.');
+      db.prepare(`UPDATE users SET billing_customer_id=coalesce(?,billing_customer_id),billing_subscription_id=?,billing_status=?,billing_period_end=?,billing_cancel_at_period_end=?,billing_updated_at=? WHERE id=?`)
+        .run(customerId || null, subscriptionId, status, periodEnd || null, cancelAtPeriodEnd ? 1 : 0, new Date().toISOString(), userId);
+    },
     session(userId) {
       const secret = token();
       db.prepare('INSERT INTO sessions VALUES (?,?,?)').run(hash(secret), userId, new Date(Date.now() + 30 * 86400_000).toISOString());

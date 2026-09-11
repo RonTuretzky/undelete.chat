@@ -880,4 +880,87 @@ export const guides = {
       }
     ]
   }
+  ,
+  "billing": {
+    "title": "Plans, trials, and billing",
+    "description": "How the free trial works, what a subscription covers, and how to cancel.",
+    "category": "USING AFTERWORD",
+    "sections": [
+      {
+        "id": "trial",
+        "title": "Your free trial",
+        "paragraphs": [
+          "Every new workspace starts with a free trial. No payment method is needed to connect accounts and capture messages during the trial. Settings → Your plan shows the exact end date.",
+          "When the trial ends without a subscription, capture pauses: hosted connections stop and new events wait at the collector. Your archive stays available to read, search, and export, and nothing already captured is deleted by the pause. Retention settings still apply as usual."
+        ]
+      },
+      {
+        "id": "subscribe",
+        "title": "Starting a subscription",
+        "steps": [
+          "Open Settings → Your plan and choose Start subscription, or Add payment method during the trial.",
+          "Complete checkout on Stripe’s secure page. Afterword never sees your card number; it receives only a customer reference and the subscription status.",
+          "Return to Afterword. The plan card updates once Stripe confirms the subscription, usually within a few seconds.",
+          "If any connection shows Capture stopped, open Connections and choose Resume capture."
+        ],
+        "note": "Adding a payment method during the trial does not shorten it. The first charge happens when the trial ends."
+      },
+      {
+        "id": "manage",
+        "title": "Invoices, payment methods, and cancellation",
+        "paragraphs": [
+          "Manage billing opens Stripe’s customer portal, where you can download invoices, change the payment method, or cancel. A cancelled subscription keeps capturing until the end of the paid period, shown as Access ends in Settings; you can reactivate before then.",
+          "If a payment fails, capture continues for a short grace period while Stripe retries. Update the payment method from Manage billing to avoid a pause.",
+          "Deleting your account cancels the subscription and removes the archive; see the privacy guide for what deletion covers."
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms of service",
+    "description": "The agreement that applies to every Afterword workspace.",
+    "category": "PRIVACY",
+    "sections": [
+      {
+        "id": "service",
+        "title": "The service",
+        "paragraphs": [
+          "Afterword is operated by [Operator legal name] (“we”). It captures messages delivered to personal messaging accounts that you link, and stores their revisions in a private workspace for you to read, search, and export.",
+          "Afterword is not affiliated with, endorsed by, or supported by Discord, Telegram, Signal, or WhatsApp. Linking a personal account uses that platform’s own device-linking or an unofficial method described in each platform guide. Some platforms restrict automated personal accounts; you are responsible for reviewing and complying with each platform’s terms, and you accept the risk of account limits or termination that a platform may impose."
+        ]
+      },
+      {
+        "id": "responsibilities",
+        "title": "Your responsibilities",
+        "paragraphs": [
+          "You may only link accounts that belong to you, and you must have the right to store the messages you capture. Do not use Afterword to monitor another person without a lawful basis, and do not use it in a way that violates the law where you live or the rights of the people you communicate with.",
+          "Keep your password and recovery key private. You are responsible for activity in your workspace. We cannot restore access to an account whose password and recovery key are both lost."
+        ]
+      },
+      {
+        "id": "payment",
+        "title": "Trials, fees, and cancellation",
+        "paragraphs": [
+          "New workspaces include a free trial. After the trial, continued capture requires a paid subscription billed in advance by Stripe at the price shown at checkout, plus any applicable taxes. You can cancel at any time from Manage billing; capture continues until the end of the paid period, and fees already paid are not refunded except where the law requires.",
+          "We may change prices with at least 30 days’ notice shown in the app. Continuing to use a paid plan after the change takes effect means you accept the new price."
+        ]
+      },
+      {
+        "id": "limits",
+        "title": "Coverage, availability, and liability",
+        "paragraphs": [
+          "Capture depends on third-party platforms and on your linked sessions staying connected. Messages sent while a connection is offline, content deleted before capture, disappearing messages, and file bodies are not captured. The service is provided as is, without a guarantee of uninterrupted availability or complete capture.",
+          "To the fullest extent permitted by law, our total liability for any claim relating to the service is limited to the fees you paid in the twelve months before the claim. We are not liable for indirect or consequential loss, including loss of messages or platform account restrictions."
+        ]
+      },
+      {
+        "id": "changes",
+        "title": "Termination and changes",
+        "paragraphs": [
+          "You can delete your workspace at any time from Settings, which removes your archive and revokes every connection. We may suspend or end access for misuse, for non-payment after the trial, or if we discontinue the service, in which case we will give reasonable notice and a chance to export your archive where practical.",
+          "We may update these terms; material changes are announced in the app before they apply. These terms are governed by the laws of [Governing jurisdiction]. Questions go to [Support contact]. Last updated September 10, 2026."
+        ]
+      }
+    ]
+  }
 };

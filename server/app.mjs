@@ -9,6 +9,7 @@ import { pipeline } from 'node:stream/promises';
 import { checkPassword, passwordHash, hash, token } from './crypto.mjs';
 import { platforms } from './store.mjs';
 import { deliveryFailure, capacityMessages } from './capacity.mjs';
+import { billingMessages, subscriptionError } from './billing.mjs';
 
 export function createApp(store, config = {}) {
   const app = express();
@@ -17,6 +18,13 @@ export function createApp(store, config = {}) {
   if (production) app.set('trust proxy', 1);
   app.disable('x-powered-by');
   app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"], fontSrc: ["'self'"], frameAncestors: ["'none'"], upgradeInsecureRequests: production ? [] : null } } }));
+  // Stripe signs the exact request body, so the webhook reads it raw before
+  // JSON parsing. It carries no session, and no browser origin check applies.
+  app.post('/api/billing/webhook', express.raw({ type: () => true, limit: '1mb' }), async (req, res, next) => {
+    if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });
+    try { res.json(await config.billing.webhook(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0), req.get('stripe-signature'))); }
+    catch (error) { next(error); }
+  });
   app.use(express.json({ limit: '2mb' }));
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many requests. Try again shortly.' } }));
@@ -33,6 +41,8 @@ export function createApp(store, config = {}) {
     next();
   });
   const auth = (req, res, next) => req.user ? next() : res.status(401).json({ error: 'Sign in to continue.' });
+  const entitled = userId => !config.billing || config.billing.entitled(userId);
+  const billingSummary = userId => config.billing ? config.billing.summary(userId) : { enabled: false, entitled: true, reason: 'billing_disabled' };
   // Retention is enforced by the hourly job; reads only do a short bounded pass
   // at most every 30 seconds so page loads never wait on a large delete.
   let lastPurge = 0;
@@ -82,7 +92,16 @@ export function createApp(store, config = {}) {
     const state = config.monitor?.publicState() || { ok: false, service: 'afterword' };
     res.status(state.ok ? 200 : 503).json({ ok: !!state.ok, service: 'afterword' });
   });
-  app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode }));
+  app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode, billing: req.user ? billingSummary(req.user.id) : { enabled: !!config.billing, trialDays: config.billing?.trialDays ?? null } }));
+  app.get('/api/billing', auth, (req, res) => res.json({ billing: billingSummary(req.user.id) }));
+  app.post('/api/billing/checkout', auth, authLimit, async (req, res, next) => {
+    if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });
+    try { res.json(await config.billing.checkout(req.user.id)); } catch (error) { next(error); }
+  });
+  app.post('/api/billing/portal', auth, authLimit, async (req, res, next) => {
+    if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });
+    try { res.json(await config.billing.portal(req.user.id)); } catch (error) { next(error); }
+  });
   app.get('/api/usage', auth, (req, res) => res.json({ usage: store.capacity.usage(req.user.id) }));
   app.get('/api/capabilities', (_req, res) => res.json({ hosted: config.collectors?.capabilities() || { enabled: false, platforms: {} } }));
   app.post('/api/auth/register', authLimit, async (req, res) => {
@@ -90,6 +109,7 @@ export function createApp(store, config = {}) {
     if (config.inviteCode && hash(String(req.body.inviteCode || '')) !== hash(config.inviteCode)) return res.status(403).json({ error: 'Enter a valid invitation code.' });
     if (store.userByName(input.username)) return res.status(409).json({ error: 'That username is unavailable.' });
     const user = await store.createUser(input.username, input.password);
+    if (config.billing) store.startTrial(user.id, new Date(Date.now() + config.billing.trialDays * 86400_000).toISOString());
     const recoveryKey = store.createRecoveryKey(user.id);
     res.cookie('afterword', store.session(user.id), cookieOptions).status(201).json({ user: store.getUser(user.id), recoveryKey });
   });
@@ -139,7 +159,8 @@ export function createApp(store, config = {}) {
     next();
   };
   app.get('/api/connections/:id/hosted', auth, hosted, (req, res) => res.json({ setup: config.collectors.status(req.params.id) }));
-  app.post('/api/connections/:id/hosted/start', auth, hostedLimit, hosted, async (req, res) => {
+  const requireEntitled = (req, res, next) => entitled(req.user.id) ? next() : res.status(402).json({ error: billingMessages.subscription_required, code: 'subscription_required' });
+  app.post('/api/connections/:id/hosted/start', auth, hostedLimit, requireEntitled, hosted, async (req, res) => {
     const input = z.object({ consent: z.boolean().default(false), experimentalConsent: z.boolean().default(false), restart: z.boolean().default(false), relink: z.boolean().default(false) }).parse(req.body);
     res.json({ setup: await config.collectors.start(req.params.id, req.user.id, input) });
   });
@@ -187,8 +208,11 @@ export function createApp(store, config = {}) {
       try { store.capacity.resume(req.connection.id, req.connection.user_id); } catch { /* Individual results retain the capacity failure and queued copies. */ }
     }
     // Results acknowledge each event individually, making batch retries safe.
+    // An unpaid account keeps its events queued at the collector rather than
+    // losing them; delivery resumes once the subscription is active.
+    const paused = !entitled(req.connection.user_id);
     const results = events.map(event => {
-      try { return { eventId: event?.eventId, ...store.ingest(req.connection, event) }; }
+      try { if (paused) throw subscriptionError(); return { eventId: event?.eventId, ...store.ingest(req.connection, event) }; }
       catch (error) { return { eventId: event?.eventId, ...deliveryFailure(error) }; }
     });
     res.json({ results });
@@ -254,7 +278,7 @@ export function createApp(store, config = {}) {
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
   app.use((error, _req, res, _next) => {
     if (res.headersSent || res.destroyed) { if (!res.destroyed) res.destroy(error); return; }
-    if (error.public && [400, 404, 409, 503, 507].includes(error.status)) return res.status(error.status).json({ error: error.message });
+    if (error.public && [400, 402, 404, 409, 503, 507].includes(error.status)) return res.status(error.status).json({ error: error.message });
     if (error instanceof ZodError) return res.status(400).json({ error: error.issues[0]?.message || 'Invalid request.' });
     if (error.status === 413) return res.status(413).json({ error: 'Request is too large.' });
     if (error instanceof SyntaxError) return res.status(400).json({ error: 'Invalid JSON.' });

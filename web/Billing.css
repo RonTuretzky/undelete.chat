@@ -1,0 +1,12 @@
+.plan-banner{display:flex;align-items:center;gap:14px;padding:14px 18px;border:1px solid #f1d9a6;background:#fff8e8;border-radius:10px;margin-bottom:20px}
+.plan-banner.blocked{border-color:#f0b7b7;background:#fdf1f1}
+.plan-banner>svg{color:#a8752c;flex-shrink:0}.plan-banner.blocked>svg{color:#b23b3b}
+.plan-banner strong{display:block;font-size:13px}.plan-banner p{margin:0;font-size:12.5px;color:#5c6763}
+.plan-banner .button{margin-left:auto;white-space:nowrap}
+.plan-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:3px 9px;border-radius:999px;background:var(--light);color:var(--green-dark);margin-bottom:10px}
+.plan-status.attention{background:#fdf1f1;color:#b23b3b}.plan-status.warn{background:#fff8e8;color:#a8752c}
+.plan-facts{display:grid;gap:6px;margin:12px 0 16px;padding:0;list-style:none;font-size:13px;color:#4c5854}
+.plan-facts li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.plan-facts li span:last-child{font-weight:600;color:#202b29;text-align:right}
+.plan-actions{display:flex;flex-wrap:wrap;gap:10px}
+@media (max-width:640px){.plan-banner{flex-wrap:wrap}.plan-banner .button{margin-left:0;width:100%;justify-content:center}}

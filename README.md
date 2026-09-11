@@ -24,6 +24,10 @@ npm run package:companion
 
 The production API serves the compiled UI on port 4318. Copy `.env.example` to `.env` for local configuration. In production, set `NODE_ENV=production`, `ARCHIVE_KEY` (32 bytes in hex), and HTTPS `PUBLIC_ORIGIN`. Set `INVITE_CODE` to keep registration private.
 
+## Plans and billing
+
+Subscriptions run through Stripe Checkout and the Stripe customer portal; the server stores only the customer and subscription identifiers, the subscription status, and the period end. Every new workspace gets a free trial (`BILLING_TRIAL_DAYS`, default 14) without a card. When neither a trial nor an active, trialing, or past-due subscription applies, hosted collectors are suspended, `/api/ingest` returns a retryable `subscription_required` result so companions keep events queued, and hosted setup answers 402. Reading, search, export, retention, and account deletion keep working. Usernames in `BILLING_EXEMPT_USERS` (default `owner`) are never gated. Stripe posts `checkout.session.completed` and `customer.subscription.*` events to `/api/billing/webhook`, which verifies the signature with `STRIPE_WEBHOOK_SECRET` and fetches the subscription from Stripe rather than trusting the event body. Leave `STRIPE_SECRET_KEY` unset to run without billing. See [operations](docs/OPERATIONS.md#billing) for the production setup and the public [plans guide](docs/guides/billing.md).
+
 ## Capture coverage
 
 | Platform | Implementation | Coverage |

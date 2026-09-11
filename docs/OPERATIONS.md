@@ -82,6 +82,26 @@ python3 deploy/operations.py service-status
 
 Check that `status` is not `critical`, that every previously connected collector reports `connected` with a fresh `lastSeen`, and that the public `/api/monitor` answers 200. The September 10 reboot after a kernel update was verified this way; see the readiness evidence log.
 
+## Billing
+
+Subscription billing is optional and configured from private `~/.config/afterword/billing-config.json`:
+
+```json
+{
+  "stripe_secret_key": "sk_live_...",
+  "stripe_webhook_secret": "whsec_...",
+  "stripe_price_id": "price_...",
+  "trial_days": 14,
+  "exempt_users": ["owner"]
+}
+```
+
+Setup in the Stripe Dashboard: create a product with one recurring price and copy its `price_...` id; create a restricted key with write access to Checkout Sessions, Customer Portal sessions, and read access to Subscriptions (a full secret key also works); enable the customer portal with invoice history, payment-method updates, and cancellation at period end; and add a webhook endpoint for `https://<public origin>/api/billing/webhook` subscribed to `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, and `customer.subscription.resumed`, then copy its signing secret. Run `python3 deploy/deploy.py` after saving the file; the values reach the service only through the private `.env`. Use Stripe test keys first and confirm the plan card in Settings shows Active after a test checkout before switching to live keys.
+
+Entitlement is decided from the local database, so a Stripe outage cannot pause capture. When a subscription lapses, the server suspends that account's hosted collectors and marks them with a subscription message; the customer resumes them from Connections after paying. Companion and extension events stay queued at the client (bounded by the collector queue limit) and deliver after the subscription becomes active. Trial-only accounts are gated by their trial end date; pre-billing accounts receive the trial measured from their creation date. Operator usernames listed in `exempt_users` are never gated.
+
+Webhook deliveries are idempotent and safe to replay from the Stripe Dashboard. The service logs only Stripe error types, never customer identifiers or card data. Removing `billing-config.json` and redeploying disables billing entirely; existing subscription records are kept but not enforced.
+
 ## Cost and capacity
 
 Archive defaults are 128 MiB per account, 1 GiB of charged archive data globally, and a 2 GiB free-disk reserve. Settings shows the account's allowance and usage; stopped sources retain their queued copies and require Resume capture → Try again after the issue is resolved. Existing over-limit archives are preserved. Keep enough headroom for SQLite indexes/WAL, collector sessions, native caches, builds, and seven backup copies; the charged archive budget is not physical disk usage.
@@ -92,6 +112,6 @@ Before increasing limits, measure available disk and memory, allow for backups, 
 
 The backup routine checks the configured free-space reserve before copying each database. Insufficient space aborts the new snapshot and keeps earlier complete backups. Monitor failures and backup age externally; a free-space guard alone is not an alert or a recovery copy.
 
-The current Droplet is $6/month, daily backups add $1.80/month, and the additional uptime check adds $1/month: approximately $8.80/month before taxes and usage-based charges. The account already uses its one free uptime check elsewhere. [Backup pricing](https://docs.digitalocean.com/products/backups/details/pricing/), [Uptime pricing](https://docs.digitalocean.com/products/uptime/details/pricing/)
+The current Droplet is $6/month, daily backups add $1.80/month, and the additional uptime check adds $1/month: approximately $8.80/month before taxes and usage-based charges. Stripe charges its standard per-transaction fee on each subscription payment; there is no fixed monthly cost. The account already uses its one free uptime check elsewhere. [Backup pricing](https://docs.digitalocean.com/products/backups/details/pricing/), [Uptime pricing](https://docs.digitalocean.com/products/uptime/details/pricing/)
 
 The current machine has 1 GB RAM and a global limit of four hosted collectors. This is a small pilot deployment, not capacity for an unrestricted public signup. Signal is comparatively memory intensive. Keep the invitation gate until memory limits, archive pagination/search, storage growth, and multi-customer load have been addressed and measured. See [SaaS readiness](SAAS-READINESS.md) for the remaining launch requirements.

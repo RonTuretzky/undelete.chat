@@ -6,6 +6,7 @@ import { createApp } from './app.mjs';
 import { createBackupService, clearBackupStaging } from './backup-service.mjs';
 import { offsiteConfig } from './offsite.mjs';
 import { createOperationsMonitor } from './monitor.mjs';
+import { billingConfig, createBilling, billingMessages } from './billing.mjs';
 import { createCollectorManager } from './hosted/manager.mjs';
 import { MiB, positiveBytes } from './capacity.mjs';
 try { process.loadEnvFile('.env'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
@@ -40,7 +41,15 @@ const collectors = process.env.HOSTED_COLLECTORS === 'true' ? createCollectorMan
 }) : null;
 const monitor = production ? createOperationsMonitor(store, { directory: dir, offsiteConfigured: !!backupConfig,
   offsiteTarget: backupConfig && { endpoint: backupConfig.endpoint, bucket: backupConfig.bucket }, hostedEnabled: !!collectors }) : null;
-const app = createApp(store, { collectors, monitor, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
+const billing = billingConfig() ? createBilling(store, { config: billingConfig(), origin, onLapse: async userId => {
+  // A lapsed subscription stops hosted capture; encrypted sessions and queues stay in place for resumption.
+  for (const c of store.hostedConnections().filter(c => c.user_id === userId && c.enabled)) {
+    await collectors?.suspend(c.id);
+    store.db.prepare("UPDATE connections SET detail=? WHERE id=? AND revoked=0").run(billingMessages.subscription_required, c.id);
+  }
+} }) : null;
+if (production && !billing) console.warn('Billing is not configured: every account is entitled without a subscription.');
+const app = createApp(store, { collectors, monitor, billing, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
 const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`Afterword listening on port ${process.env.PORT || 4318}`));
 await collectors?.restore();
 const backups = production ? createBackupService(dir, { key, config: backupConfig, minimumFreeBytes: store.capacity.limits.minimumFreeBytes }) : null;

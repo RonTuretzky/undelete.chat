@@ -38,6 +38,10 @@ WhatsApp and Signal do not need a separate API key in this service. Each custome
 
 Discord has no supported bot credential for the personal-account flow. The optional cloud connector requires the account holder's live phone approval and explicit acknowledgement of Discord's personal-account automation restriction. It is experimental and must not be described as an approved Discord integration. Do not request, extract, or hand off a Discord password or token.
 
+## Billing credentials
+
+Stripe keys live in private `~/.config/afterword/billing-config.json` (mode `0600`), described in [Billing](OPERATIONS.md#billing). Rotate the restricted key and the webhook signing secret from the Stripe Dashboard when handing over; the Stripe account itself, its bank payout details, and tax settings belong to the business owner and are not part of this repository. Until the file exists, the service runs without billing and every account is entitled.
+
 ## Optional off-server backup credential
 
 Off-server replication is implemented but is currently disabled for this deployment (`offsiteConfigured: false`). To activate it, create a private dedicated DigitalOcean Spaces bucket and a bucket-limited read/write Spaces key, then create this mode-`0600` file locally:

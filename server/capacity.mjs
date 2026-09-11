@@ -22,6 +22,7 @@ export function freeBytes(directory) {
 }
 export function deliveryFailure(error) {
   if (error?.capacity && capacityMessages[error.code]) return { error: capacityMessages[error.code], code: error.code, retryable: true };
+  if (error?.code === 'subscription_required') return { error: error.message, code: error.code, retryable: true };
   if (error instanceof ZodError || error?.permanent) return { error: 'Invalid event payload.', code: 'invalid_event', retryable: false };
   // Storage failures and unknown internal errors must not quarantine otherwise
   // valid events. Keep them queued, without leaking database or message details.
