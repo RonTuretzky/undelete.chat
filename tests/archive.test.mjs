@@ -8,7 +8,7 @@ async function fixture(t) {
   const store = createStore(':memory:', randomBytes(32).toString('hex'));
   t.after(() => store.close());
   const user = await store.createUser('alice', 'a-strong-password-123');
-  const connection = store.createConnection(user.id, 'discord', 'Server');
+  const connection = store.createConnection(user.id, 'telegram', 'Server');
   const source = store.connectionByToken(connection.token);
   return { store, user, connection, source };
 }

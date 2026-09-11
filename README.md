@@ -1,11 +1,10 @@
-# Undelete
+# undelete.chat
 
-Undelete keeps the messages people delete. Link your personal WhatsApp, Telegram, or Signal account once, and Undelete runs a hosted linked device that watches new messages for a short window. Only a message the platform later reports as deleted is kept, together with any edits it had before deletion; everything else is discarded when the watch window ends. Personal Discord has an explicitly experimental cloud connector and an optional browser extension. The archive of deleted messages supports bookmarks, JSON export, retention controls, and connection status.
+undelete.chat keeps the messages people delete. Link your personal WhatsApp, Telegram, or Signal account once, and undelete.chat runs a hosted linked device that watches new messages for a short window. Only a message the platform later reports as deleted is kept, together with any edits it had before deletion; everything else is discarded when the watch window ends. The archive of deleted messages supports bookmarks, JSON export, retention controls, and connection status.
 
 ## User onboarding and documentation
 
-Open **Help & guides** in the app or visit `/docs` for the public help center. It covers first setup, personal-account connection guides, including the Discord browser extension, troubleshooting, continuous capture, and privacy. The default hosted wizard shows a platform QR code directly in the authenticated website and any required sign-in prompt. It checks both the platform connection and first captured message. Existing local companion and Discord extension pairing remain available as separate modes.
-
+Open **Help & guides** in the app or visit `/docs` for the public help center.The default hosted wizard shows a platform QR code directly in the authenticated website and any required sign-in prompt. It checks both the platform connection and first captured message.
 The [user guides](docs/guides/README.md) are generated from `web/guides.mjs`, which also renders the help center. Run `npm run docs` after editing. `npm run package:companion` produces ZIP and tar.gz downloads with a minimal dependency manifest and offline copies of all guides. Existing connections can continue setup without creating another source; re-pairing rotates only that source’s archive token when the new code is redeemed.
 
 ## Run locally
@@ -32,14 +31,13 @@ Subscriptions run through Stripe Checkout and the Stripe customer portal; the se
 
 | Platform | Implementation | What can be undeleted |
 | --- | --- | --- |
-| Discord | Unofficial personal cloud session; optional Chrome extension | Identified personal DMs and group DMs deleted while the session is connected. No server channels. Cloud access can violate Discord's rules and put accounts at risk. |
 | Telegram | Personal account through teleproto / MTProto | Ordinary cloud chat messages whose deletion update Telegram delivers to the linked session |
 | Signal | Unofficial signal-cli linked device | Incoming and synced outgoing messages that receive a remote delete |
 | WhatsApp | Unofficial Baileys linked device | Messages that receive a "delete for everyone" revoke while the linked device is connected |
 
 Platforms also deliver reactions, link previews, pins, and formatting changes as edit events. An edit whose text and attachments match the current version is ignored, so a deleted message's history only shows real content changes.
 
-**Only deletions the platform actually delivers can be undeleted.** A message deleted after the watch window ended, deleted before Undelete received it, or deleted while the linked device was offline cannot be recovered. The watch window defaults to 7 days and is adjustable per account between 1 and 30 days (`hold_days`). Discord's cloud connector requires phone approval and acknowledgement that Discord forbids automated personal accounts and may terminate them. It is not an approved integration. Its optional extension requires Chrome 125+, debugging permission, and an open signed-in Discord Web tab. Live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
+**Only deletions the platform actually delivers can be undeleted.** A message deleted after the watch window ended, deleted before undelete.chat received it, or deleted while the linked device was offline cannot be recovered. The watch window defaults to 7 days and is adjustable per account between 1 and 30 days (`hold_days`).It is not an approved integration.Live account validation remains required. Disappearing/view-once content is excluded. Missing platform events, disconnected clients, and content deleted before capture cannot be reconstructed. Attachment metadata is supported; file bodies are not archived. See [companion setup](docs/COMPANION.md) and [platform findings](docs/PLATFORMS.md).
 
 ## Architecture
 
@@ -58,8 +56,6 @@ Platforms also deliver reactions, link previews, pins, and formatting changes as
 Set `HOSTED_COLLECTORS=true`, configure `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` once for the application, and set `HOSTED_MAX_COLLECTORS` to a capacity tested on your server. The production image includes checksum-verified signal-cli 0.14.7. Its private working files use `/tmp` mounted as tmpfs. Large native libraries expand into separate per-worker directories on the `signal-native-cache` disk volume; that cache contains no account sessions and is cleared on worker exit and service startup. Keep `ARCHIVE_KEY` stable and separately backed up: all hosted queue keys derive from it.
 
 For the managed deployment, private `~/.config/afterword/hosted-config.json` supplies `enabled`, `max_collectors`, `telegram_api_id`, and `telegram_api_hash`; these never belong in Git. Customers do not need developer API credentials or a local installation. The default global limit is four collectors; the production deployment sets `max_collectors` to 30 on a 2 vCPU / 4 GB server sized for about 20 customers. Beyond that, resize the server first; see [operations](docs/OPERATIONS.md#cost-and-capacity).
-
-`DISCORD_PERSONAL_CLOUD=true` (managed field `discord_personal_cloud`) enables the separate Discord experiment. It is disabled by default. Every user must acknowledge its account risk before the API permits linking. A phone-approved personal session is encrypted in the source queue and never returned to the frontend. The connector sends only authentication/resume/heartbeat traffic, filters incoming events to identified private channels, and stops for verification challenges or revoked credentials. It never attempts CAPTCHA solving. A live unauthenticated QR handshake succeeded from DigitalOcean; full phone approval and capture are not yet verified.
 
 ## Deployment
 
@@ -81,8 +77,3 @@ The legacy `tests/onboarding-browser.mjs` describes checks for all eight public 
 
 The current deployment is a single-node private beta. Search decrypts an account's messages in memory; it needs indexing and pagination at the storage layer before serving very large archives. There is no production uptime SLA, external monitoring, high availability, billing, or verified-email recovery. Account recovery uses single-use keys issued at registration or generated in Settings; successful recovery rotates the key and revokes previous sessions. Live platform sign-in and capture must be smoke-tested after the user pairs each account; unit tests cannot prove live compatibility. Invite-only registration is recommended for the initial deployment.
 
-## Personal Discord browser collector
-
-`npm run package:discord` creates `dist/afterword-discord-extension.zip` and its unpacked folder. The web setup serves the ZIP and an archive pairing code; no Node.js installation is needed for Discord users. The extension observes inbound Gateway WebSocket frames through Chrome's debugger API, supports JSON, zlib-stream and zstd-stream, and filters events to known personal DM/group-DM channels. It never creates a Discord API session or reads outgoing frames, HTTP response bodies, request headers or cookies.
-
-Its private IndexedDB stores encrypted queue entries and metadata, with a non-extractable AES-GCM key in the same profile. The queue is capped at 10,000 events; message metadata expires after seven days. The first observed account identity binds the source. Account switching, decoding failures, and queue exhaustion stop capture visibly. Stop/Start controls, account pairing, and a visible Chrome debugging notice keep capture user-controlled. This is an unofficial downloadable beta, not an approved Discord integration or Chrome Web Store listing.

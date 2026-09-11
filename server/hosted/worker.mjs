@@ -77,9 +77,9 @@ async function start(input) {
       else health('error', 'Signal session could not be saved. Please reconnect.');
     }), 5000);
   }
-  const adapters = { telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp', discord: 'startDiscordCloud' };
+  const adapters = { telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp' };
   if (!adapters[input.platform]) throw new Error('Unsupported hosted platform');
-  const module = input.platform === 'discord' ? await import('./discord.mjs') : await import(`../../companion/adapters/${input.platform}.mjs`);
+  const module = await import(`../../companion/adapters/${input.platform}.mjs`);
   const stop = await module[adapters[input.platform]](ctx);
   if (stopped) { await stop?.(); return; }
   stopAdapter = stop;

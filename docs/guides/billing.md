@@ -15,8 +15,8 @@ When the trial ends without a subscription, the watch pauses: hosted connections
 ## Starting a subscription
 
 1. Open Settings → Your plan and choose Start subscription, or Add payment method during the trial.
-2. Complete checkout on Stripe’s secure page. Undelete never sees your card number; it receives only a customer reference and the subscription status.
-3. Return to Undelete. The plan card updates once Stripe confirms the subscription, usually within a few seconds.
+2. Complete checkout on Stripe’s secure page. undelete.chat never sees your card number; it receives only a customer reference and the subscription status.
+3. Return to undelete.chat. The plan card updates once Stripe confirms the subscription, usually within a few seconds.
 4. If any connection shows Capture stopped, open Connections and choose Resume capture.
 
 > Adding a payment method during the trial does not shorten it. The first charge happens when the trial ends.
@@ -25,7 +25,7 @@ When the trial ends without a subscription, the watch pauses: hosted connections
 
 ## Premium: trusted execution environments
 
-On the standard plan, message content is encrypted at rest but the server holds the decryption key, so the people operating Undelete could technically read stored data. Premium is for people who need stronger guarantees: the collectors and the archive run inside a confidential-computing enclave (a trusted execution environment) with keys sealed to attested hardware. Operators, backups, and the hosting provider cannot decrypt the data.
+On the standard plan, message content is encrypted at rest but the server holds the decryption key, so the people operating undelete.chat could technically read stored data. Premium is for people who need stronger guarantees: the collectors and the archive run inside a confidential-computing enclave (a trusted execution environment) with keys sealed to attested hardware. Operators, backups, and the hosting provider cannot decrypt the data.
 
 Premium is arranged individually and can include dedicated capacity, more linked accounts, a longer watch window, priority support, and a written data-handling agreement. Email turetzkyron@gmail.com with the accounts you want to link and roughly how many people need it; expect a reply within two business days.
 

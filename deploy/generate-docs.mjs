@@ -21,5 +21,5 @@ for (const [slug, guide] of Object.entries(guides)) {
   md += 'Instructions reviewed September 10, 2026. Platform screens may change.\n\nGenerated from `web/guides.mjs`, the same content shown in the public help center.\n';
   writeFileSync(`${directory}/${slug}.md`, md);
 }
-writeFileSync(`${directory}/README.md`, '# Undelete user guides\n\n' + Object.entries(guides).map(([id, guide]) => `- [${guide.title}](./${id}.md)`).join('\n') + '\n\nThese guides also ship inside the companion download and appear at `/docs` in the app. Edit `web/guides.mjs` and run `npm run docs` to update all copies.\n');
+writeFileSync(`${directory}/README.md`, '# undelete.chat user guides\n\n' + Object.entries(guides).map(([id, guide]) => `- [${guide.title}](./${id}.md)`).join('\n') + '\n\nThese guides also ship inside the companion download and appear at `/docs` in the app. Edit `web/guides.mjs` and run `npm run docs` to update all copies.\n');
 console.log(`Generated ${Object.keys(guides).length} user guides.`);

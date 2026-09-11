@@ -71,7 +71,7 @@ export async function startSignal(ctx) {
         if (ctx.showQR) ctx.showQR(deviceLinkUri, Date.now() + linkWindowMs);
         else { console.log('Scan in Signal → Settings → Linked devices:'); qr.generate(deviceLinkUri, { small: true }); }
         ctx.health('waiting', ctx.hosted ? 'Scan this code in Signal → Linked devices' : 'Scan the QR code in your companion terminal');
-        try { await rpc('finishLink', { deviceLinkUri, deviceName: ctx.hosted ? 'Undelete Cloud' : 'Undelete companion' }); break; }
+        try { await rpc('finishLink', { deviceLinkUri, deviceName: ctx.hosted ? 'undelete.chat' : 'undelete.chat' }); break; }
         catch (error) {
           if (stopped || attempt >= maxLinkAttempts || !/^Signal RPC /.test(error.message)) throw error;
           ctx.health('waiting', 'The previous code expired. A fresh code is being prepared.');

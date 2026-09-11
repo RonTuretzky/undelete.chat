@@ -15,7 +15,7 @@ const { values: flags, positionals } = parseArgs({ allowPositionals: true, optio
 const [command = 'run', requestedProfile = 'default'] = positionals;
 let profile = requestedProfile;
 if (command === 'help' || flags.help) {
-  console.log('Undelete companion\n\npair --server URL   Pair using a short code from Connections\nrun PROFILE         Resume a paired connection\ncredentials PROFILE Replace saved platform credentials\nrelink PROFILE      Reset a platform login while keeping your queue\ndoctor              Check your computer\nsetup PROFILE       Advanced: pair with a long-lived connection key\n\nNew here? Open Connections in your archive and follow the guided setup.'); process.exit(0);
+  console.log('undelete.chat companion\n\npair --server URL   Pair using a short code from Connections\nrun PROFILE         Resume a paired connection\ncredentials PROFILE Replace saved platform credentials\nrelink PROFILE      Reset a platform login while keeping your queue\ndoctor              Check your computer\nsetup PROFILE       Advanced: pair with a long-lived connection key\n\nNew here? Open Connections in your archive and follow the guided setup.'); process.exit(0);
 }
 if (command === 'doctor') {
   console.log(`Node.js ${process.versions.node} — Node 22.13 or newer required.`);
@@ -37,7 +37,7 @@ const ask = async (prompt, secret = false) => {
 const baseDirectory = resolve(process.env.AFTERWORD_COMPANION_DIR || join(homedir(), '.afterword'));
 if (command === 'pair') {
   try {
-    console.log('\nPair Undelete with your computer\nKeep the setup page open in your browser.\n');
+    console.log('\nPair undelete.chat with your computer\nKeep the setup page open in your browser.\n');
     const server = serverOrigin(flags.server || await ask('Archive server URL from Connections: '));
     const code = await ask('Pairing code from your browser: ', true);
     const connection = await redeemCode(server, code);
@@ -54,7 +54,7 @@ mkdirSync(directory, { recursive: true, mode: 0o700 });
 const configFile = join(directory, 'config.json');
 let config = existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) : {};
 const save = patch => { config = { ...config, ...patch }; writeFileSync(configFile, JSON.stringify(config, null, 2), { mode: 0o600 }); };
-console.log(`\nUndelete companion · ${profile}\n`);
+console.log(`\nundelete.chat companion · ${profile}\n`);
 if (command === 'setup') {
   try {
     const server = serverOrigin(await ask('Archive server URL: '));
@@ -70,8 +70,7 @@ if (!config.server || !config.token) {
   console.error('This profile has not been paired. Open Connections in your archive and copy its pairing command.'); rl.close(); process.exit(1);
 }
 if (command === 'credentials') {
-  if (config.platform === 'discord') { console.log('Discord uses the browser extension. Open Connections → Discord in your archive; no Discord token is needed.'); rl.close(); process.exit(0); }
-  else if (config.platform === 'telegram') {
+  if (config.platform === 'telegram') {
     const apiId = Number(await ask('Telegram application API ID: '));
     const apiHash = await ask('Telegram application API hash: ', true);
     if (!Number.isInteger(apiId) || apiId <= 0 || !/^[a-f0-9]{32}$/i.test(apiHash)) { console.error('Invalid API ID/hash. Existing settings are unchanged.'); rl.close(); process.exit(1); }
@@ -80,7 +79,6 @@ if (command === 'credentials') {
   console.log(`Saved. Resume with: npm start -- run ${profile}`); rl.close(); process.exit(0);
 }
 if (command === 'relink') {
-  if (config.platform === 'discord') { console.log('Use Stop and Start in the Undelete browser extension. Pair a separate source for a different Discord account.'); rl.close(); process.exit(0); }
   console.log(`Stop any other companion for ${profile} before continuing. This clears its ${config.platform} login, but preserves your queued events and archive.`);
   if (await ask('Type RELINK to continue: ') !== 'RELINK') { console.log('No changes made.'); rl.close(); process.exit(0); }
   if (config.platform === 'telegram') { const q = openQueue(directory); q.delete('telegram-session'); q.close(); }
@@ -122,7 +120,7 @@ process.on('unhandledRejection', error => { if (error?.capacity) stopForCapacity
 try {
   const ctx = { config, directory, queue, ask, save, capture, health };
   heartbeatTimer = setInterval(heartbeat, 25_000); flushTimer = setInterval(flush, 2000);
-  const adapters = { discord: 'startDiscord', telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp' };
+  const adapters = { telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp' };
   if (!adapters[config.platform]) throw new Error('Unknown platform in connection configuration.');
   const module = await import(`./adapters/${config.platform}.mjs`);
   stopAdapter = await module[adapters[config.platform]](ctx);

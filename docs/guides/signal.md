@@ -25,11 +25,11 @@ Use a computer or a second screen to display the code while you scan with your p
 
 ## Link your account
 
-1. In Undelete, choose Connections → Signal, name the account, and authorize the hosted connection.
+1. In undelete.chat, choose Connections → Signal, name the account, and authorize the hosted connection.
 2. On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).
-3. Scan the QR code shown in Undelete and approve the device named Undelete Cloud. Wait for Connected.
+3. Scan the QR code shown in undelete.chat and approve the device named undelete.chat Cloud. Wait for Connected.
 
-> The QR code links your account to a server operated by Undelete. Keep it private and use the scanner inside the messaging app.
+> The QR code links your account to a server operated by undelete.chat. Keep it private and use the scanner inside the messaging app.
 
 - [Signal: linked devices](https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices)
 
@@ -37,19 +37,19 @@ Use a computer or a second screen to display the code while you scan with your p
 
 ## Verify your first deleted message
 
-Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into Undelete. The connection screen separately checks whether a deleted message has reached your archive.
+Connected confirms a running platform session. It does not prove that deletions reach your archive. New messages wait privately in the watch window and are not shown; only a deletion moves a message into undelete.chat. The connection screen separately checks whether a deleted message has reached your archive.
 
-1. Send a harmless message in your own chat. It does not appear in Undelete yet.
+1. Send a harmless message in your own chat. It does not appear in undelete.chat yet.
 2. Optionally edit it once or twice. Edits alone do not keep a message.
-3. Delete it for everyone in Signal, then confirm it appears in Undelete marked Deleted, with each edit it had before deletion.
+3. Delete it for everyone in Signal, then confirm it appears in undelete.chat marked Deleted, with each edit it had before deletion.
 
-> Undelete never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion the platform never delivered.
+> undelete.chat never sends or deletes a test message for you. It cannot keep a message it did not receive before the deletion, and it cannot keep one whose deletion the platform never delivered.
 
 <a id="keep-running"></a>
 
 ## The watch continues in the cloud
 
-Once a hosted connection is established, you can close Undelete, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.
+Once a hosted connection is established, you can close undelete.chat, turn off your computer, and use your messaging apps normally. The server receives messages and deletions in the background.
 
 A platform outage, expired linked device, or server interruption can still leave gaps: a message deleted while the connection is down is missed. The server retries lost connections automatically; if phone approval is needed, Connections will show Needs attention.
 
@@ -68,7 +68,7 @@ A platform outage, expired linked device, or server interruption can still leave
 
 ## Where your data lives
 
-Undelete stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
+undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
 
 - [Privacy and retention](./privacy.md)
 

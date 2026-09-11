@@ -14,11 +14,11 @@ export function HowItWorks({ compact = false, watchDays = 7 }) {
   return <section className="how-it-works" aria-labelledby="how-it-works-title">
     <div className="eyebrow">HOW IT WORKS</div>
     <h2 id="how-it-works-title">Only the messages they deleted<span className="brand-dot">.</span></h2>
-    {!compact && <p>Undelete links to your own chat accounts, quietly watches new messages for a short window, and keeps only the ones the other person deleted. Everything else is discarded.</p>}
+    {!compact && <p>undelete.chat links to your own chat accounts, quietly watches new messages for a short window, and keeps only the ones the other person deleted. Everything else is discarded.</p>}
     <div className="how-steps">
       <div className="how-step">
         <span className="how-step-number">1</span>
-        <div className="how-scene" role="img" aria-label="A phone scans a code shown by Undelete and reports that it is linked.">
+        <div className="how-scene" role="img" aria-label="A phone scans a code shown by undelete.chat and reports that it is linked.">
           <svg viewBox="0 0 260 150" aria-hidden="true">
             <rect className="phone" x="28" y="18" width="62" height="114" rx="10"/>
             <rect x="40" y="30" width="38" height="70" rx="3" fill="#eef4f0"/>
@@ -35,7 +35,7 @@ export function HowItWorks({ compact = false, watchDays = 7 }) {
           </svg>
         </div>
         <h3>Link your account</h3>
-        <p>Scan a code from WhatsApp, Telegram, or Signal on your phone. Undelete becomes a linked device, like a desktop app, and runs in the cloud so your computer can be off.</p>
+        <p>Scan a code from WhatsApp, Telegram, or Signal on your phone. undelete.chat becomes a linked device, like a desktop app, and runs in the cloud so your computer can be off.</p>
       </div>
       <div className="how-step">
         <span className="how-step-number">2</span>
@@ -57,7 +57,7 @@ export function HowItWorks({ compact = false, watchDays = 7 }) {
       </div>
       <div className="how-step">
         <span className="how-step-number">3</span>
-        <div className="how-scene" role="img" aria-label="A message is deleted in the chat and reappears in Undelete with its original text.">
+        <div className="how-scene" role="img" aria-label="A message is deleted in the chat and reappears in undelete.chat with its original text.">
           <svg viewBox="0 0 260 150" aria-hidden="true">
             <rect x="14" y="14" width="110" height="122" rx="10" fill="#fff" stroke="#d5dfda"/>
             <text className="muted" x="69" y="30" textAnchor="middle">Their chat</text>
@@ -69,7 +69,7 @@ export function HowItWorks({ compact = false, watchDays = 7 }) {
             </g>
             <Bubble x={22} y={96} w={70} mine>?</Bubble>
             <rect x="136" y="14" width="110" height="122" rx="10" fill="#fff" stroke="#bfdccd"/>
-            <text x="191" y="30" textAnchor="middle" fill="#207763">Undelete</text>
+            <text x="191" y="30" textAnchor="middle" fill="#207763">undelete.chat</text>
             <circle className="how-pulse" cx="191" cy="80" r="26" fill="#207763"/>
             <g className="how-recovered" transform="translate(144 62)">
               <rect width="94" height="36" rx="8" fill="#eaf5ef" stroke="#207763"/>

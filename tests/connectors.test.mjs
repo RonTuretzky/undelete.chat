@@ -3,17 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { discordEvent, telegramEvent, signalEvent, whatsappEvent } from '../companion/adapters/normalize.mjs';
+import { telegramEvent, signalEvent, whatsappEvent } from '../companion/adapters/normalize.mjs';
 import { openQueue, deliverBatch } from '../companion/queue.mjs';
 import { eventSchema } from '../server/store.mjs';
 const now = Date.now();
-test('Discord normalizes partial content updates and tombstones without inventing history', () => {
-  const d = { id: '123', channel_id: '789', content: 'before', timestamp: new Date(now).toISOString(), author: { id: 'u', username: 'alice' } };
-  assert.equal(discordEvent({ id: d.id, channel_id: d.channel_id }, 'edit'), null);
-  const original = eventSchema.parse(discordEvent(d, 'create'));
-  const deleted = eventSchema.parse(discordEvent({ id: d.id, channel_id: d.channel_id }, 'delete'));
-  assert.equal(deleted.externalId, original.externalId); assert.equal(deleted.scope, original.scope); assert.equal(deleted.text, undefined);
-});
 test('Telegram account-scoped IDs let chat-less deletes match private messages', () => {
   const privateMessage = eventSchema.parse(telegramEvent({ id: 1, peerId: { userId: 'a' }, message: 'hello', date: Math.floor(now / 1000) }, 'create'));
   const channelMessage = eventSchema.parse(telegramEvent({ id: 1, peerId: { channelId: 987 }, message: 'hello', date: Math.floor(now / 1000) }, 'create'));

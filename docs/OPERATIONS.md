@@ -1,6 +1,6 @@
 # Operating the hosted service
 
-Undelete runs on DigitalOcean. The public website, archive database, and hosted collectors continue running when the operator's computer or a customer's browser is closed. The private `127.0.0.1` setup page is an optional local shortcut; customers use the public HTTPS app and approve account linking on their phones.
+undelete.chat runs on DigitalOcean. The public website, archive database, and hosted collectors continue running when the operator's computer or a customer's browser is closed. The private `127.0.0.1` setup page is an optional local shortcut; customers use the public HTTPS app and approve account linking on their phones.
 
 ## Inspect production
 
@@ -52,7 +52,7 @@ Use matching application and database versions for rollback. Older writer code d
 
 ## External monitoring
 
-The `Undelete availability` DigitalOcean Uptime check probes the public HTTPS service monitor (`/api/monitor`) from US East and Western Europe. It runs independently of the Undelete server and the operator's computer. The monitor endpoint returns 503 when the in-process operations monitor reports a critical issue: database unavailable, disk below the reserve, archive full, local backup missing or older than 26 hours, backup scheduler stale, a connected collector with a stale heartbeat, or a delivery queue older than five minutes. A warning-only state, such as `offsite_unconfigured`, still returns 200.
+The `Undelete availability` DigitalOcean Uptime check probes the public HTTPS service monitor (`/api/monitor`) from US East and Western Europe. It runs independently of the undelete.chat server and the operator's computer. The monitor endpoint returns 503 when the in-process operations monitor reports a critical issue: database unavailable, disk below the reserve, archive full, local backup missing or older than 26 hours, backup scheduler stale, a connected collector with a stale heartbeat, or a delivery queue older than five minutes. A warning-only state, such as `offsite_unconfigured`, still returns 200.
 
 ```sh
 # Reuse the existing matching check instead of creating a duplicate.
@@ -65,7 +65,7 @@ python3 deploy/operations.py uptime-status
 python3 deploy/operations.py alert-status
 ```
 
-`enable-uptime` and `enable-service-monitor` preserve existing checks, including disabled checks and other applications' monitoring. `enable-alerts` is idempotent: it creates a `down_global` alert (two-minute period) and an `ssl_expiry` alert (14 days) on the Undelete check, plus Droplet alert policies for disk utilization above 85% and memory utilization above 90% over five minutes. Existing alerts of the same type are left unchanged, including any additional recipients. The recipient defaults to the verified DigitalOcean account email; pass `--email` to use another address. The command records what it created in private `alert-enablement.json` and sets `deliveryVerified: false`; notification delivery has not been exercised by an actual outage, so confirm the first alert email arrives and is not filtered before relying on it. The service monitor's own detailed report is available to the operator through `service-status`; the public endpoint intentionally exposes only `ok` and the service name.
+`enable-uptime` and `enable-service-monitor` preserve existing checks, including disabled checks and other applications' monitoring. `enable-alerts` is idempotent: it creates a `down_global` alert (two-minute period) and an `ssl_expiry` alert (14 days) on the undelete.chat check, plus Droplet alert policies for disk utilization above 85% and memory utilization above 90% over five minutes. Existing alerts of the same type are left unchanged, including any additional recipients. The recipient defaults to the verified DigitalOcean account email; pass `--email` to use another address. The command records what it created in private `alert-enablement.json` and sets `deliveryVerified: false`; notification delivery has not been exercised by an actual outage, so confirm the first alert email arrives and is not filtered before relying on it. The service monitor's own detailed report is available to the operator through `service-status`; the public endpoint intentionally exposes only `ok` and the service name.
 
 ## Server maintenance
 

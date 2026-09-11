@@ -6,31 +6,28 @@ import { platformGuides } from './guides.mjs';
 const phoneSteps = {
   whatsapp: 'WhatsApp → Settings (iPhone) or ⋮ (Android) → Linked devices → Link a device.',
   signal: 'Signal → your profile / Settings → Linked devices → Link a new device (or +).',
-  telegram: 'Telegram → Settings → Devices → Link Desktop Device.',
-  discord: 'Discord → your profile → Settings → Scan QR Code.'
+  telegram: 'Telegram → Settings → Devices → Link Desktop Device.'
 };
 export function ConnectionWizard(props) {
   const [capabilities, setCapabilities] = useState(null), [error, setError] = useState('');
   const [platform, setPlatform] = useState(props.initialConnection?.platform || props.initialPlatform || null);
-  const [local, setLocal] = useState(false);
   useEffect(() => { let active = true; props.api('/capabilities').then(r => { if (active) setCapabilities(r.hosted); }).catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, []);
   const { Modal, Platform, onClose } = props;
   if (!capabilities) return <Modal title="Connect an account" onClose={onClose}>{error ? <p className="form-error" role="alert">{error}</p> : <p className="modal-description"><LoaderCircle size={18} className="spin"/> Checking connection options…</p>}</Modal>;
-  if (!capabilities.enabled || local || platform === 'discord' && !capabilities.platforms.discord) return <LocalConnectionWizard {...props} initialPlatform={platform} />;
+  if (!capabilities.enabled) return <LocalConnectionWizard {...props} initialPlatform={platform} />;
   if (!platform) return <Modal title="Connect an account" wide onClose={onClose}>
-    <p className="modal-description">Link your phone once. Undelete watches on the server, even when your computer is off, and keeps only the messages that get deleted.</p>
-    <div className="platform-choices">{['whatsapp', 'telegram', 'signal', 'discord'].map(p => <button key={p} onClick={() => setPlatform(p)}><Platform platform={p}/><span><strong>{platformGuides[p].name}</strong><small>{p === 'discord' ? capabilities.platforms.discord ? 'Experimental cloud connection · account restrictions apply' : 'Browser extension only · requires an open tab' : capabilities.platforms[p] ? 'Watched in the cloud · scan a QR code' : 'Cloud setup not configured'}</small></span><ChevronRight size={18}/></button>)}</div>
-    <div className="setup-footnote"><Cloud size={17}/><span>Hosted connections run on Undelete’s server. Discord’s personal cloud connection is experimental and is not approved by Discord.</span></div>
+    <p className="modal-description">Link your phone once. undelete.chat watches on the server, even when your computer is off, and keeps only the messages that get deleted.</p>
+    <div className="platform-choices">{['whatsapp', 'telegram', 'signal'].map(p => <button key={p} onClick={() => setPlatform(p)}><Platform platform={p}/><span><strong>{platformGuides[p].name}</strong><small>{capabilities.platforms[p] ? 'Watched in the cloud · scan a QR code' : 'Cloud setup not configured'}</small></span><ChevronRight size={18}/></button>)}</div>
+    <div className="setup-footnote"><Cloud size={17}/><span>Hosted connections run on undelete.chat’s server.</span></div>
   </Modal>;
-  return <HostedSetup {...props} key={platform} platform={platform} available={capabilities.platforms[platform]} onBack={() => setPlatform(null)} onBrowser={() => setLocal(true)}/>;
+  return <HostedSetup {...props} key={platform} platform={platform} available={capabilities.platforms[platform]} onBack={() => setPlatform(null)}/>;
 }
-function HostedSetup({ platform, available, initialConnection, Modal, Platform, api, onClose, onFinish, onChanged, onBack, onBrowser }) {
+function HostedSetup({ platform, available, initialConnection, Modal, Platform, api, onClose, onFinish, onChanged, onBack }) {
   const info = platformGuides[platform];
   const [connection, setConnection] = useState(initialConnection || null);
   const [setup, setSetup] = useState(null), [name, setName] = useState(initialConnection?.name || `My ${info.name}`);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [reply, setReply] = useState('');
   const [relink, setRelink] = useState(false), [now, setNow] = useState(Date.now());
-  const [experimentalConsent, setExperimentalConsent] = useState(false);
   const hosted = setup?.mode === 'hosted' || connection?.collector === 'hosted';
   const connected = hosted && setup?.running && setup.health === 'connected';
   const hasCapture = connection?.last_message_at && connection.last_message_at >= connection.paired_at;
@@ -55,7 +52,7 @@ function HostedSetup({ platform, available, initialConnection, Modal, Platform, 
     try {
       const c = connection || (await api('/connections', { method: 'POST', body: { platform, name } })).connection;
       setConnection(c);
-      const result = await api(`/connections/${c.id}/hosted/start`, { method: 'POST', body: { consent: true, experimentalConsent, ...options } });
+      const result = await api(`/connections/${c.id}/hosted/start`, { method: 'POST', body: { consent: true, ...options } });
       setSetup(result.setup); setRelink(false); onChanged();
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
@@ -69,25 +66,22 @@ function HostedSetup({ platform, available, initialConnection, Modal, Platform, 
     <div className="wizard-platform"><Platform platform={platform}/><div><strong>{info.name}</strong><span><Cloud size={14}/> Hosted account connection</span></div><a href={`/docs/${platform}`} target="_blank" rel="noreferrer">Setup guide</a></div>
     {!available ? <><div className="info-strip">This platform needs server configuration before you can connect. Your account has not been linked.</div><button className="button secondary" onClick={onBack}><ArrowLeft size={15}/>Choose another platform</button></> : !hosted ? <>
       <p className="modal-description">{info.coverage}</p>
-      {platform === 'discord' && <div className="info-strip"><strong>Experimental personal-account access</strong><p>Discord forbids automated personal accounts and may terminate an account for using them. This is an unofficial session, not Discord OAuth or an approved app. Approving the QR signs your account into Undelete’s server.</p><a href="https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots" target="_blank" rel="noreferrer">Read Discord’s policy</a></div>}
       <div className="prerequisite-card"><h3>Have your phone ready</h3><p>Open {info.name} on your primary phone. You’ll scan a code here{platform === 'telegram' ? ' and enter your two-step verification password if you use one' : ' and approve a new linked device'}.</p><p>No downloads, terminal commands, or computer left running.</p></div>
       <form onSubmit={e => { e.preventDefault(); start(); }}>
         <label>Connection name<input value={name} onChange={e => setName(e.target.value)} maxLength={100} required disabled={!!connection}/></label>
-        <label className="checkbox-label"><input type="checkbox" required/><span>I authorize Undelete to connect to this account on its server and keep deleted messages from conversations I’m authorized to retain. Copies remain after messages are deleted on the platform.</span></label>
-        {platform === 'discord' && <label className="checkbox-label"><input type="checkbox" required checked={experimentalConsent} onChange={e => setExperimentalConsent(e.target.checked)}/><span>I understand that this experimental connection can put my Discord account at risk, including account termination.</span></label>}
+        <label className="checkbox-label"><input type="checkbox" required/><span>I authorize undelete.chat to connect to this account on its server and keep deleted messages from conversations I’m authorized to retain. Copies remain after messages are deleted on the platform.</span></label>
         {connection?.collector && <div className="info-strip">Moving this source to the cloud stops its old local collector from uploading. Your existing archive stays available.</div>}
         <div className="wizard-actions"><button type="button" className="button secondary" onClick={onBack}><ArrowLeft size={15}/>Back</button><button className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16}/> : <Cloud size={16}/>} {connection?.collector ? 'Move connection to cloud' : 'Show my QR code'}</button></div>
       </form>
-      <p className="wizard-smallprint">Your linked session, messages waiting in the watch window, and preserved deleted messages are stored on Undelete’s server. Saved credentials and message content are encrypted at rest; the server can decrypt them to provide the service.</p>
-      {platform === 'discord' && !connection && <button className="text-button" onClick={onBrowser}>Use the optional browser extension instead (requires an open tab)</button>}
+      <p className="wizard-smallprint">Your linked session, messages waiting in the watch window, and preserved deleted messages are stored on undelete.chat’s server. Saved credentials and message content are encrypted at rest; the server can decrypt them to provide the service.</p>
     </> : connected ? <>
-      <div className="hosted-success"><CheckCheck size={30}/><h3>{setup.paused ? 'Connected, with capture paused' : 'Your cloud connection is running'}</h3><p>{setup.paused ? 'Resume capture in Connections when you are ready.' : 'You can close this page and turn off your computer. Undelete will keep watching on the server.'}</p></div>
+      <div className="hosted-success"><CheckCheck size={30}/><h3>{setup.paused ? 'Connected, with capture paused' : 'Your cloud connection is running'}</h3><p>{setup.paused ? 'Resume capture in Connections when you are ready.' : 'You can close this page and turn off your computer. undelete.chat will keep watching on the server.'}</p></div>
       <div className="verification-check"><Check size={16}/><span>Platform sign-in complete</span></div>
       <div className="verification-check">{hasCapture ? <Check size={16}/> : <Radio size={16}/>}<span>{hasCapture ? 'A deleted message has reached your archive' : 'Waiting for your first deleted message'}</span></div>
       <p className="modal-description">Send a harmless message to your own chat, then delete it for everyone. It appears in your archive only after the deletion, with any edits it had before. Edits alone do not keep a message.</p>
       <div className="wizard-actions"><button className="button secondary" onClick={onClose}>Manage connections</button><button className="button primary" onClick={onFinish}>Open my archive<ArrowRight size={16}/></button></div>
     </> : <>
-      {setup?.prompt ? <form onSubmit={respond} className="hosted-prompt"><h3>One more step</h3><label>{setup.prompt.label}<input key={setup.prompt.id} type={setup.prompt.secret ? 'password' : 'text'} value={reply} onChange={e => setReply(e.target.value)} autoComplete="off" maxLength={256} required autoFocus/></label><p className="wizard-smallprint">This response is used for this sign-in step and is not saved in Undelete’s logs.</p><button className="button primary" disabled={busy}>Continue<ArrowRight size={16}/></button></form> : qr ? <div className="hosted-qr-layout"><div className="hosted-qr"><img src={qr.image} width="320" height="320" alt={`${info.name} account linking QR code`}/><span>Expires in {Math.max(1, Math.ceil((Date.parse(qr.expiresAt) - now) / 1000))} seconds</span></div><div><h3>Scan with {info.name}</h3><ol><li>On your phone, open <strong>{phoneSteps[platform]}</strong></li><li>Use the scanner inside {info.name} to scan this code.</li><li>Approve the device link. This page will confirm when it’s connected.</li></ol><p className="wizard-smallprint">Keep this code private. It links your account to Undelete.</p></div></div> : <div className={`pairing-status ${setup?.health === 'error' ? 'attention' : ''}`} role="status">{setup?.running && setup.health !== 'error' ? <LoaderCircle className="spin" size={21}/> : <Radio size={21}/>}<div><strong>{setup?.health === 'error' ? 'Let’s reconnect' : setup?.running ? 'Preparing your connection' : 'Ready when you are'}</strong><p>{setup?.detail || 'Starting the hosted collector…'}</p></div></div>}
+      {setup?.prompt ? <form onSubmit={respond} className="hosted-prompt"><h3>One more step</h3><label>{setup.prompt.label}<input key={setup.prompt.id} type={setup.prompt.secret ? 'password' : 'text'} value={reply} onChange={e => setReply(e.target.value)} autoComplete="off" maxLength={256} required autoFocus/></label><p className="wizard-smallprint">This response is used for this sign-in step and is not saved in undelete.chat’s logs.</p><button className="button primary" disabled={busy}>Continue<ArrowRight size={16}/></button></form> : qr ? <div className="hosted-qr-layout"><div className="hosted-qr"><img src={qr.image} width="320" height="320" alt={`${info.name} account linking QR code`}/><span>Expires in {Math.max(1, Math.ceil((Date.parse(qr.expiresAt) - now) / 1000))} seconds</span></div><div><h3>Scan with {info.name}</h3><ol><li>On your phone, open <strong>{phoneSteps[platform]}</strong></li><li>Use the scanner inside {info.name} to scan this code.</li><li>Approve the device link. This page will confirm when it’s connected.</li></ol><p className="wizard-smallprint">Keep this code private. It links your account to undelete.chat.</p></div></div> : <div className={`pairing-status ${setup?.health === 'error' ? 'attention' : ''}`} role="status">{setup?.running && setup.health !== 'error' ? <LoaderCircle className="spin" size={21}/> : <Radio size={21}/>}<div><strong>{setup?.health === 'error' ? 'Let’s reconnect' : setup?.running ? 'Preparing your connection' : 'Ready when you are'}</strong><p>{setup?.detail || 'Starting the hosted collector…'}</p></div></div>}
       {!qr && !setup?.prompt && <button className="button secondary" disabled={busy} onClick={() => start({ restart: true })}><RefreshCw size={15}/>{setup?.running ? 'Get a fresh code' : 'Try again'}</button>}
       <details className="resume-help"><summary>Connection options</summary><p>Try again resumes your saved cloud session. Relink clears this source’s saved platform login and asks you to scan a new code; your archived messages remain. Unsent queued copies must be delivered before relinking.</p>{relink ? <div className="info-strip"><p>Replace the saved {info.name} login for this connection?</p><button className="button secondary" disabled={busy} onClick={() => start({ relink: true })}>Confirm relink</button><button className="button secondary" onClick={() => setRelink(false)}>Cancel</button></div> : <button className="button secondary" onClick={() => setRelink(true)}>Relink account</button>}</details>
       <div className="wizard-actions"><a href={`/docs/${platform}#fixes`} target="_blank" rel="noreferrer">Troubleshooting</a><button className="button secondary" onClick={onClose}>Finish later</button></div>

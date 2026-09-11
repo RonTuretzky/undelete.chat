@@ -1,12 +1,12 @@
 # Privacy policy
 
-What Undelete stores, why, for how long, and who can see it.
+What undelete.chat stores, why, for how long, and who can see it.
 
 <a id="summary"></a>
 
 ## In short
 
-Undelete watches the personal messaging accounts you link and keeps only messages that were later deleted on the platform. Every other message is held privately for your watch window (7 days by default, adjustable in Settings between 1 and 30 days) and then discarded. Nothing you did not link is watched, and nothing that was never deleted is kept beyond that window.
+undelete.chat watches the personal messaging accounts you link and keeps only messages that were later deleted on the platform. Every other message is held privately for your watch window (7 days by default, adjustable in Settings between 1 and 30 days) and then discarded. Nothing you did not link is watched, and nothing that was never deleted is kept beyond that window.
 
 Message content is encrypted at rest with a key held by the server. The server can decrypt your messages to show them to you; this is not end-to-end encryption, and the people who operate the server could technically read stored content. We do not sell, share, analyse, or use message content for anything other than showing it to you.
 
@@ -24,7 +24,7 @@ Connections: the platform, the name you gave each linked account, its status, an
 
 Messages: for each watched message, the text, sender name, conversation name, platform identifiers, timestamps, and attachment names and types. File bodies, images, voice notes, and disappearing or view-once content are never stored. Reactions, link previews, pins, and formatting-only changes are not recorded. Held messages that are not deleted within your watch window are removed automatically. Deleted messages are kept with every edit they had before deletion until you remove them or your retention period ends.
 
-Deletion markers: when you permanently remove a message from Undelete, a hashed marker is kept so a delayed delivery of the same message cannot bring it back. The marker contains no content.
+Deletion markers: when you permanently remove a message from undelete.chat, a hashed marker is kept so a delayed delivery of the same message cannot bring it back. The marker contains no content.
 
 Billing: if you subscribe, Stripe’s customer and subscription identifiers, the subscription status, and the current period end. Card numbers and billing addresses are entered on Stripe’s pages and never reach our server.
 
@@ -56,7 +56,7 @@ Stripe processes payments and holds your card details and billing address. We re
 
 Cloudflare provides DNS for undelete.chat only. Traffic to the site does not pass through Cloudflare’s proxy.
 
-The messaging platforms you link (Telegram, WhatsApp, Signal, Discord) see a linked device or session named Undelete on your account, exactly as they would for a desktop client. We do not send them anything beyond what their protocols require to receive your messages.
+The messaging platforms you link (Telegram, WhatsApp, Signal) see a linked device or session named undelete.chat on your account, exactly as they would for a desktop client. We do not send them anything beyond what their protocols require to receive your messages.
 
 No other third party receives data. We do not use analytics, error-tracking, email, or advertising services.
 
@@ -76,13 +76,13 @@ No system is perfectly secure. If we learn of a breach affecting your data we wi
 
 ## Your choices and rights
 
-You can export everything Undelete holds for you as JSON from Settings at any time, remove individual messages, disconnect any account, shorten or lengthen the watch window and retention period, and delete your account outright. None of these actions requires contacting us.
+You can export everything undelete.chat holds for you as JSON from Settings at any time, remove individual messages, disconnect any account, shorten or lengthen the watch window and retention period, and delete your account outright. None of these actions requires contacting us.
 
 Depending on where you live, you may have legal rights to access, correct, delete, restrict, or port your personal data, or to object to its processing. The controls above are how we honour those rights; if they are not enough, contact us at the address in the terms of service and we will respond within 30 days.
 
-The messages you capture include other people’s words. You are responsible for having a lawful basis to keep them, and for not using Undelete to monitor someone without their knowledge where that is unlawful.
+The messages you capture include other people’s words. You are responsible for having a lawful basis to keep them, and for not using undelete.chat to monitor someone without their knowledge where that is unlawful.
 
-Undelete is not intended for children under 16 and we do not knowingly create accounts for them.
+undelete.chat is not intended for children under 16 and we do not knowingly create accounts for them.
 
 <a id="changes"></a>
 

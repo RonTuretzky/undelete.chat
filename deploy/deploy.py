@@ -49,7 +49,6 @@ if any(type(value) is not int or not 0 < value <= 9007199254740991 for value in 
 env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values['invite_code'], 'PUBLIC_ORIGIN=' + state['url'], 'NODE_ENV=production',
     'HOSTED_COLLECTORS=' + ('true' if hosted.get('enabled') else 'false'),
     'HOSTED_MAX_COLLECTORS=' + str(int(hosted.get('max_collectors', 4))),
-    'DISCORD_PERSONAL_CLOUD=' + ('true' if hosted.get('discord_personal_cloud') else 'false'),
     'TELEGRAM_API_ID=' + str(int(hosted.get('telegram_api_id', 0))),
     'TELEGRAM_API_HASH=' + str(hosted.get('telegram_api_hash', '')),
     *[name + '=' + str(value) for name, value in capacity_env.items()],
@@ -59,12 +58,12 @@ env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)
 invite_path = private / 'invitation-code.txt'; invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
 credentials = private / 'owner-credentials.txt'
-credentials.write_text('Undelete owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\nInvitation code for new accounts: ' + values['invite_code'] + '\n\nKeep this file private. Change the owner password in Settings after signing in.\n')
+credentials.write_text('undelete.chat owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\nInvitation code for new accounts: ' + values['invite_code'] + '\n\nKeep this file private. Change the owner password in Settings after signing in.\n')
 credentials.chmod(0o600)
 with tempfile.TemporaryDirectory(prefix='afterword-deploy-') as tmp:
     archive = pathlib.Path(tmp) / 'source.tar.gz'
     with tarfile.open(archive, 'w:gz') as tar:
-        for name in ['server', 'web', 'companion', 'discord-extension', 'tests', 'deploy', 'docs', 'package.json', 'package-lock.json', 'vite.config.js', 'Dockerfile', '.dockerignore', 'README.md']:
+        for name in ['server', 'web', 'companion', 'tests', 'deploy', 'docs', 'package.json', 'package-lock.json', 'vite.config.js', 'Dockerfile', '.dockerignore', 'README.md']:
             tar.add(root / name, arcname=name)
     remote('install -d -m 700 /opt/afterword')
     subprocess.run(['scp', *ssh_options, str(archive), target + ':/opt/afterword/source.tar.gz'], check=True)

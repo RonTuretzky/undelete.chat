@@ -88,22 +88,3 @@ test('pairing refuses insecure or credential-bearing remote URLs', () => {
   for (const url of ['http://example.com', 'https://secret@example.com', 'https://example.com/path', 'https://example.com?token=x', 'not a url']) assert.throws(() => serverOrigin(url));
 });
 
-test('personal browser onboarding provisions Discord while preserving other pairing and existing records', async t => {
-  const { store, alice, connection } = await fixture(t);
-  const legacy = store.createConnection(alice.id, 'discord', 'Earlier Discord source');
-  store.ingest(store.connectionByToken(legacy.token), { eventId: 'legacy', kind: 'create', scope: 'test', externalId: '1', text: 'Existing record', occurredAt: new Date().toISOString() });
-  store.ingest(store.connectionByToken(legacy.token), { eventId: 'legacy-delete', kind: 'delete', scope: 'test', externalId: '1', occurredAt: new Date().toISOString() });
-  const server = createApp(store).listen(0, '127.0.0.1');
-  await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
-  const origin = `http://127.0.0.1:${server.address().port}`;
-  const headers = { Cookie: `afterword=${store.session(alice.id)}`, 'Content-Type': 'application/json' };
-  const creation = await fetch(`${origin}/api/connections`, { method: 'POST', headers, body: JSON.stringify({ platform: 'discord', name: 'My Discord' }) });
-  assert.equal(creation.status, 201);
-  assert.equal((await creation.json()).connection.platform, 'discord');
-  assert.equal((await fetch(`${origin}/api/connections/${legacy.id}/pairing`, { method: 'POST', headers })).status, 200);
-  assert.equal((await fetch(`${origin}/api/connections/${connection.id}/pairing`, { method: 'POST', headers })).status, 200);
-  const listed = await (await fetch(`${origin}/api/messages`, { headers })).json();
-  assert.equal(listed.messages[0].text, 'Existing record');
-  assert.equal(store.connections(alice.id).length, 3);
-});

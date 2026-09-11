@@ -161,7 +161,7 @@ export function createApp(store, config = {}) {
   app.get('/api/connections/:id/hosted', auth, hosted, (req, res) => res.json({ setup: config.collectors.status(req.params.id) }));
   const requireEntitled = (req, res, next) => entitled(req.user.id) ? next() : res.status(402).json({ error: billingMessages.subscription_required, code: 'subscription_required' });
   app.post('/api/connections/:id/hosted/start', auth, hostedLimit, requireEntitled, hosted, async (req, res) => {
-    const input = z.object({ consent: z.boolean().default(false), experimentalConsent: z.boolean().default(false), restart: z.boolean().default(false), relink: z.boolean().default(false) }).parse(req.body);
+    const input = z.object({ consent: z.boolean().default(false), restart: z.boolean().default(false), relink: z.boolean().default(false) }).parse(req.body);
     res.json({ setup: await config.collectors.start(req.params.id, req.user.id, input) });
   });
   app.post('/api/connections/:id/hosted/reply', auth, hostedLimit, hosted, (req, res) => {
@@ -268,11 +268,6 @@ export function createApp(store, config = {}) {
   app.get('/api/companion/download', auth, (req, res) => {
     const path = resolve(req.query.format === 'zip' ? 'dist/afterword-companion.zip' : 'dist/afterword-companion.tar.gz');
     if (!existsSync(path)) return res.status(503).json({ error: 'Companion package is not available on this build.' });
-    res.download(path);
-  });
-  app.get('/api/discord/extension', auth, (_req, res) => {
-    const path = resolve('dist/afterword-discord-extension.zip');
-    if (!existsSync(path)) return res.status(503).json({ error: 'The Discord extension is not available on this build.' });
     res.download(path);
   });
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));

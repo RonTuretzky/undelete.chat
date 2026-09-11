@@ -8,20 +8,18 @@
   },
   "scripts": {
     "dev": "concurrently -k 'node --watch server/index.mjs' 'vite --host 127.0.0.1'",
-    "build": "vite build && node deploy/package-discord-extension.mjs",
+    "build": "vite build",
     "start": "node server/index.mjs",
     "test": "node --test tests/*.test.mjs",
     "companion": "node companion/index.mjs",
     "check": "npm test && npm run build",
     "docs": "node deploy/generate-docs.mjs",
-    "package:companion": "npm run docs && node deploy/package-companion.mjs",
-    "package:discord": "npm run docs && node deploy/package-discord-extension.mjs"
+    "package:companion": "npm run docs && node deploy/package-companion.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1129.0",
     "@whiskeysockets/baileys": "^6.7.21",
     "diff": "^8.0.0",
-    "discord.js": "^14.22.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",

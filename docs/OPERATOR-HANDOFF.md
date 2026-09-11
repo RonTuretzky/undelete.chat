@@ -1,6 +1,6 @@
-# Undelete operator handoff
+# undelete.chat operator handoff
 
-This is the credential and access handoff for the hosted Undelete service. It describes where secrets live and how they are used. **Secret values are intentionally not included in this repository or in chat.** Transfer them through a password manager or an encrypted file exchange, then rotate credentials that have been exposed or shared with a previous operator.
+This is the credential and access handoff for the hosted undelete.chat service. It describes where secrets live and how they are used. **Secret values are intentionally not included in this repository or in chat.** Transfer them through a password manager or an encrypted file exchange, then rotate credentials that have been exposed or shared with a previous operator.
 
 ## Service and source
 
@@ -36,7 +36,6 @@ The generated `~/.config/afterword/app.env` is mode `0600` and contains the runt
 
 WhatsApp and Signal do not need a separate API key in this service. Each customer links their own account through the hosted HTTPS wizard and approves the device on their phone. The resulting sessions are encrypted in the per-connection queue; do not transfer phone PINs, QR contents, or session files between operators.
 
-Discord has no supported bot credential for the personal-account flow. The optional cloud connector requires the account holder's live phone approval and explicit acknowledgement of Discord's personal-account automation restriction. It is experimental and must not be described as an approved Discord integration. Do not request, extract, or hand off a Discord password or token.
 
 ## Billing credentials
 
@@ -96,4 +95,4 @@ Do not copy these as working credentials:
 5. Rotate any old local Telegram/WhatsApp tokens and remove retired local credentials from operator machines.
 6. If Spaces is activated, rotate its bucket key independently of the DigitalOcean API token. Keep the archive key stable during ordinary credential rotation; changing it requires a planned encrypted archive migration and a verified restore.
 
-The current deployment is healthy and remote. Telegram and WhatsApp sessions are hosted on DigitalOcean; Signal remains phone-link dependent; Discord remains experimental. The current service monitor reports the only known operational warning: off-server backup storage has not yet been configured.
+The current deployment is healthy and remote.The current service monitor reports the only known operational warning: off-server backup storage has not yet been configured.

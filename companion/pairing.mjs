@@ -17,7 +17,7 @@ export async function redeemCode(server, code, fetcher = fetch) {
   try { data = await response.json(); } catch { throw new Error('The server did not return a pairing response. Check its address in your browser.'); }
   if (!response.ok) throw new Error(data.error || 'Pairing failed. Generate a new code in Connections and try again.');
   const c = data.connection;
-  if (!c || !['discord', 'telegram', 'signal', 'whatsapp'].includes(c.platform) || !/^[a-z]+-[a-f0-9]{8}$/.test(c.profile) || !/^aw_[a-zA-Z0-9_-]{43}$/.test(c.token) || typeof c.connectionId !== 'string') throw new Error('The archive returned an invalid connection. Check the server address.');
+  if (!c || !['telegram', 'signal', 'whatsapp'].includes(c.platform) || !/^[a-z]+-[a-f0-9]{8}$/.test(c.profile) || !/^aw_[a-zA-Z0-9_-]{43}$/.test(c.token) || typeof c.connectionId !== 'string') throw new Error('The archive returned an invalid connection. Check the server address.');
   return c;
 }
 

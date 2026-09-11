@@ -1,19 +1,19 @@
 import React from 'react';
-import { ArrowRight, Check, Cpu, EyeOff, KeyRound, Mail, MessageCircle, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, Cpu, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { HowItWorks } from './HowItWorks';
 import { platformGuides, platformOrder } from './guides.mjs';
 import './Landing.css';
 
-const names = { discord: 'Discord', telegram: 'Telegram', signal: 'Signal', whatsapp: 'WhatsApp' };
+const names = { telegram: 'Telegram', signal: 'Signal', whatsapp: 'WhatsApp' };
 export const inquiryEmail = 'turetzkyron@gmail.com';
-const inquiryLink = `mailto:${inquiryEmail}?subject=${encodeURIComponent('Undelete Premium inquiry')}&body=${encodeURIComponent('Hi,\n\nI am interested in Undelete Premium with trusted execution environments.\n\nAccounts to link: \nApproximate number of users: \nAnything else: \n')}`;
+const inquiryLink = `mailto:${inquiryEmail}?subject=${encodeURIComponent('undelete.chat Premium inquiry')}&body=${encodeURIComponent('Hi,\n\nI am interested in undelete.chat Premium with trusted execution environments.\n\nAccounts to link: \nApproximate number of users: \nAnything else: \n')}`;
 export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform }) {
   const trial = billing?.enabled && billing.trialDays ? billing.trialDays : null;
   const price = billing?.priceLabel || null;
   const go = (e, href) => { e.preventDefault(); onGuide(href); };
   return <div className="landing">
     <header className="landing-nav">
-      <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Undelete"><span className="brand-icon"><MessageCircle size={20}/></span>undelete<span className="brand-dot">.</span></button>
+      <button className="brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="undelete.chat">undelete<span className="brand-dot">.chat</span></button>
       <nav aria-label="Landing sections"><a href="#how">How it works</a><a href="#platforms">Platforms</a><a href="#privacy">Privacy</a><a href="#pricing">Pricing</a><a href="/docs" onClick={e => go(e, '/docs')}>Help</a></nav>
       <span className="spacer"/>
       <button className="text-button" onClick={onSignIn}>Sign in</button>
@@ -21,9 +21,9 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
     </header>
     <section className="landing-hero">
       <div>
-        <div className="eyebrow">FOR WHATSAPP · TELEGRAM · SIGNAL · DISCORD</div>
+        <div className="eyebrow">FOR WHATSAPP · TELEGRAM · SIGNAL</div>
         <h1>They deleted it.<br/>You still have it<span className="brand-dot">.</span></h1>
-        <p className="lede">Undelete links to your own chat accounts and keeps the messages other people delete, with the edits they made before deleting. Nothing else is stored.</p>
+        <p className="lede">undelete.chat links to your own chat accounts and keeps the messages other people delete, with the edits they made before deleting. Nothing else is stored.</p>
         <div className="landing-cta">
           <button className="button primary" onClick={onStart}>Start free{trial ? `, ${trial}-day trial` : ''}<ArrowRight size={17}/></button>
           <button className="button secondary" onClick={onDemo}>See a live demo<ArrowRight size={16}/></button>
@@ -40,23 +40,23 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
     </section>
     <section className="landing-section" id="privacy">
       <h2>Built to keep as little as possible<span className="brand-dot">.</span></h2>
-      <p className="lede">Most archiving tools keep everything. Undelete is designed around the opposite promise.</p>
+      <p className="lede">Most archiving tools keep everything. undelete.chat is designed around the opposite promise.</p>
       <div className="pillars">
-        <div className="pillar"><EyeOff size={22}/><h3>Only deleted messages are kept</h3><p>New messages are held privately for a watch window you control (1 to 30 days) and then discarded. If nobody deletes them, they are gone from Undelete too.</p></div>
+        <div className="pillar"><EyeOff size={22}/><h3>Only deleted messages are kept</h3><p>New messages are held privately for a watch window you control (1 to 30 days) and then discarded. If nobody deletes them, they are gone from undelete.chat too.</p></div>
         <div className="pillar"><KeyRound size={22}/><h3>Encrypted, account by account</h3><p>Message content and linked sessions are encrypted at rest with keys bound to your account. Passwords are hashed with scrypt; there are no analytics or tracking cookies.</p></div>
         <div className="pillar"><ShieldCheck size={22}/><h3>Yours to export or erase</h3><p>Export everything as JSON, remove single messages, disconnect an account, or delete your workspace in one click. No email required to sign up.</p></div>
       </div>
       <p className="landing-fineprint">Read the full <a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>privacy policy</a>. Content is decrypted by the server to show it to you; this is not end-to-end encryption.</p>
     </section>
     <section className="landing-section" id="pricing">
-      <h2>Two ways to run Undelete<span className="brand-dot">.</span></h2>
+      <h2>Two ways to run undelete.chat<span className="brand-dot">.</span></h2>
       <p className="lede">Start with the standard plan in a minute. Choose Premium when your messages must stay unreadable even to the people running the servers.</p>
       <div className="pricing tiers">
         <div className="price-card">
           <div className="eyebrow">STANDARD</div>
           <div className="price">{price || 'Simple monthly plan'}{price && <small>per month</small>}</div>
           <ul>
-            <li><Check size={15}/>Up to four linked accounts across WhatsApp, Telegram, Signal, and Discord</li>
+            <li><Check size={15}/>Up to four linked accounts across WhatsApp, Telegram, and Signal</li>
             <li><Check size={15}/>Deleted messages kept with every edit they had</li>
             <li><Check size={15}/>Adjustable watch window and retention</li>
             <li><Check size={15}/>Bookmarks, search across deleted messages, JSON export</li>
@@ -82,15 +82,15 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
         </div>
       </div>
       <div className="pricing-notes">
-        <p>Payments for the Standard plan are handled by Stripe; Undelete never sees your card number. Your archive stays readable and exportable even without an active plan. See <a href="/docs/billing" onClick={e => go(e, '/docs/billing')}>plans, trials, and billing</a>.</p>
+        <p>Payments for the Standard plan are handled by Stripe; undelete.chat never sees your card number. Your archive stays readable and exportable even without an active plan. See <a href="/docs/billing" onClick={e => go(e, '/docs/billing')}>plans, trials, and billing</a>.</p>
       </div>
     </section>
     <section className="landing-section" id="faq">
       <h2>Questions<span className="brand-dot">.</span></h2>
       <div className="faq">
-        <details><summary>Can it recover messages deleted before I signed up?</summary><p>No. Undelete can only keep a message it received while your account was linked and still inside the watch window when the deletion happened. It cannot reach back into the past.</p></details>
-        <details><summary>Does the other person know?</summary><p>Undelete appears on your account as a linked device, exactly like a desktop app. Nothing is sent to the other person, and nothing changes in the conversation.</p></details>
-        <details><summary>What about messages I delete myself?</summary><p>Deletions on your own messages are captured the same way if the platform reports them to linked devices. You can remove anything from Undelete permanently at any time.</p></details>
+        <details><summary>Can it recover messages deleted before I signed up?</summary><p>No. undelete.chat can only keep a message it received while your account was linked and still inside the watch window when the deletion happened. It cannot reach back into the past.</p></details>
+        <details><summary>Does the other person know?</summary><p>undelete.chat appears on your account as a linked device, exactly like a desktop app. Nothing is sent to the other person, and nothing changes in the conversation.</p></details>
+        <details><summary>What about messages I delete myself?</summary><p>Deletions on your own messages are captured the same way if the platform reports them to linked devices. You can remove anything from undelete.chat permanently at any time.</p></details>
         <details><summary>Are photos, voice notes, and files kept?</summary><p>Only their names and types. File bodies, view-once media, and disappearing messages are never stored.</p></details>
         <details><summary>What does Premium with trusted execution environments add?</summary><p>On the Standard plan the server holds the key that decrypts your archive, so operators could technically read stored content. Premium runs the collectors and the archive inside a confidential-computing enclave: keys are sealed to attested hardware, memory is encrypted by the CPU, and neither operators, backups, nor the hosting provider can read your data. Email {inquiryEmail} to discuss it.</p></details>
         <details><summary>Who can read my messages?</summary><p>Content is encrypted at rest, and the server decrypts it only to show it to you. The people operating the server could technically access stored data, so this is not end-to-end encryption. The privacy policy spells out exactly what is stored and for how long.</p></details>
@@ -102,13 +102,13 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
       <div className="landing-cta" style={{ justifyContent: 'center' }}><button className="button primary" onClick={onStart}>Start free<ArrowRight size={17}/></button><button className="button secondary" onClick={onDemo}>See a live demo<ArrowRight size={16}/></button></div>
     </section>
     <footer className="landing-footer">
-      <span>undelete<span className="brand-dot">.</span> · They deleted it. You still have it.</span>
+      <span>undelete<span className="brand-dot">.chat</span> · They deleted it. You still have it.</span>
       <nav><a href="/docs" onClick={e => go(e, '/docs')}>Help & guides</a><a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>Privacy policy</a><a href="/docs/terms" onClick={e => go(e, '/docs/terms')}>Terms</a><a href="/docs/billing" onClick={e => go(e, '/docs/billing')}>Billing</a></nav>
     </footer>
   </div>;
 }
 
-// Hero illustration: a deleted chat bubble reappears in Undelete. Reuses the
+// Hero illustration: a deleted chat bubble reappears in undelete.chat. Reuses the
 // third how-it-works scene at a larger size so the two stay consistent.
 function HeroScene() {
   return <div className="how-scene">
@@ -120,7 +120,7 @@ function HeroScene() {
       <g className="how-tombstone" transform="translate(40 124)"><rect className="bubble" width="188" height="40" rx="12" strokeDasharray="4 4"/><text className="muted" x="16" y="25" style={{ fontSize: 12 }}>This message was deleted</text></g>
       <g transform="translate(40 176)"><rect className="bubble mine" width="120" height="40" rx="12"/><text x="16" y="25" style={{ fontSize: 13 }}>wait, what?</text></g>
       <rect x="276" y="24" width="220" height="252" rx="16" fill="#fff" stroke="#bfdccd"/>
-      <text x="386" y="52" textAnchor="middle" fill="#207763" style={{ fontSize: 12, fontWeight: 700 }}>undelete.</text>
+      <text x="386" y="52" textAnchor="middle" fill="#207763" style={{ fontSize: 12, fontWeight: 700 }}>undelete.chat</text>
       <circle className="how-pulse" cx="386" cy="150" r="54" fill="#207763"/>
       <g className="how-recovered" transform="translate(292 112)">
         <rect width="188" height="76" rx="12" fill="#eaf5ef" stroke="#207763"/>

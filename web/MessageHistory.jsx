@@ -5,7 +5,7 @@ import './MessageHistory.css';
 
 const time = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const date = value => new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' });
-const names = { discord: 'Discord', telegram: 'Telegram', signal: 'Signal', whatsapp: 'WhatsApp' };
+const names = { telegram: 'Telegram', signal: 'Signal', whatsapp: 'WhatsApp' };
 
 function Change({ before, after }) {
   const oldText = before.text || '', newText = after.text || '';

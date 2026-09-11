@@ -1,15 +1,5 @@
 import { eventId, timestamp } from '../queue.mjs';
 
-export function discordEvent(d, kind, now = new Date().toISOString()) {
-  if (!d.id || !d.channel_id) return null;
-  if (kind !== 'delete' && d.content === undefined && !d.attachments?.length) return null;
-  const occurredAt = kind === 'delete' ? now : d.edited_timestamp || d.timestamp || now;
-  return { eventId: eventId('discord', d.id, kind, kind === 'delete' ? 'deleted' : occurredAt, kind === 'delete' ? null : d.content, kind === 'delete' ? null : d.attachments),
-    kind, scope: d.channel_id, externalId: d.id, chatId: d.channel_id, chatName: d.chatName || '',
-    authorId: d.author?.id || '', authorName: d.author?.global_name || d.author?.username || '', text: kind === 'delete' ? undefined : d.content,
-    occurredAt, attachments: (d.attachments || []).map(a => ({ name: a.filename || 'Attachment', type: a.content_type || 'file', size: a.size })) };
-}
-
 export function telegramEvent(m, kind, meta = {}) {
   if (!m?.id) return null;
   const channel = m.peerId?.channelId?.toString();

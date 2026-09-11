@@ -127,21 +127,6 @@ test('concurrent starts respect global capacity; separate accounts cannot start 
   const results = await Promise.allSettled([f.manager.start(a.id, f.alice.id, { consent: true }), f.manager.start(b.id, f.bob.id, { consent: true })]);
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
   assert.equal(results.filter(r => r.status === 'rejected').length, 1);
-  const discord = f.store.createConnection(f.alice.id, 'discord', 'Personal');
-  await assert.rejects(f.manager.start(discord.id, f.alice.id, { consent: true }), /not configured/);
-});
-test('experimental Discord cloud linking requires an explicit risk acknowledgement and keeps it for resumed sessions', async t => {
-  const f = await fixture(t, { discordPersonalCloud: true });
-  const c = f.store.createConnection(f.alice.id, 'discord', 'Personal');
-  await assert.rejects(f.manager.start(c.id, f.alice.id, { consent: true }), /Acknowledge/);
-  await assert.rejects(f.manager.start(c.id, f.alice.id, { experimentalConsent: true }), /Confirm/);
-  assert.equal(f.manager.status(c.id).running, false);
-  await f.manager.start(c.id, f.alice.id, { consent: true, experimentalConsent: true });
-  await until(() => f.manager.status(c.id).qr);
-  assert.ok(f.store.hostedConfig(c.id).discordRiskAcceptedAt);
-  await f.manager.suspend(c.id);
-  await f.manager.start(c.id, f.alice.id);
-  await until(() => f.manager.status(c.id).qr);
 });
 test('Signal native library caches are separate from private runtime files and cleaned after failure or stop', async t => {
   const cache = mkdtempSync(join(tmpdir(), 'afterword-native-cache-'));

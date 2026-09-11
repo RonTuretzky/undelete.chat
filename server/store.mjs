@@ -5,7 +5,7 @@ import { cipher, hash, token, passwordHash } from './crypto.mjs';
 import { createArchiveReader } from './archive-reader.mjs';
 import { createArchiveCapacity, eventBytes, MESSAGE_BYTES } from './archive-capacity.mjs';
 
-export const platforms = ['discord', 'telegram', 'signal', 'whatsapp'];
+export const platforms = ['telegram', 'signal', 'whatsapp'];
 const short = z.string().min(1).max(256);
 export const eventSchema = z.object({
   eventId: short, kind: z.enum(['create', 'edit', 'delete']), externalId: short,
@@ -110,6 +110,9 @@ export function createStore(path, encryptionKey, options = {}) {
     connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
     config TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL
   );`);
+  // Discord support was withdrawn; retire any remaining sources so nothing tries to run them.
+  db.prepare("DELETE FROM hosted_collectors WHERE connection_id IN (SELECT id FROM connections WHERE platform='discord')").run();
+  db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='error',detail='Discord is no longer supported.' WHERE platform='discord' AND revoked=0").run();
   const capacity = createArchiveCapacity(db, path, options);
   const getUser = id => db.prepare('SELECT id,username,created_at,retention_days,hold_days,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id);
   const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
@@ -261,11 +264,11 @@ export function createStore(path, encryptionKey, options = {}) {
       try {
         const c = db.prepare(`SELECT c.* FROM pairing_codes p JOIN connections c ON p.connection_id=c.id
           WHERE p.code_hash=? AND p.expires_at>? AND c.revoked=0`).get(hash(code), new Date().toISOString());
-        if (!c || expectedPlatform && c.platform !== expectedPlatform || c.platform === 'discord' && expectedPlatform !== 'discord') { db.exec('COMMIT'); return null; }
+        if (!c || expectedPlatform && c.platform !== expectedPlatform) { db.exec('COMMIT'); return null; }
         const secret = `aw_${token()}`, pairedAt = new Date().toISOString();
-        const collector = c.platform === 'discord' ? 'discord-browser' : 'companion';
+        const collector = 'companion';
         db.prepare("UPDATE connections SET token_hash=?,paired_at=?,last_seen=?,collector=?,health='waiting',connected_at=NULL,detail=? WHERE id=?")
-          .run(hash(secret), pairedAt, pairedAt, collector, c.platform === 'discord' ? 'Extension paired. Start capture in your Discord Web tab.' : 'Companion paired. Finish signing in on your computer.', c.id);
+          .run(hash(secret), pairedAt, pairedAt, collector, 'Companion paired. Finish signing in on your computer.', c.id);
         db.prepare('DELETE FROM pairing_codes WHERE connection_id=?').run(c.id);
         db.exec('COMMIT');
         return { token: secret, platform: c.platform, collector, connectionId: c.id, name: c.name, profile: `${c.platform}-${c.id.slice(0, 8)}` };

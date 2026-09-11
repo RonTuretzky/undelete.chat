@@ -16,7 +16,7 @@ Clear next steps for QR codes, cloud sessions, and deleted messages that do not 
 
 Wait briefly while the server retries. If the error persists, open Connection check. You may need to approve a fresh phone link. A server configuration or capacity error needs the operator’s attention.
 
-> Closing the website does not stop a hosted collector. Local companions and Discord’s browser extension do depend on the computer running them.
+> Closing the website does not stop a hosted collector. Local companions do depend on the computer running them.
 
 <a id="missing"></a>
 
@@ -30,7 +30,7 @@ Wait briefly while the server retries. If the error persists, open Connection ch
 
 <a id="account"></a>
 
-## Cannot sign in to Undelete
+## Cannot sign in to undelete.chat
 
 Check your username and password. New accounts may require an invitation code. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored.
 

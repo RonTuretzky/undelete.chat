@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import QRCode from 'qrcode';
 import { capacityError, capacityMessages, deliveryFailure } from '../capacity.mjs';
 
-const supported = ['telegram', 'signal', 'whatsapp', 'discord'];
+const supported = ['telegram', 'signal', 'whatsapp'];
 const failure = (message, status = 409) => Object.assign(new Error(message), { status, public: true });
 export function createCollectorManager(store, options) {
   const root = resolve(options.directory, 'collectors');
@@ -121,8 +121,6 @@ export function createCollectorManager(store, options) {
           // sent once over IPC and never stored or added to the application logs.
           const clean = { ...store.hostedConfig(c.id) };
           if (c.platform === 'telegram') { clean.apiId = Number(message.config?.apiId); clean.apiHash = String(message.config?.apiHash || ''); }
-          const discordAccount = message.config?.discordAccountId;
-          if (c.platform === 'discord' && typeof discordAccount === 'string' && /^\d{1,24}$/.test(discordAccount) && (!clean.discordAccountId || clean.discordAccountId === discordAccount)) clean.discordAccountId = discordAccount;
           store.saveHostedConfig(c.id, clean);
         }
         if (message.type === 'events' && Array.isArray(message.events) && message.events.length <= 50) {
@@ -180,17 +178,16 @@ export function createCollectorManager(store, options) {
     if (signalNative) rmSync(join(signalNative, id), { recursive: true, force: true });
   }
   const manager = {
-    capabilities() { return { enabled: true, platforms: { telegram: !!options.telegramApiId && !!options.telegramApiHash, signal: options.signalAvailable !== false, whatsapp: true, discord: options.discordPersonalCloud === true }, maxConnectionsPerAccount: 4 }; },
+    capabilities() { return { enabled: true, platforms: { telegram: !!options.telegramApiId && !!options.telegramApiHash, signal: options.signalAvailable !== false, whatsapp: true }, maxConnectionsPerAccount: 4 }; },
     status: publicState,
-    start(id, userId, { restart = false, relink = false, consent = false, experimentalConsent = false } = {}) {
+    start(id, userId, { restart = false, relink = false, consent = false } = {}) {
       return serialize(id, async () => {
         const c = store.connection(id, userId);
         if (!c || c.revoked) throw failure('Connection not found.', 404);
         if (!supported.includes(c.platform)) throw failure('Hosted capture is not available for this platform.');
         if (!manager.capabilities().platforms[c.platform]) throw failure('This platform is not configured on the server yet.', 503);
         const savedConfig = store.hostedConfig(id);
-        if (c.platform === 'discord' && !savedConfig.discordRiskAcceptedAt && !experimentalConsent) throw failure('Acknowledge Discord’s account restrictions before using this experimental connection.', 400);
-        if (c.collector !== 'hosted' && !consent) throw failure('Confirm that Undelete may run this connection on the server.', 400);
+        if (c.collector !== 'hosted' && !consent) throw failure('Confirm that undelete.chat may run this connection on the server.', 400);
         const active = store.hostedConnections().filter(x => x.enabled);
         if (!enabled(id) && active.length + reservations.size >= maxCollectors) throw failure('Hosted capacity is full. Please contact support.', 503);
         if (!enabled(id) && active.filter(x => x.user_id === userId).length + [...reservations.values()].filter(x => x === userId).length >= 4) throw failure('This account already has four hosted connections.');
@@ -207,7 +204,7 @@ export function createCollectorManager(store, options) {
           throw failure(relinkQueueMessage);
         }
         if (relink) rmSync(join(root, id), { recursive: true, force: true });
-        store.saveHostedConfig(id, { ...savedConfig, ...(c.platform === 'discord' && experimentalConsent ? { discordRiskAcceptedAt: new Date().toISOString() } : {}) });
+        store.saveHostedConfig(id, savedConfig);
         store.db.prepare('UPDATE hosted_collectors SET enabled=1 WHERE connection_id=?').run(id);
         store.db.prepare("UPDATE connections SET collector='hosted',token_hash=NULL,paired_at=?,last_seen=?,health='waiting',connected_at=CASE WHEN ? THEN NULL ELSE connected_at END,detail='Starting hosted sign-in' WHERE id=?")
           .run(new Date().toISOString(), new Date().toISOString(), +(relink || c.collector !== 'hosted'), id);
