@@ -848,6 +848,14 @@ export const guides = {
         "note": "Adding a payment method during the trial does not shorten it. The first charge happens when the trial ends."
       },
       {
+        "id": "premium",
+        "title": "Premium: trusted execution environments",
+        "paragraphs": [
+          "On the standard plan, message content is encrypted at rest but the server holds the decryption key, so the people operating Undelete could technically read stored data. Premium is for people who need stronger guarantees: the collectors and the archive run inside a confidential-computing enclave (a trusted execution environment) with keys sealed to attested hardware. Operators, backups, and the hosting provider cannot decrypt the data.",
+          "Premium is arranged individually and can include dedicated capacity, more linked accounts, a longer watch window, priority support, and a written data-handling agreement. Email turetzkyron@gmail.com with the accounts you want to link and roughly how many people need it; expect a reply within two business days."
+        ]
+      },
+      {
         "id": "manage",
         "title": "Invoices, payment methods, and cancellation",
         "paragraphs": [

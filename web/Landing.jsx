@@ -1,10 +1,12 @@
 import React from 'react';
-import { ArrowRight, Check, EyeOff, KeyRound, MessageCircle, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, Cpu, EyeOff, KeyRound, Mail, MessageCircle, ShieldCheck } from 'lucide-react';
 import { HowItWorks } from './HowItWorks';
 import { platformGuides, platformOrder } from './guides.mjs';
 import './Landing.css';
 
 const names = { discord: 'Discord', telegram: 'Telegram', signal: 'Signal', whatsapp: 'WhatsApp' };
+export const inquiryEmail = 'turetzkyron@gmail.com';
+const inquiryLink = `mailto:${inquiryEmail}?subject=${encodeURIComponent('Undelete Premium inquiry')}&body=${encodeURIComponent('Hi,\n\nI am interested in Undelete Premium with trusted execution environments.\n\nAccounts to link: \nApproximate number of users: \nAnything else: \n')}`;
 export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform }) {
   const trial = billing?.enabled && billing.trialDays ? billing.trialDays : null;
   const price = billing?.priceLabel || null;
@@ -47,10 +49,11 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
       <p className="landing-fineprint">Read the full <a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>privacy policy</a>. Content is decrypted by the server to show it to you; this is not end-to-end encryption.</p>
     </section>
     <section className="landing-section" id="pricing">
-      <h2>One plan, no surprises<span className="brand-dot">.</span></h2>
-      <div className="pricing">
+      <h2>Two ways to run Undelete<span className="brand-dot">.</span></h2>
+      <p className="lede">Start with the standard plan in a minute. Choose Premium when your messages must stay unreadable even to the people running the servers.</p>
+      <div className="pricing tiers">
         <div className="price-card">
-          <div className="eyebrow">UNDELETE</div>
+          <div className="eyebrow">STANDARD</div>
           <div className="price">{price || 'Simple monthly plan'}{price && <small>per month</small>}</div>
           <ul>
             <li><Check size={15}/>Up to four linked accounts across WhatsApp, Telegram, Signal, and Discord</li>
@@ -58,14 +61,28 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
             <li><Check size={15}/>Adjustable watch window and retention</li>
             <li><Check size={15}/>Bookmarks, search across deleted messages, JSON export</li>
             <li><Check size={15}/>Hosted 24/7; nothing to install</li>
+            <li><Check size={15}/>Encrypted at rest; the service can decrypt to show you your archive</li>
           </ul>
           <button className="button primary full" onClick={onStart}>{trial ? `Start your ${trial}-day free trial` : 'Get started'}<ArrowRight size={16}/></button>
+          {trial && <p className="landing-fineprint">{trial} days free, no card on file. Cancel any time from Settings.</p>}
         </div>
-        <div className="pricing-notes">
-          {trial && <p>Every new workspace starts with {trial} days free and no card on file. Add a payment method whenever you like; the first charge happens when the trial ends.</p>}
-          <p>Cancel from Settings at any time. Capture continues to the end of the paid period, and your archive stays readable and exportable even without an active plan.</p>
-          <p>Payments are handled by Stripe. Undelete never sees your card number. See <a href="/docs/billing" onClick={e => go(e, '/docs/billing')}>plans, trials, and billing</a>.</p>
+        <div className="price-card premium">
+          <div className="eyebrow">PREMIUM</div>
+          <div className="price">Custom<small>by inquiry</small></div>
+          <p className="premium-lede"><Cpu size={16}/>Your archive runs inside a trusted execution environment, so message content and linked sessions are processed only in hardware-isolated memory that operators cannot read.</p>
+          <ul>
+            <li><Check size={15}/>Everything in Standard</li>
+            <li><Check size={15}/>Collectors and archive inside a confidential-computing enclave with remote attestation you can verify</li>
+            <li><Check size={15}/>Keys sealed to the enclave; no operator, backup, or provider image can decrypt your data</li>
+            <li><Check size={15}/>Dedicated capacity, more linked accounts, and a longer watch window on request</li>
+            <li><Check size={15}/>Priority support and a written data-handling agreement</li>
+          </ul>
+          <a className="button secondary full" href={inquiryLink}><Mail size={16}/>Email {inquiryEmail}<ArrowRight size={16}/></a>
+          <p className="landing-fineprint">Tell us which accounts you want to link and roughly how many people need it. We reply within two business days.</p>
         </div>
+      </div>
+      <div className="pricing-notes">
+        <p>Payments for the Standard plan are handled by Stripe; Undelete never sees your card number. Your archive stays readable and exportable even without an active plan. See <a href="/docs/billing" onClick={e => go(e, '/docs/billing')}>plans, trials, and billing</a>.</p>
       </div>
     </section>
     <section className="landing-section" id="faq">
@@ -76,6 +93,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
         <details><summary>What about messages I delete myself?</summary><p>Deletions on your own messages are captured the same way if the platform reports them to linked devices. You can remove anything from Undelete permanently at any time.</p></details>
         <details><summary>Is this allowed by WhatsApp, Telegram, Signal, and Discord?</summary><p>Telegram offers an official personal API. WhatsApp and Signal are linked through unofficial device clients, which their terms may restrict. Discord forbids automated personal accounts, so its connector is experimental and clearly labelled. Each platform guide explains the risks before you link.</p></details>
         <details><summary>Are photos, voice notes, and files kept?</summary><p>Only their names and types. File bodies, view-once media, and disappearing messages are never stored.</p></details>
+        <details><summary>What does Premium with trusted execution environments add?</summary><p>On the Standard plan the server holds the key that decrypts your archive, so operators could technically read stored content. Premium runs the collectors and the archive inside a confidential-computing enclave: keys are sealed to attested hardware, memory is encrypted by the CPU, and neither operators, backups, nor the hosting provider can read your data. Email {inquiryEmail} to discuss it.</p></details>
         <details><summary>Who can read my messages?</summary><p>Content is encrypted at rest, and the server decrypts it only to show it to you. The people operating the server could technically access stored data, so this is not end-to-end encryption. The privacy policy spells out exactly what is stored and for how long.</p></details>
       </div>
     </section>
