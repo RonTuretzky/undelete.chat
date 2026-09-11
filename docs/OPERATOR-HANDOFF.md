@@ -6,7 +6,7 @@ This is the credential and access handoff for the hosted Undelete service. It de
 
 | Item | Value |
 | --- | --- |
-| Private source repository | [github.com/RonTuretzky/afterword](https://github.com/RonTuretzky/afterword) |
+| Private source repository | [github.com/RonTuretzky/undelete.chat](https://github.com/RonTuretzky/undelete.chat) |
 | Branch | `main` |
 | Last pushed release | `a57c92c` |
 | Public service | [https://undelete.chat](https://undelete.chat) |
@@ -27,7 +27,7 @@ All paths below are on the current operator machine. On another machine, use tha
 | Owner account | `~/.config/afterword/owner-credentials.txt`; source fields are `owner_username` and `owner_password` in `app-secrets.json` | Signing into the owner account and verifying the service | Change the password after handoff. Do not use this account for customer testing. |
 | Invitation gate | `~/.config/afterword/invitation-code.txt`; source field `invite_code` in `app-secrets.json` | Allowing new registrations while the service is in private beta | Keep private. Removing the invitation requirement requires an explicit product decision and deployment change. |
 | Telegram application credentials | `~/.config/afterword/hosted-config.json`, fields `telegram_api_id` and `telegram_api_hash` | Hosted Telegram sign-in and reconnect | The API hash is secret. These are application-level credentials, separate from each customer's phone sign-in. |
-| GitHub write access | GitHub account or SSH/PAT credential in the operator's local credential manager | Pulling and pushing `origin` | The repository remote is HTTPS. The credential is not stored in the project. Use a GitHub account with access to `RonTuretzky/afterword`. |
+| GitHub write access | GitHub account or SSH/PAT credential in the operator's local credential manager | Pulling and pushing `origin` | The repository remote is HTTPS. The credential is not stored in the project. Use a GitHub account with access to `RonTuretzky/undelete.chat`. |
 | DigitalOcean web account and 2FA | DigitalOcean control panel | Billing, Spaces bucket/key creation, backup image restore, and account recovery | Not stored in this project. The account owner must complete 2FA when the control panel requests it. |
 
 The generated `~/.config/afterword/app.env` is mode `0600` and contains the runtime archive key, invitation code, Telegram credentials, and capacity settings. It is an implementation artifact, not a replacement for the source secret files. The deployment script regenerates it privately from the source files before uploading it to `/opt/afterword/deploy/.env`.
