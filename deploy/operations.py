@@ -216,6 +216,58 @@ class DigitalOcean:
                 'dropletAlerts': [{'uuid': p['uuid'], 'type': p['type'], 'value': p['value'], 'window': p['window'], 'enabled': p['enabled'],
                                    'recipients': len(p.get('alerts', {}).get('email', []))} for p in policies]}
 
+    def wait_action(self, action_id, timeout=900):
+        import time
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            action = self.request('GET', 'actions/' + str(action_id))['action']
+            if action['status'] == 'completed': return action
+            if action['status'] == 'errored': raise RuntimeError(f"DigitalOcean action {action['type']} failed.")
+            time.sleep(5)
+        raise RuntimeError('Timed out waiting for the DigitalOcean action.')
+
+    def wait_status(self, wanted, timeout=300):
+        import time
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            droplet = self.request('GET', 'droplets/' + str(self.state['droplet_id']))['droplet']
+            if droplet['status'] == wanted: return droplet
+            time.sleep(5)
+        raise RuntimeError(f'Timed out waiting for the Droplet to be {wanted}.')
+
+    def resize(self, size, disk):
+        """Resize the Afterword Droplet: graceful shutdown, resize, power on. A disk resize is permanent."""
+        import time
+        current = self.status()
+        droplet = self.request('GET', 'droplets/' + str(self.state['droplet_id']))['droplet']
+        if droplet['size_slug'] == size:
+            return {'changed': False, 'reason': 'Already this size', 'size': size}
+        sizes = {s['slug']: s for s in self.request('GET', 'sizes?per_page=200')['sizes']}
+        target = sizes.get(size)
+        if not target or not target['available'] or droplet['region']['slug'] not in target['regions']:
+            raise RuntimeError('That size is not available in the Droplet region.')
+        if disk and target['disk'] < droplet['disk']:
+            raise RuntimeError('A disk resize cannot shrink the disk.')
+        actions = 'droplets/' + str(self.state['droplet_id']) + '/actions'
+        started = time.time()
+        if droplet['status'] != 'off':
+            # Graceful ACPI shutdown lets the application checkpoint sessions; fall back to power off.
+            self.request('POST', actions, {'type': 'shutdown'})
+            try: self.wait_status('off', timeout=150)
+            except RuntimeError:
+                self.wait_action(self.request('POST', actions, {'type': 'power_off'})['action']['id'])
+                self.wait_status('off', timeout=120)
+        resized = self.request('POST', actions, {'type': 'resize', 'size': size, 'disk': bool(disk)})['action']
+        self.wait_action(resized['id'], timeout=1800)
+        self.wait_action(self.request('POST', actions, {'type': 'power_on'})['action']['id'])
+        droplet = self.wait_status('active')
+        result = {'changed': True, 'from': current['droplet'], 'size': droplet['size_slug'], 'memoryMB': droplet['memory'], 'vcpus': droplet['vcpus'],
+                  'diskGB': droplet['disk'], 'diskResized': bool(disk), 'monthlyServerUSD': droplet['size']['price_monthly'],
+                  'downtimeSeconds': round(time.time() - started), 'resizeActionId': resized['id']}
+        file = self.private / ('resize-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + '.json')
+        file.write_text(json.dumps(result, indent=2)); file.chmod(0o600)
+        return result
+
     def backup_status(self):
         options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',
                    '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.private / 'known_hosts'), '-o', 'ConnectTimeout=15']
@@ -250,6 +302,9 @@ def main():
     alerts = commands.add_parser('enable-alerts')
     alerts.add_argument('--email', help='Notification recipient; defaults to the verified DigitalOcean account email.')
     commands.add_parser('alert-status')
+    resize = commands.add_parser('resize', help='Resize the Droplet with a graceful shutdown; a disk resize is permanent.')
+    resize.add_argument('--size', required=True)
+    resize.add_argument('--disk', action='store_true', help='Also grow the disk (irreversible).')
     backups = commands.add_parser('enable-daily-backups')
     backups.add_argument('--hour', type=int, choices=[0, 4, 8, 12, 16, 20], default=20)
     action = commands.add_parser('action')
@@ -265,6 +320,7 @@ def main():
     elif args.command == 'enable-service-monitor': result = client.enable_service_monitor()
     elif args.command == 'enable-alerts': result = client.enable_alerts(args.email)
     elif args.command == 'alert-status': result = client.alert_status()
+    elif args.command == 'resize': result = client.resize(args.size, args.disk)
     else: result = client.request('GET', 'actions/' + str(args.id))
     print(json.dumps(result, indent=2))
 

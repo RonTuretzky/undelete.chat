@@ -10,7 +10,7 @@ This is the credential and access handoff for the hosted Afterword service. It d
 | Branch | `main` |
 | Last pushed release | `a57c92c` |
 | Public service | [https://afterword-159-65-242-65.sslip.io](https://afterword-159-65-242-65.sslip.io) |
-| DigitalOcean Droplet | `afterword-saas` (`159.65.242.65`, NYC3) |
+| DigitalOcean Droplet | `afterword-saas` (`159.65.242.65`, NYC3), `s-2vcpu-4gb`, 80 GB disk |
 | Private local store | `/Users/wk/.config/afterword` |
 
 The GitHub repository is private. A signed-out browser can display a 404 until the operator signs in with an account that has repository access.

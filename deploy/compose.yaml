@@ -5,7 +5,8 @@ services:
     restart: unless-stopped
     init: true
     stop_grace_period: 30s
-    pids_limit: 256
+    # Each hosted worker uses about ten threads and signal-cli about twenty; 30 collectors need headroom.
+    pids_limit: 1024
     env_file: .env
     volumes:
       - archive-data:/data
@@ -20,7 +21,7 @@ services:
     cap_drop: [ALL]
     read_only: true
     tmpfs:
-      - /tmp:size=256m,mode=1777
+      - /tmp:size=512m,mode=1777
     logging:
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
