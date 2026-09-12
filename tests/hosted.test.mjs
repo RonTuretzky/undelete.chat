@@ -267,6 +267,8 @@ test('a stalled restart of a previously linked source is retried, while an unlin
   await f.manager.start(linked.id, alice.id, { consent: true }); await f.manager.start(fresh.id, alice.id, { consent: true });
   await until(() => f.children.length === 2 && f.manager.status(linked.id).running && f.manager.status(fresh.id).running);
   store.db.prepare('UPDATE connections SET connected_at=? WHERE id=?').run(new Date().toISOString(), linked.id);
+  f.children[0].send({ type: 'fixture-health', health: 'reconnecting', detail: 'Reconnecting' });
+  await until(() => f.manager.status(linked.id).health === 'reconnecting');
   f.children[0].send({ type: 'fixture-exit', code: 2 }); f.children[1].send({ type: 'fixture-exit', code: 2 });
   await until(() => !f.manager.status(fresh.id).running && f.manager.status(fresh.id).health === 'error');
   assert.match(f.manager.status(fresh.id).detail, /Choose Try again/);
@@ -289,4 +291,8 @@ test('a source the platform signed out stops with the worker\'s message and is n
   await new Promise(r => setTimeout(r, 3000));
   assert.equal(f.children.length, 1, 'no relaunch after a sign-out');
   assert.equal(f.manager.status(c.id).health, 'error'); assert.match(f.manager.status(c.id).detail, /signed this device out/);
+  assert.equal(f.manager.status(c.id).enabled, false, 'a restart will not relaunch it until the owner tries again');
+  await f.restart(); await new Promise(r => setTimeout(r, 1500));
+  assert.equal(f.children.length, 1, 'restore skips the disabled source');
+  await f.manager.start(c.id, alice.id); await until(() => f.manager.status(c.id).running);
 });
