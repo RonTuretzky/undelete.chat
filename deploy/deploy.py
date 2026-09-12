@@ -46,7 +46,7 @@ capacity_env = {'ARCHIVE_ACCOUNT_BYTES': capacity.get('account_bytes', 128 * 102
                 'ARCHIVE_MIN_FREE_BYTES': capacity.get('minimum_free_bytes', 2 * 1024**3)}
 if any(type(value) is not int or not 0 < value <= 9007199254740991 for value in capacity_env.values()):
     raise SystemExit('Archive capacity settings must be positive integer byte counts.')
-env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values['invite_code'], 'PUBLIC_ORIGIN=' + state['url'], 'NODE_ENV=production',
+env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values.get('invite_code', ''), 'PUBLIC_ORIGIN=' + state['url'], 'NODE_ENV=production',
     'HOSTED_COLLECTORS=' + ('true' if hosted.get('enabled') else 'false'),
     'HOSTED_MAX_COLLECTORS=' + str(int(hosted.get('max_collectors', 4))),
     'TELEGRAM_API_ID=' + str(int(hosted.get('telegram_api_id', 0))),
@@ -56,9 +56,11 @@ env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values
     *([env_name + '=' + billing[name] for name, env_name in billing_names.items()] + ['BILLING_TRIAL_DAYS=' + str(billing.get('trial_days', 14)),
       'BILLING_EXEMPT_USERS=' + ','.join(billing.get('exempt_users', [values['owner_username']])), 'BILLING_PRICE_LABEL=' + str(billing.get('price_label', ''))] if billing else [])]) + '\n'
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)
-invite_path = private / 'invitation-code.txt'; invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
+invite_path = private / 'invitation-code.txt'
+if values.get('invite_code'): invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
+elif invite_path.exists(): invite_path.unlink()
 credentials = private / 'owner-credentials.txt'
-credentials.write_text('undelete.chat owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\nInvitation code for new accounts: ' + values['invite_code'] + '\n\nKeep this file private. Change the owner password in Settings after signing in.\n')
+credentials.write_text('undelete.chat owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\n' + ('Invitation code for new accounts: ' + values['invite_code'] + '\n\n' if values.get('invite_code') else 'Registration is open; every new workspace starts a free trial.\n\n') + 'Keep this file private. Change the owner password in Settings after signing in.\n')
 credentials.chmod(0o600)
 with tempfile.TemporaryDirectory(prefix='afterword-deploy-') as tmp:
     archive = pathlib.Path(tmp) / 'source.tar.gz'

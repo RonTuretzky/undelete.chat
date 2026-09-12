@@ -56,6 +56,8 @@ Objective: deliver undelete.chat as a remote, multi-user service that recovers d
 
 - Rebrand to undelete.chat, September 11: the product name is now undelete.chat everywhere users see it, with a two-tone wordmark (undelete in ink, .chat in green) replacing the icon, a matching favicon, and the same name used for linked devices. DigitalOcean resource names keep the Undelete prefix. Deployed together with the Discord removal; capabilities report three platforms, the extension route answers 404, the one remaining Discord source was revoked at startup, and 82 tests plus the build pass.
 
+- Open registration, September 11: the invitation code was blanked, so anyone can create a workspace and starts the 14-day trial immediately; the password minimum was lowered from 12 to 8 characters at registration, password change, and recovery.
+
 ## Completion blockers
 
 Live phone scans require the account holder. Still outstanding: updating the Stripe webhook endpoint to https://undelete.chat/api/billing/webhook (the old hostname answers it meanwhile); activation of DigitalOcean Spaces (control-panel sign-in and a paid subscription) so offsite application backups can be verified against the real provider; a full-image restore rehearsal in an isolated network; observed delivery of the configured alert emails; rotation of the DigitalOcean API token that appeared in chat; and production capacity/load measurement beyond the current single-customer pilot. These do not prevent progress on server infrastructure and the other platforms.

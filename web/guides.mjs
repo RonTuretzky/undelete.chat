@@ -90,8 +90,7 @@ export const guides = {
         "id": "account",
         "title": "Create your workspace",
         "steps": [
-          "Choose Create your archive. Use a username and a unique password of at least 12 characters.",
-          "Enter the invitation code if your undelete.chat instance requires one.",
+          "Choose Start free. Use a username and a password of at least 8 characters. No email address is needed.",
           "Open Connections and choose an account. WhatsApp, Telegram, and Signal use hosted phone linking."
         ],
         "note": "The signed-out preview contains sample deleted messages. Your own archive starts empty and stays empty until a message you are watching is deleted. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key."
@@ -488,7 +487,7 @@ export const guides = {
         "id": "account",
         "title": "Cannot sign in to undelete.chat",
         "paragraphs": [
-          "Check your username and password. New accounts may require an invitation code. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
+          "Check your username and password. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
         ]
       }
     ]

@@ -85,7 +85,7 @@ export function createApp(store, config = {}) {
     req.connection = store.connectionByToken(req.get('authorization')?.replace(/^Bearer /, ''));
     return req.connection ? next() : res.status(401).json({ error: 'Invalid or revoked connection key.' });
   };
-  const credentials = z.object({ username: z.string().min(3).max(100).regex(/^[a-zA-Z0-9@._+-]+$/), password: z.string().min(12).max(128) });
+  const credentials = z.object({ username: z.string().min(3).max(100).regex(/^[a-zA-Z0-9@._+-]+$/), password: z.string().min(8).max(128) });
   const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: 25, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many sign-in attempts. Try again in 15 minutes.' } });
   app.get('/api/health', (_req, res) => { store.db.prepare('SELECT 1').get(); res.json({ ok: true, service: 'afterword' }); });
   app.get('/api/monitor', (_req, res) => {
@@ -134,7 +134,7 @@ export function createApp(store, config = {}) {
   });
   app.post('/api/auth/logout', auth, (req, res) => { store.endSession(req.sessionToken); res.clearCookie('afterword', cookieOptions).json({ ok: true }); });
   app.post('/api/auth/password', auth, authLimit, async (req, res) => {
-    const input = z.object({ currentPassword: z.string(), password: z.string().min(12).max(128) }).parse(req.body);
+    const input = z.object({ currentPassword: z.string(), password: z.string().min(8).max(128) }).parse(req.body);
     if (!await checkPassword(input.currentPassword, store.userByName(req.user.username).password)) return res.status(403).json({ error: 'Current password is incorrect.' });
     store.db.prepare('UPDATE users SET password=? WHERE id=?').run(await passwordHash(input.password), req.user.id);
     store.db.prepare('DELETE FROM sessions WHERE user_id=?').run(req.user.id);

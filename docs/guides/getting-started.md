@@ -6,9 +6,8 @@ Connect your accounts without installing anything on your computer. undelete.cha
 
 ## Create your workspace
 
-1. Choose Create your archive. Use a username and a unique password of at least 12 characters.
-2. Enter the invitation code if your undelete.chat instance requires one.
-3. Open Connections and choose an account. WhatsApp, Telegram, and Signal use hosted phone linking.
+1. Choose Start free. Use a username and a password of at least 8 characters. No email address is needed.
+2. Open Connections and choose an account. WhatsApp, Telegram, and Signal use hosted phone linking.
 
 > The signed-out preview contains sample deleted messages. Your own archive starts empty and stays empty until a message you are watching is deleted. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key.
 

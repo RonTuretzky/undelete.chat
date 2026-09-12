@@ -21,7 +21,7 @@ npm run check
 npm run package:companion
 ```
 
-The production API serves the compiled UI on port 4318. Copy `.env.example` to `.env` for local configuration. In production, set `NODE_ENV=production`, `ARCHIVE_KEY` (32 bytes in hex), and HTTPS `PUBLIC_ORIGIN`. Set `INVITE_CODE` to keep registration private.
+The production API serves the compiled UI on port 4318. Copy `.env.example` to `.env` for local configuration. In production, set `NODE_ENV=production`, `ARCHIVE_KEY` (32 bytes in hex), and HTTPS `PUBLIC_ORIGIN`. Registration is open by default; every new workspace starts a free trial. Set `INVITE_CODE` only if you want to close signups for a private beta.
 
 ## Plans and billing
 
@@ -75,5 +75,5 @@ The legacy `tests/onboarding-browser.mjs` describes checks for all eight public 
 
 `tests/hosted.test.mjs` uses real worker subprocesses with a simulated provider to verify owner-only QR/prompt endpoints, actual encrypted session restoration, process failure recovery, capacity enforcement, revocation, event routing, and encrypted WhatsApp/Signal persistence. It does not prove live provider connectivity. Use the permitted CUA browser tooling for current UI verification; legacy standalone browser scripts are not the current validation path.
 
-The current deployment is a single-node private beta. Search decrypts an account's messages in memory; it needs indexing and pagination at the storage layer before serving very large archives. There is no production uptime SLA, external monitoring, high availability, billing, or verified-email recovery. Account recovery uses single-use keys issued at registration or generated in Settings; successful recovery rotates the key and revokes previous sessions. Live platform sign-in and capture must be smoke-tested after the user pairs each account; unit tests cannot prove live compatibility. Invite-only registration is recommended for the initial deployment.
+The current deployment is a single node with open registration and a free trial. Search decrypts an account's messages in memory; it needs indexing and pagination at the storage layer before serving very large archives. There is no production uptime SLA, external monitoring, high availability, billing, or verified-email recovery. Account recovery uses single-use keys issued at registration or generated in Settings; successful recovery rotates the key and revokes previous sessions. Live platform sign-in and capture must be smoke-tested after the user pairs each account; unit tests cannot prove live compatibility. Invite-only registration is recommended for the initial deployment.
 
