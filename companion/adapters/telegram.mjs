@@ -64,7 +64,7 @@ export async function startTelegram(ctx) {
       throw Object.assign(new Error('Telegram signed this device out. Choose Try again to link it again.'), { relink: true });
     }
     if (!await client.checkAuthorization()) await client.signInUserWithQrCode({ apiId, apiHash }, {
-      qrCode: ({ token, expires }) => ctx.showQR(`tg://login?token=${token.toString('base64url')}`, expires * 1000),
+      qrCode: ({ token, expires }) => { ctx.showQR(`tg://login?token=${token.toString('base64url')}`, expires * 1000); ctx.health('waiting', 'Scan this code in Telegram → Devices'); },
       password: () => ctx.ask('Telegram two-step verification password', true),
       abortSignal: ctx.signal,
       onError: () => { ctx.health('waiting', 'Check your Telegram password and try again.'); return false; }

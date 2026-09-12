@@ -105,16 +105,18 @@ export function createCollectorManager(store, options) {
           state.providerHealth = { health: message.health, detail: String(message.detail || '').slice(0, 300) };
           update(c.id, current.capacity_reason || state.archiveError ? 'error' : message.health,
             capacityMessages[current.capacity_reason] || state.archiveError || state.providerHealth.detail, current.queued);
-          if (message.health === 'connected') { state.qr = null; state.prompt = null; state.failures = 0; ++state.qrSequence; }
+          if (message.health === 'connected') { state.qr = null; state.prompt = null; state.failures = 0; state.askedOwner = false; ++state.qrSequence; }
+          if (message.health === 'waiting') state.askedOwner = true;
         }
         if (message.type === 'qr' && typeof message.value === 'string' && message.value.length <= 6000) {
+          state.askedOwner = true;
           const sequence = ++state.qrSequence;
           const expiresAt = new Date(Math.min(Date.parse(message.expiresAt), Date.now() + 180_000)).toISOString();
           const image = await QRCode.toDataURL(message.value, { margin: 3, width: 320, errorCorrectionLevel: 'M' });
           if (sequence === state.qrSequence && workers.get(c.id) === state && !state.stopping) state.qr = { image, expiresAt };
         }
         if (message.type === 'prompt') {
-          const p = message.prompt;
+          const p = message.prompt; if (p) state.askedOwner = true;
           state.qr = null; ++state.qrSequence;
           state.prompt = p ? { id: String(p.id).slice(0, 64), label: String(p.label).slice(0, 200), secret: !!p.secret, expiresAt: new Date(Math.min(Date.parse(p.expiresAt) || 0, Date.now() + 180_000)).toISOString() } : null;
         }
@@ -159,7 +161,7 @@ export function createCollectorManager(store, options) {
         // The owner must act when the platform signed the device out, or when a
         // sign-in code was shown but never scanned. Disable the source so a
         // service restart does not keep requesting codes nobody will scan.
-        const needsOwner = code === 3 || code === 2 && (!connection(c.id)?.connected_at || state.providerHealth?.health === 'waiting');
+        const needsOwner = code === 3 || code === 2 && (!connection(c.id)?.connected_at || state.askedOwner);
         if (needsOwner) {
           store.db.prepare('UPDATE hosted_collectors SET enabled=0 WHERE connection_id=?').run(c.id);
           if (connection(c.id)?.health !== 'error') update(c.id, 'error', code === 3 ? 'The platform signed this device out. Choose Try again to link it again.' : 'Sign-in was not completed. Choose Try again to connect.');

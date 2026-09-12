@@ -267,8 +267,8 @@ test('a stalled restart of a previously linked source is retried, while an unlin
   await f.manager.start(linked.id, alice.id, { consent: true }); await f.manager.start(fresh.id, alice.id, { consent: true });
   await until(() => f.children.length === 2 && f.manager.status(linked.id).running && f.manager.status(fresh.id).running);
   store.db.prepare('UPDATE connections SET connected_at=? WHERE id=?').run(new Date().toISOString(), linked.id);
-  f.children[0].send({ type: 'fixture-health', health: 'reconnecting', detail: 'Reconnecting' });
-  await until(() => f.manager.status(linked.id).health === 'reconnecting');
+  f.children[0].send({ type: 'fixture-health', health: 'connected', detail: 'Connected' });
+  await until(() => f.manager.status(linked.id).health === 'connected');
   f.children[0].send({ type: 'fixture-exit', code: 2 }); f.children[1].send({ type: 'fixture-exit', code: 2 });
   await until(() => !f.manager.status(fresh.id).running && f.manager.status(fresh.id).health === 'error');
   assert.match(f.manager.status(fresh.id).detail, /Choose Try again/);
