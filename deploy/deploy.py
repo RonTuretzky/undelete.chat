@@ -73,6 +73,8 @@ with tempfile.TemporaryDirectory(prefix='afterword-deploy-') as tmp:
     remote('tar -xzf /opt/afterword/source.tar.gz -C /opt/afterword && rm /opt/afterword/source.tar.gz')
 subprocess.run(['scp', *ssh_options, str(env_path), target + ':/opt/afterword/deploy/.env'], check=True)
 remote('chmod 600 /opt/afterword/deploy/.env && cd /opt/afterword && docker compose -f deploy/compose.yaml up -d --build')
+# Every deploy leaves the previous image and build layers behind; without this the disk fills over months.
+remote('docker image prune -f >/dev/null && docker builder prune -f --keep-storage 1GB >/dev/null && docker system df --format "{{.Type}} {{.Size}} reclaimable={{.Reclaimable}}" | head -1', capture=True)
 # Seed via stdin, never with passwords in shell arguments or console output.
 seed = """import {createStore} from './server/store.mjs';
 const store=createStore('/data/afterword.sqlite',process.env.ARCHIVE_KEY);

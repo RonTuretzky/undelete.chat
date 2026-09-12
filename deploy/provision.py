@@ -47,6 +47,11 @@ write_files:
       maxretry = 4
       findtime = 10m
       bantime = 1h
+  - path: /etc/systemd/journald.conf.d/afterword.conf
+    content: |
+      [Journal]
+      SystemMaxUse=300M
+      MaxRetentionSec=1month
   - path: /etc/systemd/system/block-metadata.service
     content: |
       [Unit]

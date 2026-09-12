@@ -117,6 +117,20 @@ Reviewed on September 12, 2026 across the API, storage and cryptography, hosted 
 
 Accepted risks: the server holds the archive key, so operators can read stored content (see Premium for the enclave option); full-server backup images include the key; the registration endpoint reveals whether a username is taken; the production image is built on the server from the npm registry rather than from a reviewed artifact.
 
+## Keeping it healthy for months
+
+Things that change with time, and what handles them:
+
+- Disk: application snapshots are capped at seven, held messages are purged after each account's watch window, the write-ahead log is truncated after purges, journald is capped at 300 MB and one month, Docker's json-file logs rotate at 3 × 10 MB, and each deploy prunes the previous image and build cache. Backups stop rather than fill the disk when free space drops below the 8 GB reserve, and the monitor then reports `local_backup_stale`, which fails the external check.
+- Certificates: Caddy renews Let's Encrypt certificates automatically for undelete.chat, www, and the legacy hostname; the `ssl_expiry` alert fires at 14 days if that ever fails. Port 80 must stay open for renewals.
+- Sessions: browser sessions expire after 30 days; expired sessions and pairing codes are deleted hourly; processed Stripe event ids are kept for 30 days.
+- Processes: workers have a 192 MB heap cap and are relaunched with backoff by the supervisor if they die or stop sending heartbeats; the container has a 3 GB memory cap and restarts if exceeded. A lapsed subscription suspends its collectors and frees capacity.
+- Unofficial clients rot: WhatsApp and Signal change their protocols, and Signal's servers eventually refuse old signal-cli versions. When that happens the affected collectors report an error, the monitor marks `collector_unavailable`, and the external check alerts. Plan a monthly maintenance pass: `npm outdated`, bump `@whiskeysockets/baileys`, `teleproto`, and `SIGNAL_CLI_VERSION` (with its SHA-256) in the Dockerfile, refresh the base image digests, run `npm run check`, deploy, and confirm every collector reconnects.
+- Kernel updates: unattended-upgrades installs security patches but does not reboot. Check `service-status` and `/var/run/reboot-required` during the monthly pass and reboot in a quiet window, or enable `Unattended-Upgrade::Automatic-Reboot` with a fixed `Automatic-Reboot-Time` if a scheduled minute of downtime is acceptable.
+- Platform rules for users: WhatsApp logs out linked devices if the phone has been offline for about two weeks, and Signal unlinks devices that stay disconnected for a month. The connection shows an error and the user relinks from Connections.
+- Dormant accounts: nothing removes workspaces that stop being used. Their archives count against the 4 GiB global budget indefinitely. Decide on a dormancy policy (for example, deleting workspaces with no sign-in for twelve months after an in-app notice) before the budget matters.
+- Domain and provider accounts: renew undelete.chat with the registrar, keep the Stripe account in good standing, and keep the DigitalOcean payment method current. None of these are monitored by the service.
+
 ## Cost and capacity
 
 Archive defaults are 128 MiB per account, 1 GiB of charged archive data globally, and a 2 GiB free-disk reserve. Production overrides these through `capacity-config.json`: 128 MiB per account, 4 GiB globally, and an 8 GiB free-disk reserve on the 80 GB disk, leaving room for seven full backup copies of a 4 GiB archive. Settings shows the account's allowance and usage; stopped sources retain their queued copies and require Resume capture → Try again after the issue is resolved. Existing over-limit archives are preserved. Keep enough headroom for SQLite indexes/WAL, collector sessions, native caches, builds, and seven backup copies; the charged archive budget is not physical disk usage.
