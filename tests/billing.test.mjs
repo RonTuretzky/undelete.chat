@@ -124,15 +124,23 @@ test('checkout, webhook confirmation, and portal use Stripe identifiers only', a
   assert.deepEqual(await portal.json(), { url: 'https://billing.stripe.com/p/session/bps_1' });
   assert.equal(stripe.requests.at(-1).body.customer, 'cus_1');
   f.tick(15 * day);
-  const cancelling = Buffer.from(JSON.stringify({ id: 'evt_2', type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', cancel_at_period_end: true, current_period_end: Math.floor((Date.now() + 30 * day) / 1000), metadata: { userId: user.id } } } }));
+  stripe.setSubscription({ id: 'sub_1', customer: 'cus_1', status: 'active', cancel_at_period_end: true, current_period_end: Math.floor((Date.now() + 30 * day) / 1000), metadata: { userId: user.id } });
+  const cancelling = Buffer.from(JSON.stringify({ id: 'evt_2', type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', cancel_at_period_end: true, metadata: { userId: user.id } } } }));
   await call('/billing/webhook', { method: 'POST', raw: cancelling, headers: { 'stripe-signature': sign(cancelling, 'whsec_secret123', f.now()) } });
   me = await (await call('/me', { cookie })).json();
   assert.equal(me.billing.entitled, true); assert.equal(me.billing.cancelAtPeriodEnd, true);
   assert.equal(lapsed.length, 0);
-  const stale = Buffer.from(JSON.stringify({ id: 'evt_3', type: 'customer.subscription.deleted', data: { object: { id: 'sub_old', customer: 'cus_1', status: 'canceled' } } }));
-  assert.equal((await (await call('/billing/webhook', { method: 'POST', raw: stale, headers: { 'stripe-signature': sign(stale, 'whsec_secret123', f.now()) } })).json()).handled, false, 'an older subscription cannot cancel the current one');
+  const older = Buffer.from(JSON.stringify({ id: 'evt_3', type: 'customer.subscription.deleted', data: { object: { id: 'sub_old', customer: 'cus_1', status: 'canceled' } } }));
+  assert.equal((await (await call('/billing/webhook', { method: 'POST', raw: older, headers: { 'stripe-signature': sign(older, 'whsec_secret123', f.now()) } })).json()).handled, false, 'an older subscription cannot cancel the current one');
+  stripe.setSubscription({ id: 'sub_1', customer: 'cus_1', status: 'canceled', cancel_at_period_end: false });
   const deleted = Buffer.from(JSON.stringify({ id: 'evt_4', type: 'customer.subscription.deleted', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'canceled' } } }));
   await call('/billing/webhook', { method: 'POST', raw: deleted, headers: { 'stripe-signature': sign(deleted, 'whsec_secret123', f.now()) } });
+  // A late retry of the earlier "active" event cannot resurrect entitlement: the id is a duplicate, and state is re-read from Stripe anyway.
+  const replay = await (await call('/billing/webhook', { method: 'POST', raw: cancelling, headers: { 'stripe-signature': sign(cancelling, 'whsec_secret123', f.now()) } })).json();
+  assert.equal(replay.duplicate, true); assert.equal(replay.handled, false);
+  const stale = Buffer.from(JSON.stringify({ id: 'evt_2b', type: 'customer.subscription.updated', data: { object: { id: 'sub_1', customer: 'cus_1', status: 'active', metadata: { userId: user.id } } } }));
+  await call('/billing/webhook', { method: 'POST', raw: stale, headers: { 'stripe-signature': sign(stale, 'whsec_secret123', f.now()) } });
+  assert.equal((await (await call('/me', { cookie })).json()).billing.entitled, false, 'an out-of-order active event is overridden by the live Stripe state');
   me = await (await call('/me', { cookie })).json();
   assert.equal(me.billing.entitled, false); assert.equal(me.billing.reason, 'canceled');
   assert.deepEqual(lapsed, [user.id]);
@@ -143,6 +151,11 @@ test('checkout, webhook confirmation, and portal use Stripe identifiers only', a
   assert.equal((await (await call('/billing/webhook', { method: 'POST', raw: unknown, headers: { 'stripe-signature': sign(unknown, 'whsec_secret123', f.now()) } })).json()).handled, false);
 });
 
+test('exempt operator usernames cannot be claimed by new registrations', async t => {
+  const f = await fixture(t);
+  const taken = await f.call('/auth/register', { method: 'POST', body: { username: 'owner', password: 'operator-password-long' } });
+  assert.equal(taken.status, 409);
+});
 test('billing endpoints are absent when billing is disabled', async t => {
   const store = createStore(':memory:', randomBytes(32).toString('hex'));
   const server = createApp(store, { origins: ['https://archive.example'] }).listen(0, '127.0.0.1');

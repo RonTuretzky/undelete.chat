@@ -60,8 +60,9 @@ invite_path = private / 'invitation-code.txt'
 if values.get('invite_code'): invite_path.write_text(values['invite_code']); invite_path.chmod(0o600)
 elif invite_path.exists(): invite_path.unlink()
 credentials = private / 'owner-credentials.txt'
-credentials.write_text('undelete.chat owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\n' + ('Invitation code for new accounts: ' + values['invite_code'] + '\n\n' if values.get('invite_code') else 'Registration is open; every new workspace starts a free trial.\n\n') + 'Keep this file private. Change the owner password in Settings after signing in.\n')
-credentials.chmod(0o600)
+# Written once. Delete it after the owner has changed the password in Settings.
+if not credentials.exists(): credentials.write_text('undelete.chat owner access\n\nURL: ' + state['url'] + '\nUsername: ' + values['owner_username'] + '\nPassword: ' + values['owner_password'] + '\n\n' + ('Invitation code for new accounts: ' + values['invite_code'] + '\n\n' if values.get('invite_code') else 'Registration is open; every new workspace starts a free trial.\n\n') + 'Keep this file private. Change the owner password in Settings after signing in.\n')
+if credentials.exists(): credentials.chmod(0o600)
 with tempfile.TemporaryDirectory(prefix='afterword-deploy-') as tmp:
     archive = pathlib.Path(tmp) / 'source.tar.gz'
     with tarfile.open(archive, 'w:gz') as tar:
@@ -80,15 +81,15 @@ if(!store.userByName(input.username)) await store.createUser(input.username,inpu
 store.close(); console.log('Owner account initialized.');
 """.replace('REPLACE', json.dumps({'username': values['owner_username'], 'password': values['owner_password']}))
 remote('cd /opt/afterword && docker compose -f deploy/compose.yaml exec -T app node --input-type=module', input=seed)
-site = '{\n encode zstd gzip\n reverse_proxy 127.0.0.1:4318\n header Strict-Transport-Security "max-age=31536000"\n}\n'
-caddy = state['hostname'] + ' ' + site
+common = '(hardened) {\n encode zstd gzip\n request_body {\n  max_size 8MB\n }\n header Strict-Transport-Security "max-age=31536000; includeSubDomains"\n header -Server\n}\n'
+caddy = common + state['hostname'] + ' {\n import hardened\n reverse_proxy 127.0.0.1:4318\n}\n'
 # Aliases such as www redirect to the canonical origin.
 for alias in state.get('aliases', []):
-    caddy += alias + ' {\n redir ' + state['url'] + '{uri} permanent\n}\n'
+    caddy += alias + ' {\n import hardened\n redir ' + state['url'] + '{uri} permanent\n}\n'
 # The previous hostname keeps answering API calls (Stripe webhooks, companions
 # configured before the move) and redirects browsers to the new origin.
 if state.get('legacy_hostname') and state['legacy_hostname'] != state['hostname']:
-    caddy += state['legacy_hostname'] + ' {\n encode zstd gzip\n handle /api/* {\n  reverse_proxy 127.0.0.1:4318\n }\n handle {\n  redir ' + state['url'] + '{uri} permanent\n }\n}\n'
+    caddy += state['legacy_hostname'] + ' {\n import hardened\n handle /api/* {\n  reverse_proxy 127.0.0.1:4318\n }\n handle {\n  redir ' + state['url'] + '{uri} permanent\n }\n}\n'
 remote('cat > /etc/caddy/Caddyfile && caddy validate --config /etc/caddy/Caddyfile && systemctl enable --now caddy && systemctl reload caddy', input=caddy)
 remote('cd /opt/afterword && docker compose -f deploy/compose.yaml ps')
 print('Deployed:', state['url'])

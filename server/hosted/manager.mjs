@@ -114,7 +114,7 @@ export function createCollectorManager(store, options) {
         if (message.type === 'prompt') {
           const p = message.prompt;
           state.qr = null; ++state.qrSequence;
-          state.prompt = p ? { id: String(p.id).slice(0, 64), label: String(p.label).slice(0, 200), secret: !!p.secret, expiresAt: p.expiresAt } : null;
+          state.prompt = p ? { id: String(p.id).slice(0, 64), label: String(p.label).slice(0, 200), secret: !!p.secret, expiresAt: new Date(Math.min(Date.parse(p.expiresAt) || 0, Date.now() + 180_000)).toISOString() } : null;
         }
         if (message.type === 'config') {
           // Only application configuration is persisted here; login responses are
@@ -145,6 +145,8 @@ export function createCollectorManager(store, options) {
     const exited = code => {
       if (state.child !== child || workers.get(c.id) !== state) return;
       state.child = null; state.qr = null; state.prompt = null; ++state.qrSequence;
+      // A crashed worker must not leave signal-cli running against the same account.
+      quietly(() => { if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, 'SIGKILL'); });
       quietly(() => rmSync(runtimeDirectory, { recursive: true, force: true }));
       if (nativeDirectory) quietly(() => rmSync(nativeDirectory, { recursive: true, force: true }));
       try {
@@ -233,6 +235,8 @@ export function createCollectorManager(store, options) {
       // The cache contains only native library copies. Clear leftovers from
       // crashes before launching any workers; sessions live in encrypted queues.
       if (signalNative) for (const entry of readdirSync(signalNative, { withFileTypes: true })) if (entry.isDirectory() && /^[a-f0-9-]{36}$/.test(entry.name)) rmSync(join(signalNative, entry.name), { recursive: true, force: true });
+      // Runtime directories hold plaintext working files while a worker runs; none may outlive a restart.
+      for (const entry of readdirSync(runtime, { withFileTypes: true })) if (entry.isDirectory()) rmSync(join(runtime, entry.name), { recursive: true, force: true });
       const valid = new Set(connections.map(c => c.id));
       for (const entry of readdirSync(root, { withFileTypes: true })) if (entry.isDirectory() && /^[a-f0-9-]{36}$/.test(entry.name) && !valid.has(entry.name)) rmSync(join(root, entry.name), { recursive: true, force: true });
       for (const c of connections) if (c.enabled) launch(c);

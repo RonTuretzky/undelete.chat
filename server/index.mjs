@@ -9,6 +9,7 @@ import { createOperationsMonitor } from './monitor.mjs';
 import { billingConfig, createBilling, billingMessages } from './billing.mjs';
 import { createCollectorManager } from './hosted/manager.mjs';
 import { MiB, positiveBytes } from './capacity.mjs';
+process.umask(0o077);
 try { process.loadEnvFile('.env'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
 const production = process.env.NODE_ENV === 'production';
 const backupConfig = production ? offsiteConfig() : null;

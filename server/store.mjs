@@ -19,7 +19,7 @@ export const eventSchema = z.object({
 export function createStore(path, encryptionKey, options = {}) {
   const db = new DatabaseSync(path);
   const crypt = cipher(encryptionKey);
-  db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA secure_delete=ON;
+  db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA secure_delete=ON; PRAGMA journal_size_limit=67108864;
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL,
       created_at TEXT NOT NULL, retention_days INTEGER NOT NULL DEFAULT 90
@@ -81,6 +81,7 @@ export function createStore(path, encryptionKey, options = {}) {
   for (const [name, definition] of Object.entries({ billing_customer_id: 'TEXT', billing_subscription_id: 'TEXT', billing_status: 'TEXT', billing_period_end: 'TEXT',
     billing_cancel_at_period_end: 'INTEGER NOT NULL DEFAULT 0', billing_updated_at: 'TEXT', trial_ends_at: 'TEXT' })) if (!userColumns.has(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_billing_customer ON users(billing_customer_id) WHERE billing_customer_id IS NOT NULL');
+  db.exec('CREATE TABLE IF NOT EXISTS billing_events (id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at TEXT NOT NULL)');
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'hold_days')) db.exec('ALTER TABLE users ADD COLUMN hold_days INTEGER NOT NULL DEFAULT 7');
   // Only deleted messages belong to the archive. Anything else is a held
   // message in the watch buffer; this also converts pre-existing archives.
@@ -140,12 +141,13 @@ export function createStore(path, encryptionKey, options = {}) {
     if (connection.revoked) throw Object.assign(new Error('Connection revoked.'), { permanent: true });
     if (connection.paused || e.ephemeral) return { ignored: true, reason: e.ephemeral ? 'ephemeral' : 'paused' };
     const id = hash(`${connection.id}:${e.scope}:${e.externalId}`);
-    if (db.prepare('SELECT 1 FROM forgotten WHERE id=?').get(id)) return { ignored: true, reason: 'removed' };
     const uid = e.eventId;
     const now = new Date().toISOString();
-    // One transaction prevents a crash from leaving a message without its event.
+    // One transaction prevents a crash from leaving a message without its event,
+    // and keeps the suppression check atomic with the insert.
     db.exec('BEGIN IMMEDIATE');
     try {
+      if (db.prepare('SELECT 1 FROM forgotten WHERE id=?').get(id)) { db.exec('COMMIT'); return { ignored: true, reason: 'removed' }; }
       if (db.prepare('SELECT 1 FROM events WHERE connection_id=? AND event_uid=?').get(connection.id, uid)) {
         db.exec('COMMIT'); return { duplicate: true, id };
       }
@@ -215,6 +217,9 @@ export function createStore(path, encryptionKey, options = {}) {
     }
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
     db.prepare('DELETE FROM pairing_codes WHERE expires_at < ?').run(new Date().toISOString());
+    // secure_delete overwrites pages in the main file; truncating the WAL drops
+    // the pre-delete page images it would otherwise keep until reuse.
+    if (complete) try { db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch { /* Busy readers; the next pass truncates. */ }
     return complete;
   }
   return { db, getUser, connections, ingest, purge, ...reader, capacity,
@@ -281,6 +286,7 @@ export function createStore(path, encryptionKey, options = {}) {
         db.prepare('DELETE FROM messages WHERE id=? AND user_id=?').run(id, userId);
         db.exec('COMMIT');
       } catch (error) { db.exec('ROLLBACK'); throw error; }
+      try { db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch { /* Busy readers; the hourly purge truncates. */ }
     },
     async createUser(username, password) {
       const id = randomUUID();
@@ -294,6 +300,11 @@ export function createStore(path, encryptionKey, options = {}) {
     userByCustomer(customerId) {
       const row = db.prepare('SELECT id FROM users WHERE billing_customer_id=?').get(customerId);
       return row ? this.billingRecord(row.id) : null;
+    },
+    recordBillingEvent(id, type) {
+      const inserted = db.prepare('INSERT OR IGNORE INTO billing_events (id,type,received_at) VALUES (?,?,?)').run(id, String(type).slice(0, 80), new Date().toISOString()).changes;
+      db.prepare('DELETE FROM billing_events WHERE received_at < ?').run(new Date(Date.now() - 30 * 86400_000).toISOString());
+      return inserted === 1;
     },
     startTrial(userId, endsAt) { db.prepare('UPDATE users SET trial_ends_at=? WHERE id=? AND trial_ends_at IS NULL').run(endsAt, userId); },
     setBillingCustomer(userId, customerId) {

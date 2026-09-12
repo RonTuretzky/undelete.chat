@@ -187,7 +187,7 @@ class DigitalOcean:
                 uptime.append({'created': False, 'id': match['id'], 'type': match['type'],
                                'notifiesRecipient': recipient in match.get('notifications', {}).get('email', [])})
         droplet_id = str(self.state['droplet_id'])
-        policies = self.request('GET', 'monitoring/alerts?per_page=200')['policies']
+        policies = self.alert_policies()
         droplet = []
         for description, kind, value in self.droplet_alerts:
             match = next((p for p in policies if p['type'] == kind and droplet_id in [str(e) for e in p.get('entities', [])]), None)
@@ -209,7 +209,7 @@ class DigitalOcean:
         check = self.afterword_check(self.uptime_checks())
         alerts = self.request('GET', 'uptime/checks/' + check['id'] + '/alerts')['alerts'] if check else []
         droplet_id = str(self.state['droplet_id'])
-        policies = [p for p in self.request('GET', 'monitoring/alerts?per_page=200')['policies']
+        policies = [p for p in self.alert_policies()
                     if droplet_id in [str(e) for e in p.get('entities', [])]]
         return {'uptimeAlerts': [{'id': a['id'], 'name': a['name'], 'type': a['type'], 'threshold': a.get('threshold'),
                                   'period': a.get('period'), 'recipients': len(a.get('notifications', {}).get('email', []))} for a in alerts],
@@ -267,6 +267,16 @@ class DigitalOcean:
         file = self.private / ('resize-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + '.json')
         file.write_text(json.dumps(result, indent=2)); file.chmod(0o600)
         return result
+
+    def alert_policies(self):
+        policies, page = [], 1
+        while True:
+            response = self.request('GET', f'monitoring/alerts?per_page=200&page={page}')
+            batch = response.get('policies', [])
+            policies.extend(batch)
+            if not response.get('links', {}).get('pages', {}).get('next') or not batch:
+                return policies
+            page += 1
 
     def backup_status(self):
         options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',

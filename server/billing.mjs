@@ -92,7 +92,7 @@ export function createBilling(store, { config, origin, fetch = globalThis.fetch,
     return after;
   }
   return {
-    entitlement, trialDays: config.trialDays, priceLabel: config.priceLabel || null,
+    entitlement, trialDays: config.trialDays, priceLabel: config.priceLabel || null, exemptUsers: config.exemptUsers,
     summary(userId) { return entitlement(store.billingRecord(userId)); },
     entitled(userId) { return entitlement(store.billingRecord(userId)).entitled; },
     async checkout(userId) {
@@ -123,6 +123,10 @@ export function createBilling(store, { config, origin, fetch = globalThis.fetch,
       let event; try { event = JSON.parse(payload.toString('utf8')); } catch { throw Object.assign(new Error('Invalid webhook payload.'), { public: true, status: 400 }); }
       const type = String(event?.type || ''), object = event?.data?.object;
       if (!object || typeof object !== 'object') return { received: true, type, handled: false };
+      // Stripe retries for days and does not order deliveries; each event id is
+      // applied once, and subscription state is always re-read from Stripe.
+      if (typeof event.id !== 'string' || !/^evt_[A-Za-z0-9]+$/.test(event.id)) return { received: true, type, handled: false };
+      if (!store.recordBillingEvent(event.id, type)) return { received: true, type, handled: false, duplicate: true };
       if (type === 'checkout.session.completed' && object.mode === 'subscription') {
         const userId = object.client_reference_id || object.metadata?.userId, subscriptionId = typeof object.subscription === 'string' ? object.subscription : object.subscription?.id;
         const record = userId && store.billingRecord(userId);
@@ -140,7 +144,8 @@ export function createBilling(store, { config, origin, fetch = globalThis.fetch,
         if (!record) return { received: true, type, handled: false };
         // Ignore an older subscription's events once a newer one is recorded.
         if (record.billing_subscription_id && record.billing_subscription_id !== object.id && object.status !== 'active' && object.status !== 'trialing') return { received: true, type, handled: false };
-        apply(record, object);
+        const current = typeof object.id === 'string' && /^sub_[A-Za-z0-9]+$/.test(object.id) ? await stripe('GET', `/v1/subscriptions/${encodeURIComponent(object.id)}`) : object;
+        apply(record, current);
         return { received: true, type, handled: true };
       }
       return { received: true, type, handled: false };

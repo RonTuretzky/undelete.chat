@@ -25,12 +25,40 @@ else:
         match = request('POST', 'account/keys', {'name': 'afterword-deploy', 'public_key': pub})['ssh_key']
     # Check the name before creating to make interrupted calls safe to resume.
     existing = request('GET', 'droplets?per_page=200')['droplets']
-    droplet = next((d for d in existing if d['name'] == 'afterword-saas'), None)
+    droplet = next((d for d in existing if d['name'] == 'afterword-saas' and 'afterword' in d.get('tags', [])), None)
     if not droplet:
         cloud = '''#cloud-config
 package_update: true
 ssh_pwauth: false
-packages: [docker.io, docker-compose-v2, ufw, debian-keyring, debian-archive-keyring, apt-transport-https, curl]
+packages: [docker.io, docker-compose-v2, ufw, fail2ban, unattended-upgrades, debian-keyring, debian-archive-keyring, apt-transport-https, curl]
+write_files:
+  - path: /etc/ssh/sshd_config.d/70-afterword.conf
+    content: |
+      PermitRootLogin prohibit-password
+      X11Forwarding no
+      LoginGraceTime 30
+      MaxAuthTries 3
+      AllowUsers root
+  - path: /etc/fail2ban/jail.d/sshd.local
+    content: |
+      [sshd]
+      enabled = true
+      mode = aggressive
+      maxretry = 4
+      findtime = 10m
+      bantime = 1h
+  - path: /etc/systemd/system/block-metadata.service
+    content: |
+      [Unit]
+      Description=Block container access to the cloud metadata service
+      After=docker.service
+      Requires=docker.service
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/iptables -I DOCKER-USER -d 169.254.169.254 -j DROP
+      RemainAfterExit=yes
+      [Install]
+      WantedBy=multi-user.target
 runcmd:
   # Ubuntu's own caddy package is community-maintained; the official stable
   # repository receives security releases for the public HTTPS edge.
@@ -39,6 +67,9 @@ runcmd:
   - [apt-get, update]
   - [apt-get, install, -y, caddy]
   - [systemctl, enable, --now, docker]
+  - [systemctl, enable, --now, fail2ban]
+  - [systemctl, enable, --now, block-metadata.service]
+  - [systemctl, reload, ssh]
   - [ufw, allow, OpenSSH]
   - [ufw, allow, 80/tcp]
   - [ufw, allow, 443/tcp]

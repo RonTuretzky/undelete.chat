@@ -16,9 +16,13 @@ import { platformGuides } from './guides.mjs';
 const names = { telegram: 'Telegram', signal: 'Signal', whatsapp: 'WhatsApp' };
 const platformInfo = Object.fromEntries(Object.entries(platformGuides).map(([p, guide]) => [p, { mode: guide.mode, detail: guide.coverage }]));
 async function api(path, options = {}) {
-  const res = await fetch(`/api${path}`, { ...options, headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers }, body: options.body ? JSON.stringify(options.body) : undefined });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+  let res;
+  try { res = await fetch(`/api${path}`, { ...options, headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers }, body: options.body ? JSON.stringify(options.body) : undefined }); }
+  catch (error) { if (error.name === 'AbortError') throw error; throw new Error('Could not reach undelete.chat. Check your connection and try again.'); }
+  // Only JSON from our API is shown to the user; proxy error pages never are.
+  const data = res.headers.get('content-type')?.includes('application/json') ? await res.json().catch(() => null) : null;
+  if (!res.ok) throw new Error(data?.error || (res.status === 429 ? 'Too many requests. Please wait a moment.' : 'Something went wrong. Please try again.'));
+  if (data === null) throw new Error('Something went wrong. Please try again.');
   return data;
 }
 const time = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

@@ -41,3 +41,18 @@ test('HTTP recovery flow issues a replacement key, rejects old keys, and guards 
   const newCookie = reset.headers.get('set-cookie').split(';')[0];
   assert.equal((await post('/auth/recovery-key', { password: 'long-replacement-password' }, newCookie)).status, 200);
 });
+
+test('repeated failed sign-ins throttle the username itself, below the per-address limit', async t => {
+  const { createApp } = await import('../server/app.mjs');
+  const store = createStore(':memory:', randomBytes(32).toString('hex'));
+  await store.createUser('target', 'the-real-password');
+  const server = createApp(store, { origins: ['http://localhost'] }).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); store.close(); });
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  const login = password => fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'Target', password }) });
+  for (let n = 0; n < 10; n++) assert.equal((await login('wrong-password-' + n)).status, 401);
+  const blocked = await login('the-real-password');
+  assert.equal(blocked.status, 429); assert.equal(blocked.headers.get('retry-after'), '900');
+  assert.equal((await fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'someone-else', password: 'irrelevant-pw' }) })).status, 401, 'other usernames are unaffected');
+});

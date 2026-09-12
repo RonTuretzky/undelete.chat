@@ -10,7 +10,8 @@ export const linkWindowMs = 115_000, maxLinkAttempts = 5;
 export async function startSignal(ctx) {
   const directory = join(ctx.directory, 'signal-session');
   const nativeOptions = ctx.hosted && process.env.SIGNAL_NATIVE_DIR ? [`-Djava.io.tmpdir=${process.env.SIGNAL_NATIVE_DIR}`] : [];
-  const child = spawn('signal-cli', [...nativeOptions, '--config', directory, 'jsonRpc'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  // Attachments are recorded as metadata only; never download bodies into the session directory.
+  const child = spawn('signal-cli', [...nativeOptions, '--config', directory, 'jsonRpc', '--ignore-attachments'], { stdio: ['pipe', 'pipe', 'pipe'] });
   const pending = new Map();
   let counter = 0, stopped = false, stopPromise;
   const stop = () => {

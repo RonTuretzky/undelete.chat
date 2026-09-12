@@ -1,6 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
-import { rateLimit } from 'express-rate-limit';
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { z, ZodError } from 'zod';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
@@ -17,10 +17,11 @@ export function createApp(store, config = {}) {
   const cookieOptions = { httpOnly: true, sameSite: 'strict', secure: production, path: '/', maxAge: 30 * 86400_000 };
   if (production) app.set('trust proxy', 1);
   app.disable('x-powered-by');
-  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"], fontSrc: ["'self'"], frameAncestors: ["'none'"], upgradeInsecureRequests: production ? [] : null } } }));
+  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: production ? ["'self'"] : ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"], fontSrc: ["'self'"], frameAncestors: ["'none'"], upgradeInsecureRequests: production ? [] : null } } }));
   // Stripe signs the exact request body, so the webhook reads it raw before
   // JSON parsing. It carries no session, and no browser origin check applies.
-  app.post('/api/billing/webhook', express.raw({ type: () => true, limit: '1mb' }), async (req, res, next) => {
+  const webhookLimit = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many requests.' } });
+  app.post('/api/billing/webhook', webhookLimit, express.raw({ type: () => true, limit: '1mb' }), async (req, res, next) => {
     if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });
     try { res.json(await config.billing.webhook(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0), req.get('stripe-signature'))); }
     catch (error) { next(error); }
@@ -28,6 +29,7 @@ export function createApp(store, config = {}) {
   app.use(express.json({ limit: '2mb' }));
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many requests. Try again shortly.' } }));
+  app.use((_req, res, next) => { res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'); next(); });
   app.use((req, res, next) => {
     // Browser mutations require the configured or same origin. Companion requests have no cookies.
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.path.startsWith('/api/ingest') && !req.path.startsWith('/api/heartbeat') && req.path !== '/api/pair') {
@@ -52,13 +54,16 @@ export function createApp(store, config = {}) {
   let decoy;
   const decoyHash = async () => decoy ||= await passwordHash(token());
   const archiveReads = new Map();
-  let activeArchiveReads = 0, activeExports = 0;
+  let activeArchiveReads = 0, activeExports = 0, activeSearches = 0;
   async function archiveRead(req, res, exporting, callback) {
-    const current = archiveReads.get(req.user.id) || { total: 0, exports: 0 };
-    if (activeArchiveReads >= 4 || current.total >= 2 || exporting && (current.exports || activeExports >= 2)) {
+    const current = archiveReads.get(req.user.id) || { total: 0, exports: 0, searches: 0 };
+    // Searches decrypt whole archives, so they get a separate, smaller pool
+    // with one slot per account. Two abusive accounts cannot starve listings.
+    const searching = !exporting && typeof req.query.q === 'string' && req.query.q.trim() !== '';
+    if (activeArchiveReads >= 8 || current.total >= 2 || exporting && (current.exports || activeExports >= 2) || searching && (current.searches || activeSearches >= 3)) {
       return res.status(429).set('Retry-After', '2').json({ error: 'The archive is busy. Try again shortly.' });
     }
-    current.total++; if (exporting) { current.exports++; activeExports++; }
+    current.total++; if (exporting) { current.exports++; activeExports++; } if (searching) { current.searches++; activeSearches++; }
     archiveReads.set(req.user.id, current); activeArchiveReads++;
     const controller = new AbortController();
     const closed = () => controller.abort();
@@ -77,6 +82,7 @@ export function createApp(store, config = {}) {
       clearTimeout(timeout); res.off('close', closed);
       if (exporting) { res.off('timeout', timedOut); if (!res.destroyed) res.setTimeout(0); }
       current.total--; if (exporting) { current.exports--; activeExports--; }
+      if (searching) { current.searches--; activeSearches--; }
       if (!current.total) archiveReads.delete(req.user.id);
       activeArchiveReads--;
     }
@@ -87,6 +93,14 @@ export function createApp(store, config = {}) {
   };
   const credentials = z.object({ username: z.string().min(3).max(100).regex(/^[a-zA-Z0-9@._+-]+$/), password: z.string().min(8).max(128) });
   const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: 25, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many sign-in attempts. Try again in 15 minutes.' } });
+  // Signed-in sensitive actions use their own bucket so a shared office address
+  // full of failed sign-ins cannot lock a real user out of Settings or billing.
+  const accountLimit = rateLimit({ windowMs: 15 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.user?.id || ipKeyGenerator(req.ip), message: { error: 'Too many attempts. Try again in 15 minutes.' } });
+  // Failed sign-ins are also throttled per username, independent of the address.
+  const loginFailures = new Map();
+  const failureWindowMs = 15 * 60_000, failureLimit = 10;
+  const loginBlocked = username => { const entry = loginFailures.get(username); return !!entry && entry.count >= failureLimit && Date.now() - entry.since < failureWindowMs; };
+  const recordFailure = username => { const now = Date.now(), entry = loginFailures.get(username); if (!entry || now - entry.since >= failureWindowMs) loginFailures.set(username, { since: now, count: 1 }); else entry.count++; if (loginFailures.size > 50_000) loginFailures.clear(); };
   app.get('/api/health', (_req, res) => { store.db.prepare('SELECT 1').get(); res.json({ ok: true, service: 'afterword' }); });
   app.get('/api/monitor', (_req, res) => {
     const state = config.monitor?.publicState() || { ok: false, service: 'afterword' };
@@ -94,11 +108,11 @@ export function createApp(store, config = {}) {
   });
   app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode, billing: req.user ? billingSummary(req.user.id) : { enabled: !!config.billing, trialDays: config.billing?.trialDays ?? null, priceLabel: config.billing?.priceLabel ?? null } }));
   app.get('/api/billing', auth, (req, res) => res.json({ billing: billingSummary(req.user.id) }));
-  app.post('/api/billing/checkout', auth, authLimit, async (req, res, next) => {
+  app.post('/api/billing/checkout', auth, accountLimit, async (req, res, next) => {
     if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });
     try { res.json(await config.billing.checkout(req.user.id)); } catch (error) { next(error); }
   });
-  app.post('/api/billing/portal', auth, authLimit, async (req, res, next) => {
+  app.post('/api/billing/portal', auth, accountLimit, async (req, res, next) => {
     if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });
     try { res.json(await config.billing.portal(req.user.id)); } catch (error) { next(error); }
   });
@@ -107,7 +121,7 @@ export function createApp(store, config = {}) {
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const input = credentials.parse(req.body);
     if (config.inviteCode && hash(String(req.body.inviteCode || '')) !== hash(config.inviteCode)) return res.status(403).json({ error: 'Enter a valid invitation code.' });
-    if (store.userByName(input.username)) return res.status(409).json({ error: 'That username is unavailable.' });
+    if (store.userByName(input.username) || config.billing?.exemptUsers?.includes(input.username.toLowerCase())) return res.status(409).json({ error: 'That username is unavailable.' });
     const user = await store.createUser(input.username, input.password);
     if (config.billing) store.startTrial(user.id, new Date(Date.now() + config.billing.trialDays * 86400_000).toISOString());
     const recoveryKey = store.createRecoveryKey(user.id);
@@ -119,21 +133,23 @@ export function createApp(store, config = {}) {
     if (!result) return res.status(403).json({ error: 'Username or recovery key is incorrect.' });
     res.cookie('afterword', store.session(result.user.id), cookieOptions).json(result);
   });
-  app.post('/api/auth/recovery-key', auth, authLimit, async (req, res) => {
+  app.post('/api/auth/recovery-key', auth, accountLimit, async (req, res) => {
     const { password } = z.object({ password: z.string().max(128) }).parse(req.body);
     if (!await checkPassword(password, store.userByName(req.user.username).password)) return res.status(403).json({ error: 'Password is incorrect.' });
     res.json({ recoveryKey: store.createRecoveryKey(req.user.id), user: store.getUser(req.user.id) });
   });
   app.post('/api/auth/login', authLimit, async (req, res) => {
     const { username, password } = credentials.parse(req.body);
+    if (loginBlocked(username.toLowerCase())) return res.status(429).set('Retry-After', '900').json({ error: 'Too many sign-in attempts for this account. Try again in 15 minutes or use your recovery key.' });
     const user = store.userByName(username);
     if (!user) await checkPassword(password, await decoyHash());
     const valid = user && await checkPassword(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Username or password is incorrect.' });
+    if (!valid) { recordFailure(username.toLowerCase()); return res.status(401).json({ error: 'Username or password is incorrect.' }); }
+    loginFailures.delete(username.toLowerCase());
     res.cookie('afterword', store.session(user.id), cookieOptions).json({ user: store.getUser(user.id) });
   });
   app.post('/api/auth/logout', auth, (req, res) => { store.endSession(req.sessionToken); res.clearCookie('afterword', cookieOptions).json({ ok: true }); });
-  app.post('/api/auth/password', auth, authLimit, async (req, res) => {
+  app.post('/api/auth/password', auth, accountLimit, async (req, res) => {
     const input = z.object({ currentPassword: z.string(), password: z.string().min(8).max(128) }).parse(req.body);
     if (!await checkPassword(input.currentPassword, store.userByName(req.user.username).password)) return res.status(403).json({ error: 'Current password is incorrect.' });
     store.db.prepare('UPDATE users SET password=? WHERE id=?').run(await passwordHash(input.password), req.user.id);
@@ -203,7 +219,7 @@ export function createApp(store, config = {}) {
     res.json({ ok: true, paused: !!req.connection.paused, platform: req.connection.platform, capacityBlocked: blocked || null });
   });
   app.post('/api/ingest', source, (req, res) => {
-    const events = z.array(z.unknown()).min(1).max(100).parse(req.body.events);
+    const events = z.array(z.unknown()).min(1).max(100).parse((req.body ?? {}).events);
     if (req.connection.capacity_reason) {
       try { store.capacity.resume(req.connection.id, req.connection.user_id); } catch { /* Individual results retain the capacity failure and queued copies. */ }
     }
@@ -256,7 +272,7 @@ export function createApp(store, config = {}) {
     lastPurge = 0; purge();
     res.json({ user: store.getUser(req.user.id) });
   });
-  app.delete('/api/account', auth, authLimit, async (req, res) => {
+  app.delete('/api/account', auth, accountLimit, async (req, res) => {
     const { password } = z.object({ password: z.string().max(128) }).parse(req.body);
     if (!await checkPassword(password, store.userByName(req.user.username).password)) return res.status(403).json({ error: 'Password is incorrect.' });
     const ids = store.connections(req.user.id).map(c => c.id);

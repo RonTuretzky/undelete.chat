@@ -20,7 +20,7 @@ export async function signalVault(directory, queue) {
     async function visit(dir) {
       for (const entry of await readdir(dir, { withFileTypes: true })) {
         const path = join(dir, entry.name);
-        if (entry.isDirectory()) { await visit(path); continue; }
+        if (entry.isDirectory()) { if (entry.name !== 'attachments' && entry.name !== 'avatars' && entry.name !== 'stickers') await visit(path); continue; }
         if (!entry.isFile() || /(?:-wal|-shm|\.lock|\.backup)$/.test(entry.name)) continue;
         if (bytes + (await stat(path)).size > 16 * MiB) throw capacityError('collector_capacity');
         let data = await readFile(path);

@@ -74,7 +74,7 @@ The Droplet runs Ubuntu 24.04 LTS with `unattended-upgrades` installing security
 Kernel updates leave `/var/run/reboot-required` behind. A reboot restarts Caddy, Docker, and the application; the supervisor restores every enabled hosted session afterwards, so customers do not need to relink. Expect about one to two minutes of downtime, which is below the `down_global` alert period. Reboot during a quiet period and verify recovery:
 
 ```sh
-ssh -i ~/.config/afterword/deploy_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.config/afterword/known_hosts root@159.65.242.65 \
+ssh -i ~/.config/afterword/deploy_ed25519 -o IdentitiesOnly=yes -o IdentityAgent=none -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.config/afterword/known_hosts root@159.65.242.65 \
   'apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && ls /var/run/reboot-required && systemctl reboot'
 # After it returns:
 python3 deploy/operations.py service-status
@@ -102,6 +102,20 @@ Setup in the Stripe Dashboard: create a product with one recurring price and cop
 Entitlement is decided from the local database, so a Stripe outage cannot pause capture. When a subscription lapses, the server suspends that account's hosted collectors and marks them with a subscription message; the customer resumes them from Connections after paying. Companion and extension events stay queued at the client (bounded by the collector queue limit) and deliver after the subscription becomes active. Trial-only accounts are gated by their trial end date; pre-billing accounts receive the trial measured from their creation date. Operator usernames listed in `exempt_users` are never gated.
 
 Webhook deliveries are idempotent and safe to replay from the Stripe Dashboard. The service logs only Stripe error types, never customer identifiers or card data. Removing `billing-config.json` and redeploying disables billing entirely; existing subscription records are kept but not enforced.
+
+## Security posture
+
+Reviewed on September 12, 2026 across the API, storage and cryptography, hosted collectors, deployment, and front end. What is in place:
+
+- Transport and headers: TLS 1.3 via Caddy with HSTS (`includeSubDomains`), the `Server` header removed, an 8 MB request body cap on every host, HTTP redirected to HTTPS, and a strict CSP (`script-src 'self'`, no inline styles in production, `frame-ancestors 'none'`), `Permissions-Policy`, `Referrer-Policy: no-referrer`, and `Cache-Control: no-store` on the API.
+- Accounts: scrypt password hashes with a decoy hash for unknown usernames, session tokens stored as SHA-256 digests in an `HttpOnly; Secure; SameSite=Strict` cookie, per-address limits on anonymous sign-in routes, a separate per-account bucket for password, recovery, billing, and deletion actions, and a per-username throttle of ten failed sign-ins per fifteen minutes. Operator usernames listed in `exempt_users` cannot be registered.
+- Data: AES-256-GCM with per-record additional data bound to the owning account, per-collector keys derived from the server key and passed only over IPC, `secure_delete` with WAL truncation after purges and deletions, a restrictive umask, and a 0700 data volume. Backups keep deleted data for up to seven days, which the privacy policy states.
+- Archive reads: eight concurrent reads globally, two per account, and a separate pool of three concurrent searches with one per account, so heavy searches cannot starve other users' listings.
+- Billing: signature-verified webhooks with a five-minute tolerance, each Stripe event id applied once, and subscription state re-read from Stripe rather than taken from the event body.
+- Collectors: signal-cli runs with `--ignore-attachments`, a crashed worker's process group is killed before relaunch, runtime directories are swept at startup, and prompt expiries are clamped.
+- Container and host: read-only root filesystem, all capabilities dropped, `no-new-privileges`, `noexec,nosuid,nodev` tmpfs, 3 GB memory cap, 1024-process cap, loopback-only port, base images pinned by digest, `.env` files excluded from the build context, no Docker socket, containers blocked from the cloud metadata service, key-only SSH restricted to root with fail2ban, `ufw` allowing only 22, 80, and 443, and unattended security updates.
+
+Accepted risks: the server holds the archive key, so operators can read stored content (see Premium for the enclave option); full-server backup images include the key; the registration endpoint reveals whether a username is taken; the production image is built on the server from the npm registry rather than from a reviewed artifact.
 
 ## Cost and capacity
 
