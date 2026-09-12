@@ -10,7 +10,7 @@ function Bubble({ x, y, w, mine, children, className = '' }) {
     <text x="10" y="14">{children}</text>
   </g>;
 }
-export function HowItWorks({ compact = false, watchDays = 3 }) {
+export function HowItWorks({ compact = false }) {
   return <section className="how-it-works" aria-labelledby="how-it-works-title">
     <div className="eyebrow">HOW IT WORKS</div>
     <h2 id="how-it-works-title">Only the messages they deleted<span className="brand-dot">.</span></h2>
@@ -42,7 +42,7 @@ export function HowItWorks({ compact = false, watchDays = 3 }) {
         <div className="how-scene" role="img" aria-label="Messages pass through a watch window and fade away when nothing happens to them.">
           <svg viewBox="0 0 260 150" aria-hidden="true">
             <rect className="how-window" x="70" y="14" width="120" height="122" rx="12" fill="none" stroke="#207763" strokeWidth="1.5" strokeDasharray="6 4"/>
-            <text className="muted" x="130" y="30" textAnchor="middle">{watchDays}-day watch window</text>
+            <text className="muted" x="130" y="30" textAnchor="middle">watch window</text>
             <g className="how-flow">
               <g className="bubble-row"><Bubble x={84} y={42} w={92}>see you at 7?</Bubble></g>
               <g className="bubble-row"><Bubble x={84} y={68} w={70} mine>yes!</Bubble></g>
@@ -53,7 +53,7 @@ export function HowItWorks({ compact = false, watchDays = 3 }) {
           </svg>
         </div>
         <h3>Recent messages are watched, not kept</h3>
-        <p>New messages and their edits are held privately for your watch window. If nothing happens to them, they are discarded. Nothing is searchable, exported, or stored longer.</p>
+        <p>New messages are held privately for as long as the platform lets the sender delete them (about two days on WhatsApp, one on Signal, longer for Telegram), then discarded. Nothing is searchable, exported, or stored longer.</p>
       </div>
       <div className="how-step">
         <span className="how-step-number">3</span>

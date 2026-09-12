@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { cipher, hash, token, passwordHash } from './crypto.mjs';
 import { createArchiveReader } from './archive-reader.mjs';
 import { createArchiveCapacity, eventBytes, MESSAGE_BYTES } from './archive-capacity.mjs';
+import { resolveWatch, mergeWatch, defaultWatch } from './watch.mjs';
 
 export const platforms = ['telegram', 'signal', 'whatsapp'];
 const short = z.string().min(1).max(256);
@@ -93,6 +94,7 @@ export function createStore(path, encryptionKey, options = {}) {
     db.prepare('INSERT INTO migrations (name,applied_at) VALUES (?,?)').run('defaults-2026-09-12', new Date().toISOString());
   }
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'last_active_at')) db.exec('ALTER TABLE users ADD COLUMN last_active_at TEXT');
+  if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'watch_config')) db.exec('ALTER TABLE users ADD COLUMN watch_config TEXT');
   // Only deleted messages belong to the archive. Anything else is a held
   // message in the watch buffer; this also converts pre-existing archives.
   db.prepare("UPDATE messages SET held=1 WHERE status!='deleted' AND held=0").run();
@@ -128,7 +130,7 @@ export function createStore(path, encryptionKey, options = {}) {
   db.prepare("DELETE FROM hosted_collectors WHERE connection_id IN (SELECT id FROM connections WHERE platform='discord')").run();
   db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='error',detail='Discord is no longer supported.' WHERE platform='discord' AND revoked=0").run();
   const capacity = createArchiveCapacity(db, path, options);
-  const getUser = id => db.prepare('SELECT id,username,created_at,retention_days,hold_days,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id);
+  const getUser = id => { const row = db.prepare('SELECT id,username,created_at,retention_days,watch_config,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id); if (!row) return row; const { watch_config, ...user } = row; return { ...user, watch: resolveWatch(watch_config) }; };
   const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,connected_at,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=0) AS message_count,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=1) AS held_count,
@@ -166,6 +168,12 @@ export function createStore(path, encryptionKey, options = {}) {
       }
       const existing = db.prepare('SELECT 1 FROM messages WHERE id=?').get(id);
       if (e.kind === 'edit' && existing) {
+        const row = db.prepare('SELECT held,first_seen FROM messages WHERE id=?').get(id);
+        if (row?.held) {
+          const watch = resolveWatch(db.prepare('SELECT watch_config FROM users WHERE id=?').get(connection.user_id)?.watch_config);
+          const editHours = (watch[connection.platform] || defaultWatch.telegram).editHours;
+          if (Date.parse(e.occurredAt) - Date.parse(row.first_seen) > editHours * 3600_000) { db.exec('COMMIT'); return { ignored: true, reason: 'edit_window_closed', id }; }
+        }
         // Platforms also report reactions, link previews, pins, and formatting
         // as edits. A version whose text and attachments match the current one
         // carries no new content, so it is acknowledged without being recorded.
@@ -219,12 +227,16 @@ export function createStore(path, encryptionKey, options = {}) {
     }
     // Held messages that were never deleted leave the watch buffer without a
     // suppression marker: a later deletion may still arrive as a tombstone.
-    const heldBatch = 'SELECT id FROM messages WHERE user_id=? AND held=1 AND last_seen<? ORDER BY last_seen LIMIT 500';
-    for (const u of db.prepare('SELECT id,hold_days FROM users').all()) {
-      const cutoff = new Date(started - Math.max(1, u.hold_days) * 86400_000).toISOString();
-      while (true) {
-        if (Date.now() - started > budgetMs) { complete = false; break; }
-        if (db.prepare(`DELETE FROM messages WHERE id IN (${heldBatch})`).run(u.id, cutoff).changes < 500) break;
+    const heldBatch = 'SELECT id FROM messages WHERE user_id=? AND platform=? AND held=1 AND last_seen<? ORDER BY last_seen LIMIT 500';
+    for (const u of db.prepare('SELECT id,watch_config FROM users').all()) {
+      const watch = resolveWatch(u.watch_config);
+      for (const [platform, window] of Object.entries(watch)) {
+        const cutoff = new Date(started - window.deleteHours * 3600_000).toISOString();
+        while (true) {
+          if (Date.now() - started > budgetMs) { complete = false; break; }
+          if (db.prepare(`DELETE FROM messages WHERE id IN (${heldBatch})`).run(u.id, platform, cutoff).changes < 500) break;
+        }
+        if (!complete) break;
       }
       if (!complete) break;
     }
@@ -344,6 +356,7 @@ export function createStore(path, encryptionKey, options = {}) {
       db.prepare("UPDATE users SET last_active_at=? WHERE id=? AND (last_active_at IS NULL OR last_active_at < ?)").run(new Date().toISOString(), row.user_id, new Date(Date.now() - 3600_000).toISOString());
       return getUser(row.user_id);
     },
+    setWatch(userId, patch) { db.prepare('UPDATE users SET watch_config=? WHERE id=?').run(JSON.stringify(mergeWatch(db.prepare('SELECT watch_config FROM users WHERE id=?').get(userId)?.watch_config, patch)), userId); },
     touch(userId) { db.prepare('UPDATE users SET last_active_at=? WHERE id=?').run(new Date().toISOString(), userId); },
     dormantUsers(days) {
       if (!Number.isFinite(days) || days <= 0) return [];

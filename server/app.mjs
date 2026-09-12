@@ -10,6 +10,7 @@ import { checkPassword, passwordHash, hash, token } from './crypto.mjs';
 import { platforms } from './store.mjs';
 import { deliveryFailure, capacityMessages } from './capacity.mjs';
 import { billingMessages, subscriptionError } from './billing.mjs';
+import { watchSchema, defaultWatch, platformLimits, editChoices, deleteChoices } from './watch.mjs';
 
 export function createApp(store, config = {}) {
   const app = express();
@@ -117,7 +118,7 @@ export function createApp(store, config = {}) {
     try { res.json(await config.billing.portal(req.user.id)); } catch (error) { next(error); }
   });
   app.get('/api/usage', auth, (req, res) => res.json({ usage: store.capacity.usage(req.user.id) }));
-  app.get('/api/capabilities', (_req, res) => res.json({ hosted: config.collectors?.capabilities() || { enabled: false, platforms: {} } }));
+  app.get('/api/capabilities', (_req, res) => res.json({ hosted: config.collectors?.capabilities() || { enabled: false, platforms: {} }, watch: { defaults: defaultWatch, limits: platformLimits, editChoices, deleteChoices } }));
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const input = credentials.parse(req.body);
     if (config.inviteCode && hash(String(req.body.inviteCode || '')) !== hash(config.inviteCode)) return res.status(403).json({ error: 'Enter a valid invitation code.' });
@@ -267,9 +268,9 @@ export function createApp(store, config = {}) {
   }));
   app.patch('/api/settings', auth, (req, res) => {
     const input = z.object({ retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365), z.literal(0)]).optional(),
-      holdDays: z.union([z.literal(3), z.literal(7), z.literal(30)]).optional() }).refine(v => v.retentionDays !== undefined || v.holdDays !== undefined, 'Choose a setting to change.').parse(req.body);
+      watch: watchSchema.optional() }).refine(v => v.retentionDays !== undefined || v.watch !== undefined, 'Choose a setting to change.').parse(req.body);
     if (input.retentionDays !== undefined) store.db.prepare('UPDATE users SET retention_days=? WHERE id=?').run(input.retentionDays, req.user.id);
-    if (input.holdDays !== undefined) store.db.prepare('UPDATE users SET hold_days=? WHERE id=?').run(input.holdDays, req.user.id);
+    if (input.watch !== undefined) store.setWatch(req.user.id, input.watch);
     lastPurge = 0; purge();
     res.json({ user: store.getUser(req.user.id) });
   });

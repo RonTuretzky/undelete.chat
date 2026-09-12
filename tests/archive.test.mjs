@@ -149,27 +149,35 @@ test('only deleted messages leave the watch buffer; held messages expire after t
   let text = ''; for await (const chunk of store.exportArchive(user.id)) text += chunk;
   assert.deepEqual(JSON.parse(text).messages.map(m => m.externalId).sort(), ['never-seen', 'removed']);
   assert.equal(store.connections(user.id)[0].message_count, 2); assert.equal(store.connections(user.id)[0].held_count, 1);
-  // The watch window is measured from the last activity, per user.
-  store.db.prepare('UPDATE users SET hold_days=1 WHERE id=?').run(user.id);
+  // The delete window is measured from the last activity, per platform.
+  store.setWatch(user.id, { telegram: { deleteHours: 24 } });
+  assert.equal(store.getUser(user.id).watch.telegram.deleteHours, 24); assert.equal(store.getUser(user.id).watch.whatsapp.deleteHours, 72, 'other platforms keep their defaults');
   store.db.prepare("UPDATE messages SET last_seen=? WHERE id=?").run(at(60 * 25), first.id);
   assert.equal(store.purge(), true);
   assert.equal(store.messages(user.id).length, 2, 'the expired held message is discarded, deleted ones stay');
   assert.equal(store.ingest(source, { ...event('delete', 'e', undefined), externalId: 'held', occurredAt: at(1) }).held, false, 'a late deletion still records a tombstone without content');
   assert.equal((await store.listMessages(user.id)).messages.find(m => m.externalId === 'held').originalMissing, true);
 });
-test('the watch window is an account setting with fixed choices', async t => {
-  const { store, user } = await fixture(t);
+test('watch windows are per-platform account settings with fixed choices, and edits outside the edit window are not recorded', async t => {
+  const { store, user, source } = await fixture(t);
   const { createApp } = await import('../server/app.mjs');
   const server = createApp(store, { origins: ['http://localhost'] }).listen(0, '127.0.0.1');
   await new Promise(r => server.once('listening', r)); t.after(() => new Promise(r => server.close(r)));
   const base = `http://127.0.0.1:${server.address().port}/api`, headers = { 'Content-Type': 'application/json', Cookie: `afterword=${store.session(user.id)}` };
-  assert.equal(store.getUser(user.id).hold_days, 3);
+  assert.deepEqual(store.getUser(user.id).watch, { whatsapp: { editHours: 1, deleteHours: 72 }, signal: { editHours: 48, deleteHours: 48 }, telegram: { editHours: 72, deleteHours: 720 } });
   assert.equal(store.getUser(user.id).retention_days, 0, 'deleted messages are kept until removed by default');
-  const ok = await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 7 }) });
-  assert.equal(ok.status, 200); assert.equal((await ok.json()).user.hold_days, 7);
-  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 5 }) })).status, 400);
-  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 1 }) })).status, 400, 'one day would miss WhatsApp deletions');
-  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({}) })).status, 400);
+  const ok = await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ watch: { whatsapp: { deleteHours: 168 }, telegram: { editHours: 6 } } }) });
+  assert.equal(ok.status, 200); const { user: updated } = await ok.json();
+  assert.equal(updated.watch.whatsapp.deleteHours, 168); assert.equal(updated.watch.whatsapp.editHours, 1); assert.equal(updated.watch.telegram.editHours, 6);
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ watch: { whatsapp: { deleteHours: 12 } } }) })).status, 400, 'half a day would miss WhatsApp deletions');
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ watch: { discord: { deleteHours: 24 } } }) })).status, 400);
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 3 }) })).status, 400, 'the old single setting is gone');
   assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ retentionDays: 30 }) })).status, 200);
-  assert.equal(store.getUser(user.id).hold_days, 7); assert.equal(store.getUser(user.id).retention_days, 30);
+  // Edits arriving after the platform's edit window are acknowledged but not recorded for held messages (the source is Telegram: 6 hours now).
+  const created = store.ingest(source, { ...event('create', 'w1', 'first text'), externalId: 'window', occurredAt: new Date(Date.now() - 8 * 3600_000).toISOString() });
+  store.db.prepare('UPDATE messages SET first_seen=? WHERE id=?').run(new Date(Date.now() - 8 * 3600_000).toISOString(), created.id);
+  assert.equal(store.ingest(source, { ...event('edit', 'w2', 'late edit'), externalId: 'window', occurredAt: new Date().toISOString() }).reason, 'edit_window_closed');
+  assert.equal(store.ingest(source, { ...event('edit', 'w3', 'early edit'), externalId: 'window', occurredAt: new Date(Date.now() - 7 * 3600_000).toISOString() }).duplicate, false, 'an edit inside the window is recorded');
+  store.ingest(source, { ...event('delete', 'w4', undefined), externalId: 'window', occurredAt: new Date().toISOString() });
+  assert.deepEqual(store.messages(user.id).find(m => m.externalId === 'window').versions.map(v => v.text), ['first text', 'early edit', undefined]);
 });

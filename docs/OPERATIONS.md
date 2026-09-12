@@ -121,7 +121,7 @@ Accepted risks: the server holds the archive key, so operators can read stored c
 
 Things that change with time, and what handles them:
 
-- Disk: application snapshots are capped at seven, held messages are purged after each account's watch window, the write-ahead log is truncated after purges, journald is capped at 300 MB and one month, Docker's json-file logs rotate at 3 × 10 MB, and each deploy prunes the previous image and build cache. Backups stop rather than fill the disk when free space drops below the 8 GB reserve, and the monitor then reports `local_backup_stale`, which fails the external check.
+- Disk: application snapshots are capped at seven, held messages are purged after each platform's delete window, the write-ahead log is truncated after purges, journald is capped at 300 MB and one month, Docker's json-file logs rotate at 3 × 10 MB, and each deploy prunes the previous image and build cache. Backups stop rather than fill the disk when free space drops below the 8 GB reserve, and the monitor then reports `local_backup_stale`, which fails the external check.
 - Certificates: Caddy renews Let's Encrypt certificates automatically for undelete.chat, www, and the legacy hostname; the `ssl_expiry` alert fires at 14 days if that ever fails. Port 80 must stay open for renewals.
 - Sessions: browser sessions expire after 30 days; expired sessions and pairing codes are deleted hourly; processed Stripe event ids are kept for 30 days.
 - Processes: workers have a 192 MB heap cap and are relaunched with backoff by the supervisor if they die or stop sending heartbeats; the container has a 3 GB memory cap and restarts if exceeded. A lapsed subscription suspends its collectors and frees capacity.
