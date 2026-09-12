@@ -163,6 +163,16 @@ export function createCollectorManager(store, options) {
         // service restart does not keep requesting codes nobody will scan.
         const needsOwner = code === 3 || code === 2 && (!connection(c.id)?.connected_at || state.askedOwner);
         if (needsOwner) {
+          if (!connection(c.id)?.connected_at) {
+            // A sign-in that expired before the account was ever linked holds no
+            // session or messages. Retire it; the owner connects again from the
+            // platform card instead of managing a dead row.
+            store.db.prepare('DELETE FROM hosted_collectors WHERE connection_id=?').run(c.id);
+            store.db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='error',detail='Sign-in expired before the account was linked.' WHERE id=?").run(c.id);
+            workers.delete(c.id);
+            quietly(() => rmSync(join(root, c.id), { recursive: true, force: true }));
+            return;
+          }
           store.db.prepare('UPDATE hosted_collectors SET enabled=0 WHERE connection_id=?').run(c.id);
           if (connection(c.id)?.health !== 'error') update(c.id, 'error', code === 3 ? 'The platform signed this device out. Choose Try again to link it again.' : 'Sign-in was not completed. Choose Try again to connect.');
           return;

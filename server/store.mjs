@@ -22,7 +22,7 @@ export function createStore(path, encryptionKey, options = {}) {
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA secure_delete=ON; PRAGMA journal_size_limit=67108864;
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL,
-      created_at TEXT NOT NULL, retention_days INTEGER NOT NULL DEFAULT 90
+      created_at TEXT NOT NULL, retention_days INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS sessions (
       token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at TEXT NOT NULL
@@ -82,7 +82,16 @@ export function createStore(path, encryptionKey, options = {}) {
     billing_cancel_at_period_end: 'INTEGER NOT NULL DEFAULT 0', billing_updated_at: 'TEXT', trial_ends_at: 'TEXT' })) if (!userColumns.has(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_billing_customer ON users(billing_customer_id) WHERE billing_customer_id IS NOT NULL');
   db.exec('CREATE TABLE IF NOT EXISTS billing_events (id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at TEXT NOT NULL)');
-  if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'hold_days')) db.exec('ALTER TABLE users ADD COLUMN hold_days INTEGER NOT NULL DEFAULT 7');
+  if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'hold_days')) db.exec('ALTER TABLE users ADD COLUMN hold_days INTEGER NOT NULL DEFAULT 3');
+  // One-time default changes for accounts created before September 12, 2026:
+  // deleted messages are kept until removed, and the watch window is three days
+  // (covering WhatsApp's two-day and Signal's one-day deletion limits).
+  db.exec('CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)');
+  if (!db.prepare("SELECT 1 FROM migrations WHERE name='defaults-2026-09-12'").get()) {
+    db.prepare('UPDATE users SET retention_days=0 WHERE retention_days=90').run();
+    db.prepare('UPDATE users SET hold_days=3 WHERE hold_days IN (1,7)').run();
+    db.prepare('INSERT INTO migrations (name,applied_at) VALUES (?,?)').run('defaults-2026-09-12', new Date().toISOString());
+  }
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'last_active_at')) db.exec('ALTER TABLE users ADD COLUMN last_active_at TEXT');
   // Only deleted messages belong to the archive. Anything else is a held
   // message in the watch buffer; this also converts pre-existing archives.
@@ -112,12 +121,15 @@ export function createStore(path, encryptionKey, options = {}) {
     connection_id TEXT PRIMARY KEY REFERENCES connections(id) ON DELETE CASCADE,
     config TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL
   );`);
+  // Sign-ins that expired before ever linking are retired at startup as well.
+  db.prepare("DELETE FROM hosted_collectors WHERE connection_id IN (SELECT id FROM connections WHERE collector='hosted' AND connected_at IS NULL AND health='error' AND detail LIKE 'Sign-in%')").run();
+  db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,detail='Sign-in expired before the account was linked.' WHERE collector='hosted' AND revoked=0 AND connected_at IS NULL AND health='error' AND detail LIKE 'Sign-in%'").run();
   // Discord support was withdrawn; retire any remaining sources so nothing tries to run them.
   db.prepare("DELETE FROM hosted_collectors WHERE connection_id IN (SELECT id FROM connections WHERE platform='discord')").run();
   db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='error',detail='Discord is no longer supported.' WHERE platform='discord' AND revoked=0").run();
   const capacity = createArchiveCapacity(db, path, options);
   const getUser = id => db.prepare('SELECT id,username,created_at,retention_days,hold_days,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id);
-  const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
+  const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,connected_at,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=0) AS message_count,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=1) AS held_count,
     (SELECT max(last_seen) FROM messages WHERE connection_id=connections.id) AS last_message_at

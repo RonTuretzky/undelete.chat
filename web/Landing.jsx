@@ -43,7 +43,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
       <h2>Built to keep as little as possible<span className="brand-dot">.</span></h2>
       <p className="lede">Most archiving tools keep everything. undelete.chat is designed around the opposite promise.</p>
       <div className="pillars">
-        <div className="pillar"><EyeOff size={22}/><h3>Only deleted messages are kept</h3><p>New messages are held privately for a watch window you control (1 to 30 days) and then discarded. If nobody deletes them, they are gone from undelete.chat too.</p></div>
+        <div className="pillar"><EyeOff size={22}/><h3>Only deleted messages are kept</h3><p>New messages are held privately for a short watch window (3 days by default, matching how long WhatsApp and Signal let a sender delete for everyone) and then discarded. If nobody deletes them, they are gone from undelete.chat too.</p></div>
         <div className="pillar"><KeyRound size={22}/><h3>Encrypted, account by account</h3><p>Message content and linked sessions are encrypted at rest with keys bound to your account. Passwords are hashed with scrypt; there are no analytics or tracking cookies.</p></div>
         <div className="pillar"><ShieldCheck size={22}/><h3>Yours to export or erase</h3><p>Export everything as JSON, remove single messages, disconnect an account, or delete your workspace in one click. No email required to sign up.</p></div>
       </div>

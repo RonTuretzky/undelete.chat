@@ -10,7 +10,7 @@ function Bubble({ x, y, w, mine, children, className = '' }) {
     <text x="10" y="14">{children}</text>
   </g>;
 }
-export function HowItWorks({ compact = false, watchDays = 7 }) {
+export function HowItWorks({ compact = false, watchDays = 3 }) {
   return <section className="how-it-works" aria-labelledby="how-it-works-title">
     <div className="eyebrow">HOW IT WORKS</div>
     <h2 id="how-it-works-title">Only the messages they deleted<span className="brand-dot">.</span></h2>

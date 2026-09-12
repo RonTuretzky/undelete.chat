@@ -56,6 +56,7 @@ test('paused and ephemeral events are excluded', async t => {
 });
 test('retention purges saved messages too and prevents replay from restoring them', async t => {
   const { store, user, source } = await fixture(t);
+  store.db.prepare('UPDATE users SET retention_days=90 WHERE id=?').run(user.id);
   const first = event('create', 'a', 'old'); const { id } = store.ingest(source, first);
   store.db.prepare('UPDATE messages SET saved=1,first_seen=? WHERE id=?').run(new Date(Date.now() - 91 * 86400_000).toISOString(), id);
   store.purge(); assert.equal(store.messages(user.id).length, 0);
@@ -98,6 +99,7 @@ test('API enforces session auth, source token scope, CSRF and revocation', async
 });
 test('retention removes large expired batches atomically and honours a time budget', async t => {
   const { store, user, source } = await fixture(t);
+  store.db.prepare('UPDATE users SET retention_days=90 WHERE id=?').run(user.id);
   const old = new Date(Date.now() - 91 * 86400_000).toISOString();
   for (let i = 0; i < 1203; i++) store.ingest(source, { ...event('create', 'e' + i, 'expired ' + i), externalId: 'm' + i, scope: 'chat-1' });
   store.ingest(source, { ...event('create', 'fresh', 'keep'), externalId: 'fresh', scope: 'chat-1' });
@@ -161,11 +163,13 @@ test('the watch window is an account setting with fixed choices', async t => {
   const server = createApp(store, { origins: ['http://localhost'] }).listen(0, '127.0.0.1');
   await new Promise(r => server.once('listening', r)); t.after(() => new Promise(r => server.close(r)));
   const base = `http://127.0.0.1:${server.address().port}/api`, headers = { 'Content-Type': 'application/json', Cookie: `afterword=${store.session(user.id)}` };
-  assert.equal(store.getUser(user.id).hold_days, 7);
-  const ok = await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 3 }) });
-  assert.equal(ok.status, 200); assert.equal((await ok.json()).user.hold_days, 3);
+  assert.equal(store.getUser(user.id).hold_days, 3);
+  assert.equal(store.getUser(user.id).retention_days, 0, 'deleted messages are kept until removed by default');
+  const ok = await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 7 }) });
+  assert.equal(ok.status, 200); assert.equal((await ok.json()).user.hold_days, 7);
   assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 5 }) })).status, 400);
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ holdDays: 1 }) })).status, 400, 'one day would miss WhatsApp deletions');
   assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({}) })).status, 400);
   assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ retentionDays: 30 }) })).status, 200);
-  assert.equal(store.getUser(user.id).hold_days, 3); assert.equal(store.getUser(user.id).retention_days, 30);
+  assert.equal(store.getUser(user.id).hold_days, 7); assert.equal(store.getUser(user.id).retention_days, 30);
 });

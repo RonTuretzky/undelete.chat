@@ -53,6 +53,7 @@ test('account allowances include all revisions, ignore duplicates, release delet
 
 test('retention, transaction rollback, paused and ephemeral events cannot drift storage accounting', async t => {
   const { store, user, source } = await fixture(t);
+  store.db.prepare('UPDATE users SET retention_days=90 WHERE id=?').run(user.id);
   store.ingest({ ...source, paused: 1 }, event(1)); store.ingest(source, event(2, { ephemeral: true }));
   assert.equal(store.capacity.usage(user.id).usedBytes, 0);
   store.db.exec("CREATE TRIGGER simulate_write_failure BEFORE INSERT ON events WHEN NEW.event_uid='event-3' BEGIN SELECT RAISE(ABORT,'private database error'); END;");

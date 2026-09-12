@@ -6,7 +6,7 @@ What undelete.chat stores, why, for how long, and who can see it.
 
 ## In short
 
-undelete.chat watches the personal messaging accounts you link and keeps only messages that were later deleted on the platform. Every other message is held privately for your watch window (7 days by default, adjustable in Settings between 1 and 30 days) and then discarded. Nothing you did not link is watched, and nothing that was never deleted is kept beyond that window.
+undelete.chat watches the personal messaging accounts you link and keeps only messages that were later deleted on the platform. Every other message is held privately for your watch window (3 days by default, adjustable in Settings to 7 or 30 days) and then discarded. Nothing you did not link is watched, and nothing that was never deleted is kept beyond that window.
 
 Message content is encrypted at rest with a key held by the server. The server can decrypt your messages to show them to you; this is not end-to-end encryption, and the people who operate the server could technically read stored content. We do not sell, share, analyse, or use message content for anything other than showing it to you.
 
@@ -36,7 +36,7 @@ Support and operations: the server logs record only error codes, service status,
 
 Held messages: until the end of your watch window, measured from the last activity on that message.
 
-Deleted messages: until you remove them, delete your account, or your retention setting expires them (7 days to 1 year, or until you delete them).
+Deleted messages: until you remove them or delete your account. You can optionally set a retention period (7 days to 1 year) in Settings; by default nothing expires.
 
 Platform sessions: until you disconnect the connection or delete your account. Disconnecting removes the stored session; relinking requires a fresh approval on your phone.
 

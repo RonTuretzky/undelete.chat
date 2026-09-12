@@ -267,7 +267,7 @@ export function createApp(store, config = {}) {
   }));
   app.patch('/api/settings', auth, (req, res) => {
     const input = z.object({ retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365), z.literal(0)]).optional(),
-      holdDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(30)]).optional() }).refine(v => v.retentionDays !== undefined || v.holdDays !== undefined, 'Choose a setting to change.').parse(req.body);
+      holdDays: z.union([z.literal(3), z.literal(7), z.literal(30)]).optional() }).refine(v => v.retentionDays !== undefined || v.holdDays !== undefined, 'Choose a setting to change.').parse(req.body);
     if (input.retentionDays !== undefined) store.db.prepare('UPDATE users SET retention_days=? WHERE id=?').run(input.retentionDays, req.user.id);
     if (input.holdDays !== undefined) store.db.prepare('UPDATE users SET hold_days=? WHERE id=?').run(input.holdDays, req.user.id);
     lastPurge = 0; purge();

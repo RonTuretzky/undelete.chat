@@ -270,8 +270,8 @@ test('a stalled restart of a previously linked source is retried, while an unlin
   f.children[0].send({ type: 'fixture-health', health: 'connected', detail: 'Connected' });
   await until(() => f.manager.status(linked.id).health === 'connected');
   f.children[0].send({ type: 'fixture-exit', code: 2 }); f.children[1].send({ type: 'fixture-exit', code: 2 });
-  await until(() => !f.manager.status(fresh.id).running && f.manager.status(fresh.id).health === 'error');
-  assert.match(f.manager.status(fresh.id).detail, /Choose Try again/);
+  await until(() => store.connection(fresh.id, alice.id)?.revoked === 1);
+  assert.equal(store.hostedConnections().some(x => x.id === fresh.id), false, 'a sign-in that expired before linking is retired');
   await until(() => f.manager.status(linked.id).health === 'reconnecting');
   assert.match(f.manager.status(linked.id).detail, /Retrying automatically/);
   await until(() => f.children.length === 3 && f.manager.status(linked.id).running, 15_000);

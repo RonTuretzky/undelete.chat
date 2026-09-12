@@ -58,7 +58,7 @@ A platform outage, expired linked device, or server interruption can still leave
 
 ## Manage what stays
 
-Settings lets you choose the watch window (1, 3, 7, or 30 days; 7 days by default), how long preserved deleted messages are retained, and export your archive. A message that is not deleted within its watch window is discarded and cannot be recovered later. Pause stops storing new events while the cloud session stays connected. Disconnect removes the saved cloud login and stops the watch; your archive remains until you delete it. Account deletion removes the archive, the messages waiting in the watch window, and stored sessions.
+Settings lets you choose the watch window (3 days by default, which covers WhatsApp's two-day and Signal's one-day deletion limits; 7 or 30 days catch later Telegram deletions), how long preserved deleted messages are retained, and export your archive. A message that is not deleted within its watch window is discarded and cannot be recovered later. Pause stops storing new events while the cloud session stays connected. Disconnect removes the saved cloud login and stops the watch; your archive remains until you delete it. Account deletion removes the archive, the messages waiting in the watch window, and stored sessions.
 
 - [Privacy and retention](./privacy.md)
 
