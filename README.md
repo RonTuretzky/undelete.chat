@@ -2,6 +2,20 @@
 
 undelete.chat keeps the messages people delete. Link your personal WhatsApp, Telegram, or Signal account once, and undelete.chat runs a hosted linked device that watches new messages for a short window. Only a message the platform later reports as deleted is kept, together with any edits it had before deletion; everything else is discarded when the watch window ends. The archive of deleted messages supports bookmarks, JSON export, retention controls, and connection status.
 
+## Self-hosting
+
+undelete.chat is open source under the [AGPL-3.0](LICENSE). The hosted service at undelete.chat and a self-hosted install run the same code. To run your own:
+
+```sh
+git clone https://github.com/RonTuretzky/undelete.chat.git && cd undelete.chat
+cp .env.example deploy/.env
+# Set at least: NODE_ENV=production, ARCHIVE_KEY (64 hex characters; keep a copy outside the server),
+# PUBLIC_ORIGIN=https://your.domain, HOSTED_COLLECTORS=true, TELEGRAM_API_ID and TELEGRAM_API_HASH (from my.telegram.org).
+docker compose -f deploy/compose.yaml up -d --build
+```
+
+Put a TLS-terminating proxy such as Caddy in front of port 4318 on localhost (a two-line Caddyfile is in `deploy/deploy.py`). Billing is off unless Stripe keys are set; every account is then entitled. A 1 GB server handles a handful of linked accounts; see [operations](docs/OPERATIONS.md) for capacity, backups, monitoring, the security posture, and the monthly maintenance pass, and [platform findings](docs/PLATFORMS.md) for the platform rules you take on as the operator. There is no support commitment for self-hosted installs.
+
 ## User onboarding and documentation
 
 Open **Help & guides** in the app or visit `/docs` for the public help center.The default hosted wizard shows a platform QR code directly in the authenticated website and any required sign-in prompt. It checks both the platform connection and first captured message.

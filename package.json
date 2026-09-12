@@ -42,5 +42,11 @@
     "fflate": "^0.8.3",
     "fzstd": "^0.1.1",
     "vite": "^7.1.0"
-  }
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RonTuretzky/undelete.chat.git"
+  },
+  "homepage": "https://undelete.chat"
 }

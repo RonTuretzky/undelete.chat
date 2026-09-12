@@ -1,11 +1,12 @@
 import React from 'react';
-import { ArrowRight, Check, Cpu, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, Cpu, EyeOff, Github, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { HowItWorks } from './HowItWorks';
 import { platformGuides, platformOrder } from './guides.mjs';
 import './Landing.css';
 
 const names = { telegram: 'Telegram', signal: 'Signal', whatsapp: 'WhatsApp' };
 export const inquiryEmail = 'turetzkyron@gmail.com';
+export const repositoryUrl = 'https://github.com/RonTuretzky/undelete.chat';
 const inquiryLink = `mailto:${inquiryEmail}?subject=${encodeURIComponent('undelete.chat Premium inquiry')}&body=${encodeURIComponent('Hi,\n\nI am interested in undelete.chat Premium with trusted execution environments.\n\nAccounts to link: \nApproximate number of users: \nAnything else: \n')}`;
 export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform }) {
   const trial = billing?.enabled && billing.trialDays ? billing.trialDays : null;
@@ -49,8 +50,8 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
       <p className="landing-fineprint">Read the full <a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>privacy policy</a>. Content is decrypted by the server to show it to you; this is not end-to-end encryption.</p>
     </section>
     <section className="landing-section" id="pricing">
-      <h2>Two ways to run undelete.chat<span className="brand-dot">.</span></h2>
-      <p className="lede">Start with the standard plan in a minute. Choose Premium when your messages must stay unreadable even to the people running the servers.</p>
+      <h2>Three ways to run undelete.chat<span className="brand-dot">.</span></h2>
+      <p className="lede">Start with the standard plan in a minute, run it yourself for free, or choose Premium when your messages must stay unreadable even to the people running the servers.</p>
       <div className="pricing tiers">
         <div className="price-card">
           <div className="eyebrow">STANDARD</div>
@@ -65,6 +66,20 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
           </ul>
           <button className="button primary full" onClick={onStart}>{trial ? `Start your ${trial}-day free trial` : 'Get started'}<ArrowRight size={16}/></button>
           {trial && <p className="landing-fineprint">{trial} days free, no card on file. Cancel any time from Settings.</p>}
+        </div>
+        <div className="price-card selfhost">
+          <div className="eyebrow">SELF-HOST</div>
+          <div className="price">Free<small>open source</small></div>
+          <p className="premium-lede"><Github size={16}/>The complete service, under the AGPL-3.0 licence. Run it on your own server and keep every key and every message on hardware you control.</p>
+          <ul>
+            <li><Check size={15}/>Same code as undelete.chat, no feature gates</li>
+            <li><Check size={15}/>One Docker Compose file; a 1 GB VPS is enough for a few accounts</li>
+            <li><Check size={15}/>Encrypted archive, backups, and monitoring included</li>
+            <li><Check size={15}/>You are the operator: your key, your updates, your platform risk</li>
+            <li><Check size={15}/>Billing is optional and off by default</li>
+          </ul>
+          <a className="button secondary full" href={repositoryUrl} target="_blank" rel="noreferrer"><Github size={16}/>Get the code<ArrowRight size={16}/></a>
+          <p className="landing-fineprint">Setup guide in the README. Community support only; there is no SLA for self-hosted installs.</p>
         </div>
         <div className="price-card premium">
           <div className="eyebrow">PREMIUM</div>
@@ -92,6 +107,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
         <details><summary>Does the other person know?</summary><p>undelete.chat appears on your account as a linked device, exactly like a desktop app. Nothing is sent to the other person, and nothing changes in the conversation.</p></details>
         <details><summary>What about messages I delete myself?</summary><p>Deletions on your own messages are captured the same way if the platform reports them to linked devices. You can remove anything from undelete.chat permanently at any time.</p></details>
         <details><summary>Are photos, voice notes, and files kept?</summary><p>Only their names and types. File bodies, view-once media, and disappearing messages are never stored.</p></details>
+        <details><summary>Can I run it myself?</summary><p>Yes. The whole service is open source under the AGPL-3.0 licence, with a Docker Compose deployment, encrypted storage, backups, and monitoring built in. Self-hosting means you hold the archive key, apply updates, and accept the platform risks yourself. The README on GitHub walks through it.</p></details>
         <details><summary>What does Premium with trusted execution environments add?</summary><p>On the Standard plan the server holds the key that decrypts your archive, so operators could technically read stored content. Premium runs the collectors and the archive inside a confidential-computing enclave: keys are sealed to attested hardware, memory is encrypted by the CPU, and neither operators, backups, nor the hosting provider can read your data. Email {inquiryEmail} to discuss it.</p></details>
         <details><summary>Who can read my messages?</summary><p>Content is encrypted at rest, and the server decrypts it only to show it to you. The people operating the server could technically access stored data, so this is not end-to-end encryption. The privacy policy spells out exactly what is stored and for how long.</p></details>
       </div>
@@ -103,7 +119,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
     </section>
     <footer className="landing-footer">
       <span>undelete<span className="brand-dot">.chat</span> · They deleted it. You still have it.</span>
-      <nav><a href="/docs" onClick={e => go(e, '/docs')}>Help & guides</a><a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>Privacy policy</a><a href="/docs/terms" onClick={e => go(e, '/docs/terms')}>Terms</a><a href="/docs/billing" onClick={e => go(e, '/docs/billing')}>Billing</a></nav>
+      <nav><a href={repositoryUrl} target="_blank" rel="noreferrer">Source code</a><a href="/docs" onClick={e => go(e, '/docs')}>Help & guides</a><a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>Privacy policy</a><a href="/docs/terms" onClick={e => go(e, '/docs/terms')}>Terms</a><a href="/docs/billing" onClick={e => go(e, '/docs/billing')}>Billing</a></nav>
     </footer>
   </div>;
 }

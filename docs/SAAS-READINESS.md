@@ -64,6 +64,8 @@ Objective: deliver undelete.chat as a remote, multi-user service that recovers d
 
 - Alert delivery verified, September 12: DigitalOcean emailed a down notice at 12:45 UTC while the monitor was critical during the Telegram sign-out, and a recovery notice at 12:59 UTC. Kernel reboots are now automatic at 09:30 UTC when required, a `maintain` command runs the monthly host pass, dormant workspaces are erased after a year without sign-in or subscription, and the platform findings document how each platform stays linked, including the official Telegram Business bot path as the next integration to build.
 
+- Open source, September 12: the repository was published under the AGPL-3.0 licence with a self-hosting section in the README, and the landing page offers three ways to run the service (Standard, Self-host, Premium). The full git history was scanned for secrets, keys, and personal data before publishing and none were found; the operator's inquiry address is the only contact detail in the code, by design.
+
 ## Completion blockers
 
 Live phone scans require the account holder. Still outstanding: updating the Stripe webhook endpoint to https://undelete.chat/api/billing/webhook (the old hostname answers it meanwhile); activation of DigitalOcean Spaces (control-panel sign-in and a paid subscription) so offsite application backups can be verified against the real provider; a full-image restore rehearsal in an isolated network; observed delivery of the configured alert emails; rotation of the DigitalOcean API token that appeared in chat; and production capacity/load measurement beyond the current single-customer pilot. These do not prevent progress on server infrastructure and the other platforms.
