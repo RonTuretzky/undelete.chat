@@ -46,8 +46,14 @@ export async function startTelegram(ctx) {
     const scope = channel ? `channel:${channel}` : 'account';
     for (const id of e.deletedIds) ctx.capture({ eventId: eventId('telegram', scope, id, 'delete'), kind: 'delete', scope, externalId: String(id), occurredAt: new Date().toISOString() });
   }, new DeletedMessage({}));
+  // A connect that never settles (flood wait, dead data centre) must surface as
+  // a failure so the supervisor can retry with backoff instead of waiting forever.
+  const connectWithTimeout = () => new Promise((resolve, reject) => {
+    const limit = setTimeout(() => reject(new Error('Telegram did not answer within five minutes.')), 5 * 60_000);
+    client.connect().then(resolve, reject).finally(() => clearTimeout(limit));
+  });
   if (ctx.hosted && ctx.showQR) {
-    await client.connect();
+    await connectWithTimeout();
     if (!await client.checkAuthorization()) await client.signInUserWithQrCode({ apiId, apiHash }, {
       qrCode: ({ token, expires }) => ctx.showQR(`tg://login?token=${token.toString('base64url')}`, expires * 1000),
       password: () => ctx.ask('Telegram two-step verification password', true),

@@ -46,7 +46,9 @@ export function createCollectorManager(store, options) {
       detail: c?.detail || '', paused: !!c?.paused, qr, prompt: state?.prompt || null,
       lastSeen: c?.last_seen || null, enabled: enabled(id), capacityReason: c?.capacity_reason || null };
   }
-  const backoff = failures => Math.min(60_000, 2000 * 2 ** Math.min(failures, 5));
+  // Repeated failures back off to a quarter hour so a platform-side wait (for
+  // example a Telegram flood limit) is not hammered with fresh connections.
+  const backoff = failures => Math.min(15 * 60_000, 2000 * 2 ** Math.min(failures, 9));
   const quietly = fn => { try { return fn(); } catch { /* Logged by the caller's state; never crash the supervisor. */ } };
   function launch(c, failures = 0) {
     if (closing || workers.get(c.id)?.child) return;
@@ -151,8 +153,11 @@ export function createCollectorManager(store, options) {
       if (nativeDirectory) quietly(() => rmSync(nativeDirectory, { recursive: true, force: true }));
       try {
         if (closing || state.stopping || !connection(c.id) || !enabled(c.id)) return;
-        if (code === 2) { if (connection(c.id)?.health !== 'error') update(c.id, 'error', 'Sign-in was not completed. Choose Try again to connect.'); return; }
-        update(c.id, 'reconnecting', 'Connection interrupted. Retrying automatically.');
+        // Exit code 2 means the worker gave up on sign-in. For a source that was
+        // never linked the owner must act; for a source that has connected before,
+        // a stalled restart is treated like any other interruption and retried.
+        if (code === 2 && !connection(c.id)?.connected_at) { if (connection(c.id)?.health !== 'error') update(c.id, 'error', 'Sign-in was not completed. Choose Try again to connect.'); return; }
+        update(c.id, 'reconnecting', code === 2 ? 'Reconnecting took too long. Retrying automatically.' : 'Connection interrupted. Retrying automatically.');
       } catch { /* Database unavailable; the retry below reads fresh state. */ }
       state.timer = setTimeout(() => quietly(() => { const current = connection(c.id); if (current && enabled(c.id) && !closing) launch(current, state.failures + 1); }), backoff(state.failures));
     };

@@ -52,7 +52,7 @@ Use matching application and database versions for rollback. Older writer code d
 
 ## External monitoring
 
-The `Undelete availability` DigitalOcean Uptime check probes the public HTTPS service monitor (`/api/monitor`) from US East and Western Europe. It runs independently of the undelete.chat server and the operator's computer. The monitor endpoint returns 503 when the in-process operations monitor reports a critical issue: database unavailable, disk below the reserve, archive full, local backup missing or older than 26 hours, backup scheduler stale, a connected collector with a stale heartbeat, or a delivery queue older than five minutes. A warning-only state, such as `offsite_unconfigured`, still returns 200.
+The `Undelete availability` DigitalOcean Uptime check probes the public HTTPS service monitor (`/api/monitor`) from US East and Western Europe. It runs independently of the undelete.chat server and the operator's computer. The monitor endpoint returns 503 when the in-process operations monitor reports a critical issue: database unavailable, disk below the reserve, archive full, local backup missing or older than 26 hours, backup scheduler stale, every previously connected collector unavailable at once, a source stopped by server or disk capacity, rejected events, or a delivery queue older than five minutes. A single customer's unlinked or reconnecting source is a warning, visible in `service-status`, because it is theirs to fix from Connections. A warning-only state still returns 200.
 
 ```sh
 # Reuse the existing matching check instead of creating a duplicate.

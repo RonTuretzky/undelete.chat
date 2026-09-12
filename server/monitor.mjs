@@ -56,6 +56,7 @@ export function createOperationsMonitor(store, { directory, offsiteConfigured = 
         try { previous = await readJson(statusFile); } catch { /* Fresh checks rebuild an absent or damaged report. */ }
       }
       const time = now(), starting = time - startedAt < startupGraceMs, issues = [], trackers = {}, metrics = {}, collectors = [];
+      let established = 0, down = 0;
       const issue = (code, severity, fields = {}) => issues.push({ code, severity, ...fields });
       const firstObserved = key => {
         const saved = previous?.trackers?.[key];
@@ -105,10 +106,18 @@ export function createOperationsMonitor(store, { directory, offsiteConfigured = 
           const observation = { id: c.id, platform: c.platform, enabled: !!c.enabled, paused: !!c.paused,
             connectedAt: c.connected_at, health: c.health, lastSeen: c.last_seen, capacityReason: c.capacity_reason || null };
           collectors.push(observation);
-          if (c.capacity_reason) { issue('collector_storage_stopped', 'critical', { connectionId: c.id, reason: c.capacity_reason }); continue; }
+          // One customer's stopped or unlinked source is their problem to fix from
+          // Connections and is reported as a warning. Only server-side capacity or
+          // every established source failing at once is an operator emergency.
+          if (c.capacity_reason) { issue('collector_storage_stopped', ['server_capacity', 'disk_capacity'].includes(c.capacity_reason) ? 'critical' : 'warning', { connectionId: c.id, reason: c.capacity_reason }); continue; }
           if (c.enabled && !c.paused && c.connected_at) {
-            if (age(c.last_seen, time) > collectorGraceMs) issue('collector_heartbeat_stale', 'critical', { connectionId: c.id });
-            else if (c.health !== 'connected') delayed('collector_unavailable', c.id);
+            established++;
+            if (age(c.last_seen, time) > collectorGraceMs) { issue('collector_heartbeat_stale', 'warning', { connectionId: c.id }); down++; }
+            else if (c.health !== 'connected') {
+              const since = firstObserved('collector_unavailable:' + c.id);
+              issue('collector_unavailable', 'warning', { connectionId: c.id, since: new Date(since).toISOString() });
+              if (time - since >= collectorGraceMs) down++;
+            }
           }
           try {
             // Queue headers and timestamps suffice; monitor never decrypts a
@@ -126,6 +135,7 @@ export function createOperationsMonitor(store, { directory, offsiteConfigured = 
             if (error.code !== 'ENOENT' || c.connected_at) delayed('collector_queue_unreadable', c.id);
           }
         }
+        if (established > 0 && down === established) issue('collectors_all_unavailable', 'critical', { count: established });
       } catch { issue('collector_check_failed', 'critical'); }
       const result = { format: 1, checkedAt: new Date(time).toISOString(), status: issues.some(i => i.severity === 'critical') ? 'critical' : issues.length ? 'warning' : 'healthy',
         coverage: { hostedEnabled, offsiteConfigured, maxSources }, issues, metrics, collectors, trackers };

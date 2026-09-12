@@ -260,3 +260,18 @@ process.on('SIGTERM', () => process.exit(0));
   await assert.rejects(exhausted.result, /Signal RPC -1/);
   assert.equal(exhausted.codes.length, maxLinkAttempts);
 });
+
+test('a stalled restart of a previously linked source is retried, while an unlinked source waits for the owner', async t => {
+  const f = await fixture(t), { store, alice } = f;
+  const linked = store.createConnection(alice.id, 'telegram', 'Linked before'), fresh = store.createConnection(alice.id, 'whatsapp', 'Never linked');
+  await f.manager.start(linked.id, alice.id, { consent: true }); await f.manager.start(fresh.id, alice.id, { consent: true });
+  await until(() => f.children.length === 2 && f.manager.status(linked.id).running && f.manager.status(fresh.id).running);
+  store.db.prepare('UPDATE connections SET connected_at=? WHERE id=?').run(new Date().toISOString(), linked.id);
+  f.children[0].send({ type: 'fixture-exit', code: 2 }); f.children[1].send({ type: 'fixture-exit', code: 2 });
+  await until(() => !f.manager.status(fresh.id).running && f.manager.status(fresh.id).health === 'error');
+  assert.match(f.manager.status(fresh.id).detail, /Choose Try again/);
+  await until(() => f.manager.status(linked.id).health === 'reconnecting');
+  assert.match(f.manager.status(linked.id).detail, /Retrying automatically/);
+  await until(() => f.children.length === 3 && f.manager.status(linked.id).running, 15_000);
+  assert.equal(f.children.length, 3, 'only the previously linked source was relaunched');
+});

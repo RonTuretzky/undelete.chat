@@ -151,3 +151,16 @@ test('connection and queue metadata migrations preserve ciphertext and establish
   const check = new DatabaseSync(join(established.queuePath, 'queue.sqlite'), { readOnly: true });
   assert.equal(check.prepare('SELECT payload FROM queue').get().payload, encrypted); assert.equal(check.prepare('SELECT queued_at FROM queue').get().queued_at, 0); check.close();
 });
+
+test('one customer\'s unavailable source is a warning; every established source failing is critical', async t => {
+  const f = await fixture(t), a = f.source(), b = f.source(); const m = f.monitor();
+  f.heartbeat(a); f.heartbeat(b); assert.equal((await m.run()).status, 'healthy');
+  f.heartbeat(a, 'error'); f.advance(2 * minute + 1); f.heartbeat(a, 'error'); f.heartbeat(b);
+  const partial = await m.run();
+  assert.equal(partial.status, 'warning'); assert.ok(codes(partial).includes('collector_unavailable')); assert.ok(!codes(partial).includes('collectors_all_unavailable'));
+  f.heartbeat(b, 'reconnecting'); assert.equal((await m.run()).status, 'warning', 'the second failure starts its own grace period');
+  f.advance(2 * minute + 1); f.heartbeat(a, 'error'); f.heartbeat(b, 'reconnecting');
+  const total = await m.run();
+  assert.equal(total.status, 'critical'); assert.ok(codes(total).includes('collectors_all_unavailable'));
+  f.heartbeat(b); assert.equal((await m.run()).status, 'warning');
+});
