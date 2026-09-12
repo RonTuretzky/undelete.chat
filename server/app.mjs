@@ -146,6 +146,7 @@ export function createApp(store, config = {}) {
     const valid = user && await checkPassword(password, user.password);
     if (!valid) { recordFailure(username.toLowerCase()); return res.status(401).json({ error: 'Username or password is incorrect.' }); }
     loginFailures.delete(username.toLowerCase());
+    store.touch(user.id);
     res.cookie('afterword', store.session(user.id), cookieOptions).json({ user: store.getUser(user.id) });
   });
   app.post('/api/auth/logout', auth, (req, res) => { store.endSession(req.sessionToken); res.clearCookie('afterword', cookieOptions).json({ ok: true }); });
@@ -275,10 +276,9 @@ export function createApp(store, config = {}) {
   app.delete('/api/account', auth, accountLimit, async (req, res) => {
     const { password } = z.object({ password: z.string().max(128) }).parse(req.body);
     if (!await checkPassword(password, store.userByName(req.user.username).password)) return res.status(403).json({ error: 'Password is incorrect.' });
-    const ids = store.connections(req.user.id).map(c => c.id);
-    store.db.prepare('UPDATE connections SET revoked=1,token_hash=NULL WHERE user_id=?').run(req.user.id);
+    const ids = store.deleteAccount(req.user.id);
     await Promise.all(ids.map(id => config.collectors?.remove(id)));
-    store.db.prepare('DELETE FROM users WHERE id=?').run(req.user.id);
+    store.eraseAccount(req.user.id);
     res.clearCookie('afterword', cookieOptions).json({ ok: true });
   });
   app.get('/api/companion/download', auth, (req, res) => {

@@ -278,6 +278,45 @@ class DigitalOcean:
                 return policies
             page += 1
 
+    def ssh(self, command, timeout=900):
+        options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',
+                   '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.private / 'known_hosts'), '-o', 'ConnectTimeout=15']
+        return subprocess.run(['ssh', *options, 'root@' + self.state['ip'], command], text=True, capture_output=True, timeout=timeout, check=True).stdout
+
+    def maintain(self, reboot=False):
+        """Monthly host pass: package updates, Docker cleanup, reboot status, and a local dependency report."""
+        script = """set -e
+export DEBIAN_FRONTEND=noninteractive
+apt-get -qq update
+apt-get -y -qq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade >/dev/null
+apt-get -y -qq autoremove >/dev/null
+docker image prune -f >/dev/null; docker builder prune -f --keep-storage 1GB >/dev/null
+echo "kernel=$(uname -r)"
+echo "reboot_required=$([ -f /var/run/reboot-required ] && echo yes || echo no)"
+echo "caddy=$(caddy version | cut -d' ' -f1)"
+echo "disk_free_gb=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)"
+echo "banned=$(fail2ban-client status sshd 2>/dev/null | grep 'Currently banned' | tr -dc 0-9)"
+echo "container=$(docker inspect deploy-app-1 --format '{{.State.Health.Status}}')"
+"""
+        host = dict(line.split('=', 1) for line in self.ssh(script).splitlines() if '=' in line)
+        result = {'host': host, 'rebooted': False}
+        if host.get('reboot_required') == 'yes' and reboot:
+            try: self.ssh('systemctl reboot', timeout=20)
+            except subprocess.CalledProcessError: pass
+            import time; time.sleep(20); self.wait_status('active'); result['rebooted'] = True
+        try:
+            outdated = subprocess.run(['npm', 'outdated', '--omit=dev', '--json'], text=True, capture_output=True, cwd=Path(__file__).resolve().parent.parent)
+            result['outdatedDependencies'] = sorted(json.loads(outdated.stdout or '{}').keys())
+        except (ValueError, OSError):
+            result['outdatedDependencies'] = 'npm outdated failed'
+        result['nextSteps'] = [step for step, needed in [
+            ('Reboot in a quiet window (or wait for the 09:30 UTC automatic reboot).', host.get('reboot_required') == 'yes' and not result['rebooted']),
+            ('Bump the outdated client libraries, run npm run check, and deploy.', bool(result['outdatedDependencies'])),
+            ('Check the Dockerfile for newer signal-cli and base image digests.', True),
+            ('Confirm every collector reports connected after deploying.', True),
+        ] if needed]
+        return result
+
     def backup_status(self):
         options = ['-i', str(self.private / 'deploy_ed25519'), '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none',
                    '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.private / 'known_hosts'), '-o', 'ConnectTimeout=15']
@@ -312,6 +351,8 @@ def main():
     alerts = commands.add_parser('enable-alerts')
     alerts.add_argument('--email', help='Notification recipient; defaults to the verified DigitalOcean account email.')
     commands.add_parser('alert-status')
+    maintain = commands.add_parser('maintain', help='Monthly host pass: updates, Docker cleanup, reboot status, dependency report.')
+    maintain.add_argument('--reboot', action='store_true', help='Reboot now if the kernel requires it.')
     resize = commands.add_parser('resize', help='Resize the Droplet with a graceful shutdown; a disk resize is permanent.')
     resize.add_argument('--size', required=True)
     resize.add_argument('--disk', action='store_true', help='Also grow the disk (irreversible).')
@@ -330,6 +371,7 @@ def main():
     elif args.command == 'enable-service-monitor': result = client.enable_service_monitor()
     elif args.command == 'enable-alerts': result = client.enable_alerts(args.email)
     elif args.command == 'alert-status': result = client.alert_status()
+    elif args.command == 'maintain': result = client.maintain(args.reboot)
     elif args.command == 'resize': result = client.resize(args.size, args.disk)
     else: result = client.request('GET', 'actions/' + str(args.id))
     print(json.dumps(result, indent=2))

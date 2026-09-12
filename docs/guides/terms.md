@@ -38,7 +38,7 @@ To the fullest extent permitted by law, our total liability for any claim relati
 
 ## Termination and changes
 
-You can delete your workspace at any time from Settings, which removes your archive and revokes every connection. We may suspend or end access for misuse, for non-payment after the trial, or if we discontinue the service, in which case we will give reasonable notice and a chance to export your archive where practical.
+You can delete your workspace at any time from Settings, which removes your archive and revokes every connection. Workspaces with no sign-in for twelve months and no active subscription are erased automatically. We may suspend or end access for misuse, for non-payment after the trial, or if we discontinue the service, in which case we will give reasonable notice and a chance to export your archive where practical.
 
 We may update these terms; material changes are announced in the app before they apply. These terms are governed by the laws of [Governing jurisdiction]. Questions go to [Support contact]. Last updated September 11, 2026.
 

@@ -46,6 +46,8 @@ Backups: encrypted application snapshots of the database are taken daily and kep
 
 Account deletion: removes your messages, events, connections, stored platform sessions, billing links, and sessions immediately, cancels any hosted collector, and cancels your subscription. Backups age out within seven days.
 
+Dormant workspaces: if nobody signs in for twelve months and there is no active subscription, the workspace is erased automatically in the same way. Signing in at any time resets the clock.
+
 <a id="processors"></a>
 
 ## Who else handles your data

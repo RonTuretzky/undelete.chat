@@ -57,10 +57,25 @@ if (production) await clearBackupStaging(dir);
 const backupTimer = backups ? setInterval(() => backups.run(), 15 * 60_000).unref() : null;
 backups?.run();
 const monitorTimer = monitor ? setInterval(() => monitor.run(), 15_000).unref() : null;
+// Dormant workspaces (no sign-in for DORMANT_DAYS, no subscription) are erased
+// with their sessions and collectors so abandoned accounts do not hold storage forever.
+const dormantDays = process.env.DORMANT_DAYS === undefined ? 365 : Number(process.env.DORMANT_DAYS);
+async function sweepDormant() {
+  for (const user of store.dormantUsers(dormantDays)) {
+    try {
+      const ids = store.deleteAccount(user.id);
+      for (const id of ids) await collectors?.remove(id);
+      store.eraseAccount(user.id);
+      console.log('Erased a dormant workspace.');
+    } catch (error) { console.error('Dormant sweep failed:', error?.code || error?.name); }
+  }
+}
+const dormantTimer = production && dormantDays > 0 ? setInterval(() => sweepDormant().catch(() => {}), 6 * 3600_000).unref() : null;
+if (dormantTimer) setTimeout(() => sweepDormant().catch(() => {}), 60_000).unref();
 monitor?.run();
 let stopping = false;
 async function shutdown(code = 0) {
-  if (stopping) return; stopping = true; clearInterval(timer); clearInterval(backupTimer); clearInterval(monitorTimer);
+  if (stopping) return; stopping = true; clearInterval(timer); clearInterval(backupTimer); clearInterval(monitorTimer); clearInterval(dormantTimer);
   // Never hang on a stuck worker or connection; Docker restarts a clean process.
   setTimeout(() => process.exit(code), 25_000).unref();
   const closed = new Promise(resolve => server.close(resolve));

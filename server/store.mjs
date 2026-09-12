@@ -83,6 +83,7 @@ export function createStore(path, encryptionKey, options = {}) {
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_billing_customer ON users(billing_customer_id) WHERE billing_customer_id IS NOT NULL');
   db.exec('CREATE TABLE IF NOT EXISTS billing_events (id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at TEXT NOT NULL)');
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'hold_days')) db.exec('ALTER TABLE users ADD COLUMN hold_days INTEGER NOT NULL DEFAULT 7');
+  if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'last_active_at')) db.exec('ALTER TABLE users ADD COLUMN last_active_at TEXT');
   // Only deleted messages belong to the archive. Anything else is a held
   // message in the watch buffer; this also converts pre-existing archives.
   db.prepare("UPDATE messages SET held=1 WHERE status!='deleted' AND held=0").run();
@@ -326,8 +327,27 @@ export function createStore(path, encryptionKey, options = {}) {
     authenticate(secret) {
       if (!secret) return null;
       const row = db.prepare('SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?').get(hash(secret), new Date().toISOString());
-      return row ? getUser(row.user_id) : null;
+      if (!row) return null;
+      // Activity is recorded to the hour; it drives the dormant-workspace policy only.
+      db.prepare("UPDATE users SET last_active_at=? WHERE id=? AND (last_active_at IS NULL OR last_active_at < ?)").run(new Date().toISOString(), row.user_id, new Date(Date.now() - 3600_000).toISOString());
+      return getUser(row.user_id);
     },
+    touch(userId) { db.prepare('UPDATE users SET last_active_at=? WHERE id=?').run(new Date().toISOString(), userId); },
+    dormantUsers(days) {
+      if (!Number.isFinite(days) || days <= 0) return [];
+      const cutoff = new Date(Date.now() - days * 86400_000).toISOString();
+      // A workspace is dormant when nobody has signed in for the period and no
+      // subscription is active, trialing, or past due. Activity before the column
+      // existed counts from the account's creation date.
+      return db.prepare(`SELECT id,username FROM users WHERE coalesce(last_active_at,created_at) < ?
+        AND (billing_status IS NULL OR billing_status NOT IN ('active','trialing','past_due')) ORDER BY coalesce(last_active_at,created_at) LIMIT 50`).all(cutoff);
+    },
+    deleteAccount(userId) {
+      const ids = db.prepare('SELECT id FROM connections WHERE user_id=?').all(userId).map(c => c.id);
+      db.prepare('UPDATE connections SET revoked=1,token_hash=NULL WHERE user_id=?').run(userId);
+      return ids;
+    },
+    eraseAccount(userId) { db.prepare('DELETE FROM users WHERE id=?').run(userId); },
     endSession(secret) { db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hash(secret || '')); },
     createConnection(userId, platform, name) {
       const id = randomUUID(), secret = `aw_${token()}`;

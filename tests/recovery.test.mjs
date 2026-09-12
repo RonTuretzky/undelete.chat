@@ -56,3 +56,18 @@ test('repeated failed sign-ins throttle the username itself, below the per-addre
   assert.equal(blocked.status, 429); assert.equal(blocked.headers.get('retry-after'), '900');
   assert.equal((await fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'someone-else', password: 'irrelevant-pw' }) })).status, 401, 'other usernames are unaffected');
 });
+
+test('dormant workspaces are those without a sign-in for the period and without a subscription', async t => {
+  const store = createStore(':memory:', randomBytes(32).toString('hex')); t.after(() => store.close());
+  const old = await store.createUser('old', 'a-long-password-1'), fresh = await store.createUser('fresh', 'a-long-password-2'), paying = await store.createUser('paying', 'a-long-password-3');
+  const ago = days => new Date(Date.now() - days * 86400_000).toISOString();
+  store.db.prepare('UPDATE users SET created_at=? WHERE id=?').run(ago(400), old.id);
+  store.db.prepare('UPDATE users SET created_at=?,last_active_at=? WHERE id=?').run(ago(400), ago(10), fresh.id);
+  store.db.prepare('UPDATE users SET created_at=?,billing_status=? WHERE id=?').run(ago(400), 'active', paying.id);
+  assert.deepEqual(store.dormantUsers(365).map(u => u.username), ['old']);
+  assert.deepEqual(store.dormantUsers(0), []);
+  const session = store.session(old.id); store.authenticate(session);
+  assert.deepEqual(store.dormantUsers(365), [], 'a sign-in makes the workspace active again');
+  const ids = store.deleteAccount(old.id); store.eraseAccount(old.id);
+  assert.deepEqual(ids, []); assert.equal(store.userByName('old'), undefined);
+});

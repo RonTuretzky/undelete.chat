@@ -47,6 +47,12 @@ write_files:
       maxretry = 4
       findtime = 10m
       bantime = 1h
+  - path: /etc/apt/apt.conf.d/52afterword-reboot
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "09:30";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
   - path: /etc/systemd/journald.conf.d/afterword.conf
     content: |
       [Journal]

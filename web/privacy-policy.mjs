@@ -38,7 +38,8 @@ export const privacyPolicy = {
         'Platform sessions: until you disconnect the connection or delete your account. Disconnecting removes the stored session; relinking requires a fresh approval on your phone.',
         'Sessions: browser sessions expire after 30 days and end when you sign out or change your password.',
         'Backups: encrypted application snapshots of the database are taken daily and kept for seven days on the server. The hosting provider also keeps daily full-server images for seven days; those images include the server’s decryption keys and are protected by the provider’s access controls rather than by a separate key. Data you delete, including a disconnected account’s stored platform session, can therefore persist in backups for up to seven days.',
-        'Account deletion: removes your messages, events, connections, stored platform sessions, billing links, and sessions immediately, cancels any hosted collector, and cancels your subscription. Backups age out within seven days.'
+        'Account deletion: removes your messages, events, connections, stored platform sessions, billing links, and sessions immediately, cancels any hosted collector, and cancels your subscription. Backups age out within seven days.',
+        'Dormant workspaces: if nobody signs in for twelve months and there is no active subscription, the workspace is erased automatically in the same way. Signing in at any time resets the clock.'
       ]
     },
     {
