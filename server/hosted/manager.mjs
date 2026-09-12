@@ -156,6 +156,7 @@ export function createCollectorManager(store, options) {
         // Exit code 2 means the worker gave up on sign-in. For a source that was
         // never linked the owner must act; for a source that has connected before,
         // a stalled restart is treated like any other interruption and retried.
+        if (code === 3) { if (connection(c.id)?.health !== 'error') update(c.id, 'error', 'The platform signed this device out. Choose Try again to link it again.'); return; }
         if (code === 2 && !connection(c.id)?.connected_at) { if (connection(c.id)?.health !== 'error') update(c.id, 'error', 'Sign-in was not completed. Choose Try again to connect.'); return; }
         update(c.id, 'reconnecting', code === 2 ? 'Reconnecting took too long. Retrying automatically.' : 'Connection interrupted. Retrying automatically.');
       } catch { /* Database unavailable; the retry below reads fresh state. */ }

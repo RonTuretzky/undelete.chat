@@ -55,6 +55,7 @@ async function start(input) {
     config, directory: runtimeDirectory, queue, hosted: true, signal: controller.signal, ask,
     fatal(detail) { health('error', detail); shutdown(1); },
     fail(detail) { health('error', detail); shutdown(2); },
+    relink(detail) { health('error', detail); shutdown(3); },
     save(patch) { Object.assign(config, patch); send({ type: 'config', config }); },
     health(state, detail) { if (stopped || capacityStopping) return; if (state === 'connected') clearTimeout(setupTimer); health(state, detail); },
     showQR(value, expiresAt = Date.now() + 55_000) { send({ type: 'qr', value, expiresAt: new Date(expiresAt).toISOString() }); },
@@ -88,7 +89,7 @@ async function start(input) {
 }
 process.on('message', message => {
   if (!message || stopped) return;
-  if (message.type === 'start' && !started) start(message).catch(error => { if (error.capacity) return capacityStop(error); if (!stopped) health('error', 'Could not complete sign-in. Choose Try again or check the platform guide.'); shutdown(2); });
+  if (message.type === 'start' && !started) start(message).catch(error => { if (error.capacity) return capacityStop(error); if (error?.relink) { if (!stopped) health('error', error.message); return shutdown(3); } if (!stopped) health('error', 'Could not complete sign-in. Choose Try again or check the platform guide.'); shutdown(2); });
   if (message.type === 'reply' && prompt?.id === message.id && typeof message.value === 'string') {
     const pending = prompt; prompt = null; clearTimeout(pending.timer);
     send({ type: 'prompt', prompt: null }); pending.resolve(message.value);

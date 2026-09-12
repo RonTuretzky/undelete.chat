@@ -275,3 +275,18 @@ test('a stalled restart of a previously linked source is retried, while an unlin
   await until(() => f.children.length === 3 && f.manager.status(linked.id).running, 15_000);
   assert.equal(f.children.length, 3, 'only the previously linked source was relaunched');
 });
+
+test('a source the platform signed out stops with the worker\'s message and is not relaunched', async t => {
+  const f = await fixture(t), { store, alice } = f;
+  const c = store.createConnection(alice.id, 'telegram', 'Signed out');
+  await f.manager.start(c.id, alice.id, { consent: true });
+  await until(() => f.children.length === 1 && f.manager.status(c.id).running);
+  store.db.prepare('UPDATE connections SET connected_at=? WHERE id=?').run(new Date().toISOString(), c.id);
+  f.children[0].send({ type: 'fixture-health', health: 'error', detail: 'Telegram signed this device out. Choose Try again to link it again.' });
+  await until(() => f.manager.status(c.id).health === 'error');
+  f.children[0].send({ type: 'fixture-exit', code: 3 });
+  await until(() => !f.manager.status(c.id).running);
+  await new Promise(r => setTimeout(r, 3000));
+  assert.equal(f.children.length, 1, 'no relaunch after a sign-out');
+  assert.equal(f.manager.status(c.id).health, 'error'); assert.match(f.manager.status(c.id).detail, /signed this device out/);
+});

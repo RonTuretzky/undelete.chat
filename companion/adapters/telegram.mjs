@@ -54,6 +54,15 @@ export async function startTelegram(ctx) {
   });
   if (ctx.hosted && ctx.showQR) {
     await connectWithTimeout();
+    const savedSession = !!ctx.queue.get('telegram-session');
+    if (savedSession && !await client.checkAuthorization()) {
+      // Telegram unregistered the stored key (the device was terminated from the
+      // phone, or Telegram revoked it). Reusing it can never succeed; drop it
+      // and ask the owner for a fresh scan instead of retrying forever.
+      ctx.queue.delete('telegram-session');
+      await client.disconnect().catch(() => {});
+      throw Object.assign(new Error('Telegram signed this device out. Choose Try again to link it again.'), { relink: true });
+    }
     if (!await client.checkAuthorization()) await client.signInUserWithQrCode({ apiId, apiHash }, {
       qrCode: ({ token, expires }) => ctx.showQR(`tg://login?token=${token.toString('base64url')}`, expires * 1000),
       password: () => ctx.ask('Telegram two-step verification password', true),

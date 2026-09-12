@@ -23,6 +23,7 @@ process.on('message', message => {
   }
   if (message.type === 'ack') for (const r of message.results) if (!r.error) queue.ack(r.eventId);
   if (message.type === 'fixture-queue-on-stop') queueOnStop = message.event;
+  if (message.type === 'fixture-health') send({ type: 'health', health: message.health, detail: message.detail });
   if (message.type === 'fixture-exit') { clearInterval(timer); queue?.close(); process.exit(message.code); }
   if (message.type === 'stop') { clearInterval(timer); if (queueOnStop) queue.add(queueOnStop); queue?.close(); process.exit(0); }
 });
