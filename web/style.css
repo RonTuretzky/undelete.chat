@@ -27,3 +27,8 @@
 .brand{letter-spacing:-1.2px}.brand .brand-dot{font-weight:750;margin-left:0}.app-footer .brand-dot{margin-left:0}
 
 .watch-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}.watch-table th{text-align:left;font-size:11px;letter-spacing:.8px;color:#8a9690;font-weight:600;padding:0 8px 8px 0}.watch-table td{padding:8px 8px 8px 0;border-top:1px solid var(--border);vertical-align:middle}.watch-table td.muted{color:#7a8783;font-size:12px}.watch-table select{width:100%;max-width:150px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff}@media (max-width:640px){.watch-table th:nth-child(2),.watch-table td:nth-child(2){display:none}}
+
+.modal>.button.full{width:auto;display:flex;justify-content:center}
+.native .topbar{padding-top:calc(env(safe-area-inset-top,0px) + 12px)}.native .sidebar{padding-top:calc(env(safe-area-inset-top,0px) + 29px)}.native .landing-nav{padding-top:calc(env(safe-area-inset-top,0px) + 14px)}.native .app-footer,.native .landing-footer{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 22px)}.native .modal{max-height:calc(90vh - env(safe-area-inset-top,0px))}
+/* Native shells: an opaque strip behind the status bar so scrolled content never shows through it. */
+.native body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:#f6f8f7;z-index:100;pointer-events:none}

@@ -32,7 +32,7 @@ export function createApp(store, config = {}) {
   app.use(express.json({ limit: '2mb' }));
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many requests. Try again shortly.' } }));
-  app.use((_req, res, next) => { res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'); next(); });
+  app.use((_req, res, next) => { res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()'); next(); });
   app.use((req, res, next) => {
     // Browser mutations require the configured or same origin. Companion requests have no cookies.
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.path.startsWith('/api/ingest') && !req.path.startsWith('/api/heartbeat') && req.path !== '/api/pair') {
