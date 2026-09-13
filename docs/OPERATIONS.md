@@ -117,6 +117,14 @@ Reviewed on September 12, 2026 across the API, storage and cryptography, hosted 
 
 Accepted risks: the server holds the archive key, so operators can read stored content (see Premium for the enclave option); full-server backup images include the key; the registration endpoint reveals whether a username is taken; the production image is built on the server from the npm registry rather than from a reviewed artifact.
 
+## Phone apps and notifications
+
+The web app is installable as a Progressive Web App (manifest, service worker, and icons under `web/public`). The service worker caches only the app shell and hashed assets, never `/api`, and is served with `Cache-Control: no-cache` so installed apps pick up deploys on the next launch.
+
+Push notifications for recovered deletions use Web Push with VAPID keys. On first start the server generates the key pair into `DATA_DIR/.vapid.json` (mode 0600); set `PUSH_VAPID_PUBLIC_KEY` and `PUSH_VAPID_PRIVATE_KEY` to pin them, and `PUSH_SUBJECT` to override the contact (defaults to the public origin). The key file is not part of application snapshots: after a restore to a new data directory, a new pair is generated and every device has to turn notifications on again. Copy `.vapid.json` alongside the archive key if that matters. Payloads contain a count and a platform name only; a burst of deletions for one account is coalesced into a single notification per minute. Endpoints that the push service reports as gone (404 or 410) are dropped, and an endpoint failing twenty times is removed. `PUSH_NOTIFICATIONS=false` disables the feature.
+
+Native store shells live in `mobile/` (Capacitor); see its README for the build steps and the store-review notes, including the native push work Apple's review will expect.
+
 ## Keeping it healthy for months
 
 Things that change with time, and what handles them:

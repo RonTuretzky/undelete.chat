@@ -11,6 +11,7 @@ import { platforms } from './store.mjs';
 import { deliveryFailure, capacityMessages } from './capacity.mjs';
 import { billingMessages, subscriptionError } from './billing.mjs';
 import { watchSchema, defaultWatch, platformLimits, editChoices, deleteChoices } from './watch.mjs';
+import { subscriptionSchema } from './push.mjs';
 
 export function createApp(store, config = {}) {
   const app = express();
@@ -109,6 +110,21 @@ export function createApp(store, config = {}) {
   });
   app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode, billing: req.user ? billingSummary(req.user.id) : { enabled: !!config.billing, trialDays: config.billing?.trialDays ?? null, priceLabel: config.billing?.priceLabel ?? null } }));
   app.get('/api/billing', auth, (req, res) => res.json({ billing: billingSummary(req.user.id) }));
+  app.get('/api/push', auth, (req, res) => res.json({ enabled: !!config.push, publicKey: config.push?.publicKey || null, subscriptions: config.push ? store.pushSubscriptions(req.user.id).map(s => ({ endpoint: s.endpoint, createdAt: s.created_at })) : [] }));
+  app.post('/api/push/subscribe', auth, accountLimit, (req, res) => {
+    if (!config.push) return res.status(404).json({ error: 'Notifications are not enabled on this server.' });
+    const subscription = subscriptionSchema.parse(req.body?.subscription);
+    store.addPushSubscription(req.user.id, subscription);
+    res.status(201).json({ ok: true });
+  });
+  app.delete('/api/push/subscribe', auth, accountLimit, (req, res) => {
+    const { endpoint } = z.object({ endpoint: z.string().url().max(2048) }).parse(req.body);
+    res.json({ removed: store.removePushSubscription(req.user.id, endpoint) });
+  });
+  app.post('/api/push/test', auth, accountLimit, async (req, res, next) => {
+    if (!config.push) return res.status(404).json({ error: 'Notifications are not enabled on this server.' });
+    try { res.json({ delivered: await config.push.test(req.user.id) }); } catch (error) { next(error); }
+  });
   app.post('/api/billing/checkout', auth, accountLimit, async (req, res, next) => {
     if (!config.billing) return res.status(404).json({ error: 'Billing is not enabled.' });
     try { res.json(await config.billing.checkout(req.user.id)); } catch (error) { next(error); }
@@ -288,6 +304,8 @@ export function createApp(store, config = {}) {
     res.download(path);
   });
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
+  // The service worker must be revalidated on every load so deploys reach installed apps promptly.
+  app.get('/sw.js', (_req, res, next) => { res.set('Cache-Control', 'no-cache'); res.set('Service-Worker-Allowed', '/'); next(); });
   app.use(express.static(resolve('dist'), { index: false, maxAge: '1h' }));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
   app.use((error, _req, res, _next) => {

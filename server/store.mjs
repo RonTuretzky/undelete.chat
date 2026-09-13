@@ -83,6 +83,10 @@ export function createStore(path, encryptionKey, options = {}) {
     billing_cancel_at_period_end: 'INTEGER NOT NULL DEFAULT 0', billing_updated_at: 'TEXT', trial_ends_at: 'TEXT' })) if (!userColumns.has(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_billing_customer ON users(billing_customer_id) WHERE billing_customer_id IS NOT NULL');
   db.exec('CREATE TABLE IF NOT EXISTS billing_events (id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at TEXT NOT NULL)');
+  db.exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT NOT NULL, last_used_at TEXT, failures INTEGER NOT NULL DEFAULT 0
+  ); CREATE INDEX IF NOT EXISTS push_subscriptions_owner ON push_subscriptions(user_id);`);
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'hold_days')) db.exec('ALTER TABLE users ADD COLUMN hold_days INTEGER NOT NULL DEFAULT 3');
   // One-time default changes for accounts created before September 12, 2026:
   // deleted messages are kept until removed, and the watch window is three days
@@ -130,6 +134,7 @@ export function createStore(path, encryptionKey, options = {}) {
   db.prepare("DELETE FROM hosted_collectors WHERE connection_id IN (SELECT id FROM connections WHERE platform='discord')").run();
   db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='error',detail='Discord is no longer supported.' WHERE platform='discord' AND revoked=0").run();
   const capacity = createArchiveCapacity(db, path, options);
+  const hooks = {};
   const getUser = id => { const row = db.prepare('SELECT id,username,created_at,retention_days,watch_config,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id); if (!row) return row; const { watch_config, ...user } = row; return { ...user, watch: resolveWatch(watch_config) }; };
   const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,connected_at,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=0) AS message_count,
@@ -168,7 +173,7 @@ export function createStore(path, encryptionKey, options = {}) {
       if (db.prepare('SELECT 1 FROM events WHERE connection_id=? AND event_uid=?').get(connection.id, uid)) {
         db.exec('COMMIT'); return { duplicate: true, id };
       }
-      const existing = db.prepare('SELECT 1 FROM messages WHERE id=?').get(id);
+      const existing = db.prepare('SELECT held FROM messages WHERE id=?').get(id);
       if (e.kind === 'edit' && existing) {
         const row = db.prepare('SELECT held,first_seen FROM messages WHERE id=?').get(id);
         if (row?.held) {
@@ -201,6 +206,9 @@ export function createStore(path, encryptionKey, options = {}) {
           WHEN status='edited' OR ?='edit' THEN 'edited' ELSE 'captured' END WHERE id=?`)
         .run(+(e.kind !== 'delete'), +(e.kind === 'edit'), e.kind, e.kind, id);
       db.exec('COMMIT');
+      // A deletion that moves a message into the archive (or records a fresh
+      // tombstone) is a recovery worth telling the owner about.
+      if (e.kind === 'delete' && (!existing || existing.held)) { try { hooks.recovered?.(connection.user_id, connection.platform); } catch { /* Notifications never affect ingest. */ } }
       return { id, duplicate: false, held: e.kind !== 'delete' && !!db.prepare('SELECT held FROM messages WHERE id=?').get(id).held };
     } catch (error) { db.exec('ROLLBACK'); if (error.capacity) capacity.block(connection.id, error); throw error; }
   }
@@ -249,7 +257,19 @@ export function createStore(path, encryptionKey, options = {}) {
     if (complete) try { db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); } catch { /* Busy readers; the next pass truncates. */ }
     return complete;
   }
-  return { db, getUser, connections, ingest, purge, ...reader, capacity,
+  return { db, getUser, connections, ingest, purge, ...reader, capacity, hooks,
+    pushSubscriptions(userId) { return db.prepare('SELECT endpoint,p256dh,auth,created_at,last_used_at FROM push_subscriptions WHERE user_id=? ORDER BY created_at').all(userId); },
+    addPushSubscription(userId, subscription) {
+      db.prepare(`INSERT INTO push_subscriptions (endpoint,user_id,p256dh,auth,created_at) VALUES (?,?,?,?,?)
+        ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id,p256dh=excluded.p256dh,auth=excluded.auth,failures=0`)
+        .run(subscription.endpoint, userId, subscription.keys.p256dh, subscription.keys.auth, new Date().toISOString());
+      // A device holds at most a handful of subscriptions; keep the newest ten per account.
+      db.prepare('DELETE FROM push_subscriptions WHERE user_id=? AND endpoint NOT IN (SELECT endpoint FROM push_subscriptions WHERE user_id=? ORDER BY created_at DESC, rowid DESC LIMIT 10)').run(userId, userId);
+    },
+    removePushSubscription(userId, endpoint) { return db.prepare('DELETE FROM push_subscriptions WHERE user_id=? AND endpoint=?').run(userId, endpoint).changes; },
+    dropPushSubscription(endpoint) { db.prepare('DELETE FROM push_subscriptions WHERE endpoint=?').run(endpoint); },
+    touchPushSubscription(endpoint) { db.prepare('UPDATE push_subscriptions SET last_used_at=?,failures=0 WHERE endpoint=?').run(new Date().toISOString(), endpoint); },
+    failPushSubscription(endpoint) { db.prepare('UPDATE push_subscriptions SET failures=failures+1 WHERE endpoint=?').run(endpoint); db.prepare('DELETE FROM push_subscriptions WHERE endpoint=? AND failures>=20').run(endpoint); },
     createRecoveryKey(userId) {
       const secret = `awr_${token()}`;
       db.prepare('UPDATE users SET recovery_hash=? WHERE id=?').run(hash(secret), userId);

@@ -1,0 +1,19 @@
+{
+  "name": "undelete-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Native store wrappers for undelete.chat built with Capacitor.",
+  "scripts": {
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2"
+  }
+}

@@ -16,6 +16,10 @@ docker compose -f deploy/compose.yaml up -d --build
 
 Put a TLS-terminating proxy such as Caddy in front of port 4318 on localhost (a two-line Caddyfile is in `deploy/deploy.py`). Billing is off unless Stripe keys are set; every account is then entitled. A 1 GB server handles a handful of linked accounts; see [operations](docs/OPERATIONS.md) for capacity, backups, monitoring, the security posture, and the monthly maintenance pass, and [platform findings](docs/PLATFORMS.md) for the platform rules you take on as the operator. There is no support commitment for self-hosted installs.
 
+## Phone app
+
+The app installs as a Progressive Web App on Android and iOS, with push notifications for recovered deletions (no message content in the payload). Capacitor shells for the App Store and Google Play are in `mobile/`; see [its README](mobile/README.md).
+
 ## User onboarding and documentation
 
 Open **Help & guides** in the app or visit `/docs` for the public help center.The default hosted wizard shows a platform QR code directly in the authenticated website and any required sign-in prompt. It checks both the platform connection and first captured message.

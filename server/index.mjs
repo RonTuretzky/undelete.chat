@@ -7,6 +7,7 @@ import { createBackupService, clearBackupStaging } from './backup-service.mjs';
 import { offsiteConfig } from './offsite.mjs';
 import { createOperationsMonitor } from './monitor.mjs';
 import { billingConfig, createBilling, billingMessages } from './billing.mjs';
+import { loadVapidKeys, createPushService } from './push.mjs';
 import { createCollectorManager } from './hosted/manager.mjs';
 import { MiB, positiveBytes } from './capacity.mjs';
 process.umask(0o077);
@@ -49,7 +50,9 @@ const billing = billingConfig() ? createBilling(store, { config: billingConfig()
   }
 } }) : null;
 if (production && !billing) console.warn('Billing is not configured: every account is entitled without a subscription.');
-const app = createApp(store, { collectors, monitor, billing, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
+const push = process.env.PUSH_NOTIFICATIONS === 'false' ? null : createPushService(store, { keys: loadVapidKeys(dir), subject: process.env.PUSH_SUBJECT || (origin.startsWith('https://') ? origin : 'mailto:hello@undelete.chat') });
+if (push) store.hooks.recovered = (userId, platform) => push.recovered(userId, platform);
+const app = createApp(store, { collectors, monitor, billing, push, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
 const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`undelete.chat listening on port ${process.env.PORT || 4318}`));
 await collectors?.restore();
 const backups = production ? createBackupService(dir, { key, config: backupConfig, minimumFreeBytes: store.capacity.limits.minimumFreeBytes }) : null;
@@ -79,7 +82,7 @@ async function shutdown(code = 0) {
   // Never hang on a stuck worker or connection; Docker restarts a clean process.
   setTimeout(() => process.exit(code), 25_000).unref();
   const closed = new Promise(resolve => server.close(resolve));
-  try { await Promise.all([collectors?.close(), backups?.close(), monitor?.close()]); await closed; store.close(); }
+  try { await Promise.all([collectors?.close(), backups?.close(), monitor?.close(), push?.close()]); await closed; store.close(); }
   catch (error) { console.error('Shutdown step failed:', error?.code || error?.name); code ||= 1; }
   process.exit(code);
 }

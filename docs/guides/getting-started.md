@@ -11,6 +11,16 @@ Connect your accounts without installing anything on your computer. undelete.cha
 
 > The signed-out preview contains sample deleted messages. Your own archive starts empty and stays empty until a message you are watching is deleted. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key.
 
+<a id="phone"></a>
+
+## Install it on your phone
+
+1. Android: open undelete.chat in Chrome, open the menu, and choose Install app. It appears on your home screen like any other app.
+2. iPhone or iPad: open undelete.chat in Safari, tap Share, then Add to Home Screen. Notifications need iOS 16.4 or later and only work from the installed app.
+3. Open Settings → Phone app and choose Turn on notifications to hear when a deleted message is recovered. Notifications never include the message itself.
+
+> The installed app is the same service; signing in on the phone shows the same archive as the website.
+
 <a id="pair"></a>
 
 ## Scan once, watch in the cloud

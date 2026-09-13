@@ -12,3 +12,7 @@ test-results/
 .DS_Store
 __pycache__/
 *.pyc
+mobile/node_modules
+mobile/ios
+mobile/android
+mobile/assets
