@@ -15,7 +15,8 @@ test('Telegram account-scoped IDs let chat-less deletes match private messages',
 });
 test('Signal resolves edit chains and remote deletes to the original message', () => {
   const aliases = new Map(); const resolve = id => aliases.get(id) || id; const remember = (a, b) => aliases.set(a, b);
-  const original = eventSchema.parse(signalEvent({ sourceUuid: 'alice', sourceName: 'Alice', timestamp: now, dataMessage: { timestamp: now, message: 'first', expiresInSeconds: 0 } }));
+  const original = eventSchema.parse(signalEvent({ sourceUuid: 'alice', sourceName: 'Alice', timestamp: now, serverReceivedTimestamp: now + 500, dataMessage: { timestamp: now, message: 'first', expiresInSeconds: 0 } }));
+  assert.equal(original.occurredAt, new Date(now + 500).toISOString(), 'the server receipt time is used when present');
   const edit = eventSchema.parse(signalEvent({ sourceUuid: 'alice', timestamp: now + 1, editMessage: { targetSentTimestamp: now, dataMessage: { timestamp: now + 1, message: 'second' } } }, resolve, remember));
   const edit2 = eventSchema.parse(signalEvent({ sourceUuid: 'alice', timestamp: now + 2, editMessage: { targetSentTimestamp: now + 1, dataMessage: { timestamp: now + 2, message: 'third' } } }, resolve, remember));
   const deletion = eventSchema.parse(signalEvent({ sourceUuid: 'alice', timestamp: now + 3, dataMessage: { timestamp: now + 3, remoteDelete: { timestamp: now + 2 } } }, resolve, remember));

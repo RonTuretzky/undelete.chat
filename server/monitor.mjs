@@ -126,7 +126,7 @@ export function createOperationsMonitor(store, { directory, offsiteConfigured = 
             const file = await lstat(path);
             if (!file.isFile()) throw new Error('Invalid collector queue file.');
             const queue = queueStatus(path); observation.queue = queue;
-            if (queue.rejected) delayed('collector_rejected_events', c.id);
+            if (queue.rejected) issue('collector_rejected_events', 'warning', { connectionId: c.id, count: queue.rejected });
             if (queue.pending && queue.oldestId !== null) {
               const queuedAt = queue.oldestQueuedAt || firstObserved('oldest:' + c.id + ':' + queue.oldestId);
               if (age(queuedAt, time) >= queueMaxAgeMs) issue('collector_delivery_stalled', 'critical', { connectionId: c.id });

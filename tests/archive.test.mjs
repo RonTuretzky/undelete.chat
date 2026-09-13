@@ -48,6 +48,14 @@ test('same external IDs are isolated across connections and message scopes', asy
   assert.equal(store.messages(user.id).length, 2); assert.equal(store.messages(other.id).length, 1);
   assert.equal(store.message(store.messages(other.id)[0].id, user.id), null);
 });
+test('a message stamped in the future by a skewed phone clock is accepted with its time clamped', async t => {
+  const { store, user, source } = await fixture(t);
+  const ahead = new Date(Date.now() + 6 * 60_000).toISOString();
+  const result = store.ingest(source, { ...event('create', 'skew', 'sent from a fast clock'), occurredAt: ahead });
+  assert.equal(result.duplicate, false);
+  const row = store.db.prepare('SELECT occurred_at FROM events WHERE message_id=?').get(result.id);
+  assert.ok(Date.parse(row.occurred_at) <= Date.now(), 'stored time is not in the future');
+});
 test('paused and ephemeral events are excluded', async t => {
   const { store, user, source } = await fixture(t);
   assert.equal(store.ingest({ ...source, paused: 1 }, event('create', 'a', 'paused')).ignored, true);

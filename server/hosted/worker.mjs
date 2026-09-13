@@ -47,6 +47,7 @@ async function start(input) {
   started = true; paused = !!input.paused; runtimeDirectory = input.runtimeDirectory;
   mkdirSync(runtimeDirectory, { recursive: true, mode: 0o700 });
   queue = openQueue(input.directory, input.key, { minimumFreeBytes: input.minimumFreeBytes });
+  queue.retryRejected();
   const config = input.config || {};
   pingTimer = setInterval(() => send({ type: 'ping', queued: queue.count(), rejected: queue.rejected() }), 5000);
   flushTimer = setInterval(flush, 1000);

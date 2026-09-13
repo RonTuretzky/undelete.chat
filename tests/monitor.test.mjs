@@ -97,7 +97,7 @@ test('delivery age follows the oldest unacknowledged event, preserves unknown le
   assert.equal((await m.run()).status, 'healthy', 'an advancing legacy queue must not look stalled');
   c.queue.reject('next', 'private rejection detail'); assert.equal((await m.run()).status, 'warning');
   f.advance(2 * minute + 1); f.heartbeat(c); const rejected = await m.run();
-  assert.ok(codes(rejected).includes('collector_rejected_events')); assert.equal(rejected.status, 'critical');
+  assert.ok(codes(rejected).includes('collector_rejected_events')); assert.equal(rejected.status, 'warning');
   assert.equal(JSON.stringify(rejected).includes('Private queued message'), false); assert.equal(JSON.stringify(rejected).includes('private rejection detail'), false);
 });
 test('backup checks verify actual complete files, scheduler freshness and the configured offsite destination', async t => {

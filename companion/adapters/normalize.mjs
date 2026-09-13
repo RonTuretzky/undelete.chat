@@ -23,7 +23,9 @@ export function signalEvent(envelope, resolve = id => id, remember = () => {}) {
   const target = data.remoteDelete?.timestamp || edit?.targetSentTimestamp || data.timestamp || envelope.timestamp;
   const externalId = resolve(`${author}:${target}`);
   if (edit && data.timestamp) remember(`${author}:${data.timestamp}`, externalId);
-  const occurredAt = timestamp(data.timestamp || envelope.timestamp);
+  // The Signal server's receipt time is trustworthy; the sender's own timestamp
+  // still identifies the message for edits and deletions.
+  const occurredAt = timestamp(envelope.serverReceivedTimestamp || data.timestamp || envelope.timestamp);
   return { eventId: eventId('signal', externalId, kind, occurredAt, data.message), kind, externalId, scope: chatId,
     chatId, chatName: data.groupInfo?.name || (sent ? sent.destinationNumber || chatId : envelope.sourceName || chatId),
     authorId: author, authorName: sent ? 'You' : envelope.sourceName || envelope.sourceNumber || author,

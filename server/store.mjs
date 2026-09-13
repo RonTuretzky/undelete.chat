@@ -152,7 +152,9 @@ export function createStore(path, encryptionKey, options = {}) {
   }
   function ingest(connection, input) {
     const e = eventSchema.parse(input);
-    if (Date.parse(e.occurredAt) > Date.now() + 5 * 60_000) throw Object.assign(new Error('Event timestamp is in the future.'), { permanent: true });
+    // Platforms stamp messages with the sender's clock, which can run ahead. A
+    // skewed clock does not make a message invalid: clamp it to now instead.
+    if (Date.parse(e.occurredAt) > Date.now()) e.occurredAt = new Date().toISOString();
     if (connection.revoked) throw Object.assign(new Error('Connection revoked.'), { permanent: true });
     if (connection.paused || e.ephemeral) return { ignored: true, reason: e.ephemeral ? 'ephemeral' : 'paused' };
     const id = hash(`${connection.id}:${e.scope}:${e.externalId}`);

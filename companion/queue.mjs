@@ -74,6 +74,8 @@ export function openQueue(directory, encryptionKey, options = {}) {
     rejected() { return db.prepare('SELECT count(*) n FROM queue WHERE error IS NOT NULL').get().n; },
     ack(uid) { db.prepare('DELETE FROM queue WHERE uid=?').run(uid); },
     reject(uid, error) { db.prepare('UPDATE queue SET error=? WHERE uid=?').run(error, uid); },
+    // Rejections can be caused by a server-side rule that a later release relaxes; a fresh worker retries them once.
+    retryRejected() { return db.prepare('UPDATE queue SET error=NULL WHERE error IS NOT NULL').run().changes; },
     get(key) { const r = db.prepare('SELECT value FROM metadata WHERE key=?').get(key); return r ? crypt.open(r.value, key) : undefined; },
     set(key, value) { return transaction(() => {
       const payload = crypt.seal(value, key), old = db.prepare('SELECT value FROM metadata WHERE key=?').get(key);
