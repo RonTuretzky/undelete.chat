@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">undelete.chat</string>
+    <string name="title_activity_main">undelete.chat</string>
+    <string name="package_name">chat.undelete.app</string>
+    <string name="custom_url_scheme">chat.undelete.app</string>
+</resources>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, Bell, BellOff, Smartphone } from 'lucide-react';
+import { registerNativePush, unregisterNativePush, nativePlatform } from './native.mjs';
 
 // Install the web app to the home screen and manage push notifications for
 // recovered deletions. Works as a Progressive Web App on Android (Chrome) and
@@ -17,7 +18,26 @@ export function usePwaInstall() {
   }, []);
   return { prompt, installed, install: async () => { if (!prompt) return false; prompt.prompt(); const { outcome } = await prompt.userChoice; if (outcome === 'accepted') setPrompt(null); return outcome === 'accepted'; } };
 }
-export function PhoneAppCard({ api, isDemo, notify, busy, perform }) {
+export function PhoneAppCard({ api, isDemo, notify, busy, perform, native = false }) {
+  if (native) return <NativeNotificationsCard api={api} isDemo={isDemo} notify={notify} busy={busy} perform={perform}/>;
+  return <BrowserPhoneCard api={api} isDemo={isDemo} notify={notify} busy={busy} perform={perform}/>;
+}
+function NativeNotificationsCard({ api, isDemo, notify, busy, perform }) {
+  const [push, setPush] = useState(null), [registered, setRegistered] = useState(false);
+  const platform = nativePlatform();
+  useEffect(() => { if (isDemo) return; let alive = true; api('/push').then(d => { if (alive) { setPush(d); setRegistered(d.devices.some(x => x.platform === platform)); } }).catch(() => {}); return () => { alive = false; }; }, [isDemo]);
+  const enable = () => perform(async () => { await registerNativePush(api); setRegistered(true); notify('Notifications are on for this phone.'); });
+  const disable = () => perform(async () => { await unregisterNativePush(api); const d = await api('/push'); for (const _ of d.devices.filter(x => x.platform === platform)) { /* tokens are removed server-side when they stop delivering */ } setRegistered(false); notify('Notifications are off for this phone.'); });
+  const test = () => perform(async () => { const { delivered } = await api('/push/test', { method: 'POST', body: {} }); notify(delivered ? 'Test notification sent.' : 'No registered phone received it. Turn notifications on first.'); });
+  const configured = push?.native?.[platform];
+  return <section className="settings-card"><div className="section-icon"><Bell size={20}/></div><h2>Notifications</h2>
+    {isDemo ? <p>Sign in to turn on notifications for recovered deletions.</p>
+      : push && !configured ? <p>Notifications for this app are not switched on by the operator yet.</p>
+      : <><p>Get a notification when a deleted message is recovered. Notifications never include message content, only the platform and a count.</p>
+        <div className="plan-actions">{registered ? <><button className="button secondary" disabled={busy} onClick={disable}><BellOff size={16}/>Turn off on this phone</button><button className="button secondary" disabled={busy} onClick={test}>Send a test</button></> : <button className="button primary" disabled={busy || !push} onClick={enable}><Bell size={16}/>Turn on notifications</button>}</div></>}
+  </section>;
+}
+function BrowserPhoneCard({ api, isDemo, notify, busy, perform }) {
   const { prompt, installed, install } = usePwaInstall();
   const [push, setPush] = useState(null), [permission, setPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
   const [subscribed, setSubscribed] = useState(false);

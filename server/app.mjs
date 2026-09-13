@@ -12,6 +12,7 @@ import { deliveryFailure, capacityMessages } from './capacity.mjs';
 import { billingMessages, subscriptionError } from './billing.mjs';
 import { watchSchema, defaultWatch, platformLimits, editChoices, deleteChoices } from './watch.mjs';
 import { subscriptionSchema } from './push.mjs';
+import { nativeTokenSchema } from './native-push.mjs';
 
 export function createApp(store, config = {}) {
   const app = express();
@@ -110,7 +111,20 @@ export function createApp(store, config = {}) {
   });
   app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode, billing: req.user ? billingSummary(req.user.id) : { enabled: !!config.billing, trialDays: config.billing?.trialDays ?? null, priceLabel: config.billing?.priceLabel ?? null } }));
   app.get('/api/billing', auth, (req, res) => res.json({ billing: billingSummary(req.user.id) }));
-  app.get('/api/push', auth, (req, res) => res.json({ enabled: !!config.push, publicKey: config.push?.publicKey || null, subscriptions: config.push ? store.pushSubscriptions(req.user.id).map(s => ({ endpoint: s.endpoint, createdAt: s.created_at })) : [] }));
+  app.get('/api/push', auth, (req, res) => res.json({ enabled: !!config.push, publicKey: config.push?.publicKey || null, native: config.push?.nativePlatforms || { ios: false, android: false },
+    subscriptions: config.push ? store.pushSubscriptions(req.user.id).map(s => ({ endpoint: s.endpoint, createdAt: s.created_at })) : [],
+    devices: config.push ? store.nativePushTokens(req.user.id).map(t => ({ platform: t.platform, createdAt: t.created_at })) : [] }));
+  app.post('/api/push/native', auth, accountLimit, (req, res) => {
+    if (!config.push) return res.status(404).json({ error: 'Notifications are not enabled on this server.' });
+    const input = nativeTokenSchema.parse(req.body);
+    if (!config.push.nativePlatforms[input.platform]) return res.status(503).json({ error: 'Notifications for this app are not configured on the server yet.' });
+    store.addNativePushToken(req.user.id, input.platform, input.token);
+    res.status(201).json({ ok: true });
+  });
+  app.delete('/api/push/native', auth, accountLimit, (req, res) => {
+    const { token } = z.object({ token: z.string().min(16).max(4096) }).parse(req.body);
+    res.json({ removed: store.removeNativePushToken(req.user.id, token) });
+  });
   app.post('/api/push/subscribe', auth, accountLimit, (req, res) => {
     if (!config.push) return res.status(404).json({ error: 'Notifications are not enabled on this server.' });
     const subscription = subscriptionSchema.parse(req.body?.subscription);

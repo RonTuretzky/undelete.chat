@@ -8,6 +8,7 @@ import { offsiteConfig } from './offsite.mjs';
 import { createOperationsMonitor } from './monitor.mjs';
 import { billingConfig, createBilling, billingMessages } from './billing.mjs';
 import { loadVapidKeys, createPushService } from './push.mjs';
+import { nativePushConfig, createNativePush } from './native-push.mjs';
 import { createCollectorManager } from './hosted/manager.mjs';
 import { MiB, positiveBytes } from './capacity.mjs';
 process.umask(0o077);
@@ -50,7 +51,9 @@ const billing = billingConfig() ? createBilling(store, { config: billingConfig()
   }
 } }) : null;
 if (production && !billing) console.warn('Billing is not configured: every account is entitled without a subscription.');
-const push = process.env.PUSH_NOTIFICATIONS === 'false' ? null : createPushService(store, { keys: loadVapidKeys(dir), subject: process.env.PUSH_SUBJECT || (origin.startsWith('https://') ? origin : 'mailto:hello@undelete.chat') });
+const nativeConfig = nativePushConfig();
+const push = process.env.PUSH_NOTIFICATIONS === 'false' ? null : createPushService(store, { keys: loadVapidKeys(dir), subject: process.env.PUSH_SUBJECT || (origin.startsWith('https://') ? origin : 'mailto:hello@undelete.chat'), native: nativeConfig ? createNativePush(nativeConfig) : null });
+if (production && !nativeConfig) console.warn('Native push is not configured: the store apps will not receive notifications.');
 if (push) store.hooks.recovered = (userId, platform) => push.recovered(userId, platform);
 const app = createApp(store, { collectors, monitor, billing, push, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
 const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`undelete.chat listening on port ${process.env.PORT || 4318}`));

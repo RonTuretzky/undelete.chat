@@ -20,7 +20,7 @@ export function PlanBanner({ billing, onManage }) {
     <button className="button secondary compact" onClick={onManage}>{state.level === 'blocked' ? 'Choose a plan' : 'Manage plan'}<ArrowRight size={14}/></button>
   </div>;
 }
-export function PlanCard({ billing, isDemo, busy, onCheckout, onPortal, onSignIn }) {
+export function PlanCard({ billing, isDemo, busy, native = false, onCheckout, onPortal, onSignIn }) {
   if (isDemo && !billing?.enabled) return null;
   if (isDemo) return <section className="settings-card"><div className="section-icon"><CreditCard size={20}/></div><h2>Your plan</h2><p>{billing?.enabled ? `New accounts start with a ${billing.trialDays}-day free trial. No card is needed to try undelete.chat.` : 'Sign in to view your plan.'}</p><button className="button secondary" onClick={onSignIn}>Sign in<ArrowRight size={16}/></button></section>;
   if (!billing?.enabled) return null;
@@ -35,10 +35,10 @@ export function PlanCard({ billing, isDemo, busy, onCheckout, onPortal, onSignIn
       {billing.periodEnd && subscribed && <li><span>{billing.cancelAtPeriodEnd ? 'Access ends' : 'Next renewal'}</span><span>{when(billing.periodEnd)}</span></li>}
       <li><span>Capture</span><span>{billing.entitled ? 'Enabled' : 'Paused'}</span></li>
     </ul>
-    <div className="plan-actions">
+    {native ? <p className="wizard-smallprint">Plans and payment details are managed from your account on the undelete.chat website.</p> : <div className="plan-actions">
       {billing.reason !== 'exempt' && !subscribed && <button className="button primary" disabled={busy} onClick={onCheckout}>{billing.reason === 'trial' ? 'Add payment method' : 'Start subscription'}<ArrowRight size={16}/></button>}
       {billing.reason !== 'exempt' && billing.customer && <button className="button secondary" disabled={busy} onClick={onPortal}>Manage billing<ArrowRight size={16}/></button>}
-    </div>
-    <a className="card-guide-link" href="/docs/billing">Plans, trials, and cancellation<ArrowRight size={13}/></a>
+    </div>}
+    {!native && <a className="card-guide-link" href="/docs/billing">Plans, trials, and cancellation<ArrowRight size={13}/></a>}
   </section>;
 }

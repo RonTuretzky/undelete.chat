@@ -21,7 +21,7 @@ export function loadVapidKeys(directory, env = process.env) {
   return keys;
 }
 
-export function createPushService(store, { keys, subject, send = webPush.sendNotification, now = Date.now, coalesceMs = 60_000, log = console } = {}) {
+export function createPushService(store, { keys, subject, send = webPush.sendNotification, native = null, now = Date.now, coalesceMs = 60_000, log = console } = {}) {
   if (!/^(https:\/\/|mailto:)/.test(subject)) throw new Error('The push subject must be an HTTPS origin or a mailto address.');
   const options = { vapidDetails: { subject, publicKey: keys.publicKey, privateKey: keys.privateKey }, TTL: 6 * 3600, urgency: 'normal' };
   const pending = new Map(); // userId -> { count, platforms, timer, lastSentAt }
@@ -29,6 +29,13 @@ export function createPushService(store, { keys, subject, send = webPush.sendNot
   async function deliver(userId, payload) {
     const subscriptions = store.pushSubscriptions(userId);
     let delivered = 0;
+    for (const t of native ? store.nativePushTokens(userId) : []) {
+      try { await native.send(t.platform, t.token, payload); store.touchNativePushToken(t.token); delivered++; }
+      catch (error) {
+        if (error?.statusCode === 410 || error?.statusCode === 404) store.dropNativePushToken(t.token);
+        else if (error?.code !== 'unconfigured') { store.failNativePushToken(t.token); log.error('Native push delivery failed:', error?.statusCode || error?.code || error?.name || 'unknown'); }
+      }
+    }
     for (const s of subscriptions) {
       try {
         await send({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(payload), options);
@@ -49,11 +56,11 @@ export function createPushService(store, { keys, subject, send = webPush.sendNot
     return deliver(userId, { count: entry.count, platform: platforms.length === 1 ? platforms[0] : '', url: '/?source=push' }).catch(() => 0);
   }
   return {
-    publicKey: keys.publicKey,
+    publicKey: keys.publicKey, nativePlatforms: native?.platforms || { ios: false, android: false },
     // Called when a deletion moves a message into the archive. Notifications
     // for one account are coalesced so a burst of deletions sends one alert.
     recovered(userId, platform) {
-      if (closed || !store.pushSubscriptions(userId).length) return;
+      if (closed || !store.pushSubscriptions(userId).length && !(native && store.nativePushTokens(userId).length)) return;
       const entry = pending.get(userId) || { count: 0, platforms: new Set(), timer: null };
       entry.count++; if (platform) entry.platforms.add(platform);
       if (!entry.timer) entry.timer = setTimeout(() => flush(userId), coalesceMs);

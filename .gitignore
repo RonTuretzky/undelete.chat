@@ -13,6 +13,18 @@ test-results/
 __pycache__/
 *.pyc
 mobile/node_modules
-mobile/ios
-mobile/android
-mobile/assets
+# Native build outputs and provider credentials
+mobile/android/app/build
+mobile/android/build
+mobile/android/.gradle
+mobile/android/local.properties
+mobile/android/app/google-services.json
+mobile/ios/App/App/GoogleService-Info.plist
+mobile/ios/App/build
+mobile/ios/App/App.xcworkspace/xcuserdata
+mobile/ios/App/App.xcodeproj/xcuserdata
+mobile/ios/App/Pods
+mobile/ios/DerivedData
+mobile/*.ipa
+mobile/*.aab
+mobile/build

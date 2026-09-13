@@ -27,6 +27,23 @@ if billing_path.exists() and (not isinstance(billing, dict) or any(not isinstanc
     raise SystemExit('Billing configuration requires stripe_secret_key, stripe_webhook_secret, and stripe_price_id strings. Remove the file to disable billing.')
 if billing and (not isinstance(billing.get('trial_days', 14), int) or not re.fullmatch(r'[A-Za-z0-9$€£ .,/-]{0,40}', str(billing.get('price_label', '')))):
     raise SystemExit('Billing trial_days must be a whole number.')
+native_push_path = private / 'native-push-config.json'
+native_push = json.loads(native_push_path.read_text()) if native_push_path.exists() else {}
+native_env = []
+if native_push:
+    apns = native_push.get('apns') or {}
+    if apns:
+        key_file = private / apns.get('key_file', 'apns.p8')
+        if not all(isinstance(apns.get(k), str) and re.fullmatch(r'[A-Z0-9]{10}', apns[k]) for k in ('key_id', 'team_id')) or not key_file.exists():
+            raise SystemExit('APNs configuration needs key_id, team_id (ten characters each) and an existing .p8 key file.')
+        native_env += ['APNS_KEY_ID=' + apns['key_id'], 'APNS_TEAM_ID=' + apns['team_id'], 'APNS_BUNDLE_ID=' + apns.get('bundle_id', 'chat.undelete.app'),
+                       'APNS_SANDBOX=' + ('true' if apns.get('sandbox') else 'false'), 'APNS_PRIVATE_KEY=' + key_file.read_text().strip().replace('\n', '\\n')]
+    fcm_file = native_push.get('fcm_service_account_file')
+    if fcm_file:
+        account = json.loads((private / fcm_file).read_text())
+        if not all(account.get(k) for k in ('project_id', 'client_email', 'private_key')):
+            raise SystemExit('The FCM service account file is missing project_id, client_email, or private_key.')
+        native_env.append('FCM_SERVICE_ACCOUNT=' + json.dumps(account, separators=(',', ':')))
 offsite_path = private / 'offsite-config.json'
 offsite = json.loads(offsite_path.read_text()) if offsite_path.exists() else {}
 if offsite_path.exists() and (not isinstance(offsite, dict) or not offsite):
@@ -53,6 +70,7 @@ env = '\n'.join(['ARCHIVE_KEY=' + values['archive_key'], 'INVITE_CODE=' + values
     'TELEGRAM_API_HASH=' + str(hosted.get('telegram_api_hash', '')),
     *[name + '=' + str(value) for name, value in capacity_env.items()],
     *[env_name + '=' + offsite[name] for name, env_name in offsite_names.items() if offsite],
+    *native_env,
     *([env_name + '=' + billing[name] for name, env_name in billing_names.items()] + ['BILLING_TRIAL_DAYS=' + str(billing.get('trial_days', 14)),
       'BILLING_EXEMPT_USERS=' + ','.join(billing.get('exempt_users', [values['owner_username']])), 'BILLING_PRICE_LABEL=' + str(billing.get('price_label', ''))] if billing else [])]) + '\n'
 env_path = private / 'app.env'; env_path.write_text(env); env_path.chmod(0o600)

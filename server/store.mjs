@@ -86,7 +86,11 @@ export function createStore(path, encryptionKey, options = {}) {
   db.exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
     endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT NOT NULL, last_used_at TEXT, failures INTEGER NOT NULL DEFAULT 0
-  ); CREATE INDEX IF NOT EXISTS push_subscriptions_owner ON push_subscriptions(user_id);`);
+  ); CREATE INDEX IF NOT EXISTS push_subscriptions_owner ON push_subscriptions(user_id);
+  CREATE TABLE IF NOT EXISTS native_push_tokens (
+    token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, platform TEXT NOT NULL,
+    created_at TEXT NOT NULL, last_used_at TEXT, failures INTEGER NOT NULL DEFAULT 0
+  ); CREATE INDEX IF NOT EXISTS native_push_tokens_owner ON native_push_tokens(user_id);`);
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'hold_days')) db.exec('ALTER TABLE users ADD COLUMN hold_days INTEGER NOT NULL DEFAULT 3');
   // One-time default changes for accounts created before September 12, 2026:
   // deleted messages are kept until removed, and the watch window is three days
@@ -266,6 +270,16 @@ export function createStore(path, encryptionKey, options = {}) {
       // A device holds at most a handful of subscriptions; keep the newest ten per account.
       db.prepare('DELETE FROM push_subscriptions WHERE user_id=? AND endpoint NOT IN (SELECT endpoint FROM push_subscriptions WHERE user_id=? ORDER BY created_at DESC, rowid DESC LIMIT 10)').run(userId, userId);
     },
+    nativePushTokens(userId) { return db.prepare('SELECT token,platform,created_at,last_used_at FROM native_push_tokens WHERE user_id=? ORDER BY created_at').all(userId); },
+    addNativePushToken(userId, platform, token) {
+      db.prepare(`INSERT INTO native_push_tokens (token,user_id,platform,created_at) VALUES (?,?,?,?)
+        ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id,platform=excluded.platform,failures=0`).run(token, userId, platform, new Date().toISOString());
+      db.prepare('DELETE FROM native_push_tokens WHERE user_id=? AND token NOT IN (SELECT token FROM native_push_tokens WHERE user_id=? ORDER BY created_at DESC, rowid DESC LIMIT 10)').run(userId, userId);
+    },
+    removeNativePushToken(userId, token) { return db.prepare('DELETE FROM native_push_tokens WHERE user_id=? AND token=?').run(userId, token).changes; },
+    dropNativePushToken(token) { db.prepare('DELETE FROM native_push_tokens WHERE token=?').run(token); },
+    touchNativePushToken(token) { db.prepare('UPDATE native_push_tokens SET last_used_at=?,failures=0 WHERE token=?').run(new Date().toISOString(), token); },
+    failNativePushToken(token) { db.prepare('UPDATE native_push_tokens SET failures=failures+1 WHERE token=?').run(token); db.prepare('DELETE FROM native_push_tokens WHERE token=? AND failures>=20').run(token); },
     removePushSubscription(userId, endpoint) { return db.prepare('DELETE FROM push_subscriptions WHERE user_id=? AND endpoint=?').run(userId, endpoint).changes; },
     dropPushSubscription(endpoint) { db.prepare('DELETE FROM push_subscriptions WHERE endpoint=?').run(endpoint); },
     touchPushSubscription(endpoint) { db.prepare('UPDATE push_subscriptions SET last_used_at=?,failures=0 WHERE endpoint=?').run(new Date().toISOString(), endpoint); },
