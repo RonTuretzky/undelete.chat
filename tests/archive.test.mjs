@@ -189,3 +189,37 @@ test('watch windows are per-platform account settings with fixed choices, and ed
   store.ingest(source, { ...event('delete', 'w4', undefined), externalId: 'window', occurredAt: new Date().toISOString() });
   assert.deepEqual(store.messages(user.id).find(m => m.externalId === 'window').versions.map(v => v.text), ['first text', 'early edit', undefined]);
 });
+test('messages from chats with a disappearing timer are archived on arrival by default, and held only if deleted when the owner turns that off', async t => {
+  const { store, user, source } = await fixture(t);
+  assert.equal(store.getUser(user.id).keep_disappearing, true);
+  const timed = store.ingest(source, { ...event('create', 'd1', 'vanishes on a timer'), externalId: 'timer-1', disappearing: true });
+  assert.equal(timed.held, false, 'archived immediately');
+  let listed = await store.listMessages(user.id);
+  assert.equal(listed.total, 1); assert.equal(listed.messages[0].disappearing, true); assert.equal(listed.messages[0].status, 'captured');
+  assert.equal(listed.stats.disappearing, 1); assert.equal(listed.stats.deleted, 0);
+  store.ingest(source, { ...event('edit', 'd2', 'edited before it vanished', 5), externalId: 'timer-1', disappearing: true });
+  assert.equal((await store.messageHistory(timed.id, user.id)).message.versions.length, 2, 'edits to an archived disappearing message are recorded');
+  store.db.prepare("UPDATE messages SET last_seen=? WHERE id=?").run(new Date(Date.now() - 40 * 86400_000).toISOString(), timed.id);
+  store.purge();
+  assert.equal((await store.listMessages(user.id)).total, 1, 'the watch window does not discard archived disappearing messages');
+  store.setKeepDisappearing(user.id, false);
+  assert.equal(store.getUser(user.id).keep_disappearing, false);
+  const held = store.ingest(source, { ...event('create', 'd3', 'held instead'), externalId: 'timer-2', disappearing: true });
+  assert.equal(held.held, true, 'with the setting off, timer messages are held like any other');
+  assert.equal((await store.listMessages(user.id)).total, 1);
+  store.ingest(source, { ...event('delete', 'd4', undefined, 5), externalId: 'timer-2' });
+  listed = await store.listMessages(user.id);
+  assert.equal(listed.total, 2); assert.equal(listed.stats.deleted, 1); assert.equal(listed.stats.disappearing, 2, 'a deleted timer message still counts as disappearing');
+});
+test('the disappearing-messages preference is an account setting', async t => {
+  const { store, user } = await fixture(t);
+  const { createApp } = await import('../server/app.mjs');
+  const server = createApp(store, { origins: ['http://localhost'] }).listen(0, '127.0.0.1');
+  await new Promise(r => server.once('listening', r)); t.after(() => new Promise(r => server.close(r)));
+  const base = `http://127.0.0.1:${server.address().port}/api`, headers = { 'Content-Type': 'application/json', Cookie: `afterword=${store.session(user.id)}` };
+  const off = await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ keepDisappearing: false }) });
+  assert.equal(off.status, 200); assert.equal((await off.json()).user.keep_disappearing, false);
+  assert.equal((await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ keepDisappearing: 'yes' }) })).status, 400);
+  const on = await fetch(base + '/settings', { method: 'PATCH', headers, body: JSON.stringify({ keepDisappearing: true }) });
+  assert.equal((await on.json()).user.keep_disappearing, true);
+});

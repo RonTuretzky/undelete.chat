@@ -82,6 +82,8 @@ Objective: deliver undelete.chat as a remote, multi-user service that recovers d
 
 - Disappearing chats kept, September 14: at the owner's request, messages in chats with a disappearing-messages timer are now held and kept if deleted, on all three platforms (WhatsApp's timer wrapper is unwrapped, Signal's timer and Telegram's auto-delete timer only tag the message). A timer expiry is not a deletion and still drops out of the watch buffer. View-once media stays excluded everywhere, and Telegram's self-destructing media stays excluded because Telegram's API terms forbid preserving it. The history view tags such messages.
 
+- Disappearing messages kept by default, September 14: messages sent in chats with a disappearing-messages timer are archived as soon as they arrive, since the platform will erase them, with a per-account setting to fall back to keeping them only if deleted. The list shows a Timer tag and a separate stat, and the archive is now titled Recovered messages. View-once media and Telegram's self-destructing media remain excluded.
+
 ## Completion blockers
 
 Live phone scans require the account holder. Still outstanding: updating the Stripe webhook endpoint to https://undelete.chat/api/billing/webhook (the old hostname answers it meanwhile); activation of DigitalOcean Spaces (control-panel sign-in and a paid subscription) so offsite application backups can be verified against the real provider; a full-image restore rehearsal in an isolated network; observed delivery of the configured alert emails; rotation of the DigitalOcean API token that appeared in chat; and production capacity/load measurement beyond the current single-customer pilot. These do not prevent progress on server infrastructure and the other platforms.

@@ -25,7 +25,7 @@ const archived = messages => messages.filter(m => !m.held);
 const oldStats = all => { const messages = archived(all); return { total: messages.length, edited: messages.filter(m => m.versions.some(v => v.kind === 'edit')).length,
   edits: messages.reduce((n, m) => n + m.versions.filter(v => v.kind === 'edit').length, 0),
   deleted: messages.length, saved: messages.filter(m => m.saved).length,
-  versions: messages.reduce((n, m) => n + m.versionCount, 0), held: all.length - messages.length }; };
+  versions: messages.reduce((n, m) => n + m.versionCount, 0), disappearing: messages.filter(m => m.disappearing).length, held: all.length - messages.length }; };
 const remove = (store, source, id, seconds = 1) => store.ingest(source, event(id, 'delete', undefined, seconds));
 
 test('SQL pagination decrypts only the requested page and keeps metadata counts tenant-scoped', async t => {

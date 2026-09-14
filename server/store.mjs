@@ -53,7 +53,7 @@ export function createStore(path, encryptionKey, options = {}) {
     CREATE INDEX IF NOT EXISTS events_message ON events(message_id,occurred_at,id);
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);`);
   const messageColumns = new Set(db.prepare('PRAGMA table_info(messages)').all().map(c => c.name));
-  const addedColumns = { status: "TEXT NOT NULL DEFAULT 'captured'", version_count: 'INTEGER NOT NULL DEFAULT 0', edit_count: 'INTEGER NOT NULL DEFAULT 0', held: 'INTEGER NOT NULL DEFAULT 0' };
+  const addedColumns = { status: "TEXT NOT NULL DEFAULT 'captured'", version_count: 'INTEGER NOT NULL DEFAULT 0', edit_count: 'INTEGER NOT NULL DEFAULT 0', held: 'INTEGER NOT NULL DEFAULT 0', disappearing: 'INTEGER NOT NULL DEFAULT 0' };
   if (Object.keys(addedColumns).some(name => !messageColumns.has(name))) {
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -105,6 +105,8 @@ export function createStore(path, encryptionKey, options = {}) {
   }
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'last_active_at')) db.exec('ALTER TABLE users ADD COLUMN last_active_at TEXT');
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'watch_config')) db.exec('ALTER TABLE users ADD COLUMN watch_config TEXT');
+  // Messages the platform will erase on a timer are archived immediately unless the owner turns this off.
+  if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'keep_disappearing')) db.exec('ALTER TABLE users ADD COLUMN keep_disappearing INTEGER NOT NULL DEFAULT 1');
   // Only deleted messages belong to the archive. Anything else is a held
   // message in the watch buffer; this also converts pre-existing archives.
   db.prepare("UPDATE messages SET held=1 WHERE status!='deleted' AND held=0").run();
@@ -141,7 +143,7 @@ export function createStore(path, encryptionKey, options = {}) {
   db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='error',detail='Discord is no longer supported.' WHERE platform='discord' AND revoked=0").run();
   const capacity = createArchiveCapacity(db, path, options);
   const hooks = {};
-  const getUser = id => { const row = db.prepare('SELECT id,username,created_at,retention_days,watch_config,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id); if (!row) return row; const { watch_config, ...user } = row; return { ...user, watch: resolveWatch(watch_config) }; };
+  const getUser = id => { const row = db.prepare('SELECT id,username,created_at,retention_days,watch_config,keep_disappearing,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id); if (!row) return row; const { watch_config, ...user } = row; return { ...user, keep_disappearing: !!row.keep_disappearing, watch: resolveWatch(watch_config) }; };
   const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,connected_at,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=0) AS message_count,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=1) AS held_count,
@@ -156,7 +158,7 @@ export function createStore(path, encryptionKey, options = {}) {
     const deleted = versions.some(v => v.kind === 'delete');
     const edited = versions.some(v => v.kind === 'edit');
     return { id: row.id, platform: row.platform, connectionId: row.connection_id, firstSeen: row.first_seen, lastSeen: row.last_seen,
-      held: !!row.held, saved: !!row.saved, status: deleted ? 'deleted' : edited ? 'edited' : 'captured',
+      held: !!row.held, disappearing: !!row.disappearing, saved: !!row.saved, status: deleted ? 'deleted' : edited ? 'edited' : 'captured',
       authorName: meta?.authorName || 'Unknown sender', authorId: meta?.authorId || '', chatName: meta?.chatName || meta?.chatId || 'Unknown conversation',
       externalId: meta?.externalId || '', text: last?.text ?? '', attachments: last?.attachments || [],
       originalMissing: !versions.some(v => v.kind === 'create'), versionCount: contents.length, versions };
@@ -202,9 +204,12 @@ export function createStore(path, encryptionKey, options = {}) {
       capacity.assertRoom(connection.user_id, bytes + (existing ? 0 : MESSAGE_BYTES));
       // A message enters the archive only when the platform deletes it. Until
       // then it is held privately and discarded after the owner's watch window.
-      db.prepare(`INSERT INTO messages (id,user_id,connection_id,platform,first_seen,last_seen,held) VALUES (?,?,?,?,?,?,?)
-        ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen,held=CASE WHEN excluded.held=0 THEN 0 ELSE messages.held END`)
-        .run(id, connection.user_id, connection.id, connection.platform, now, now, e.kind === 'delete' ? 0 : 1);
+      // Deletions always archive. Messages the platform will erase on a timer
+      // archive immediately when the owner keeps disappearing messages.
+      const keepDisappearing = e.disappearing && !!db.prepare('SELECT keep_disappearing FROM users WHERE id=?').get(connection.user_id)?.keep_disappearing;
+      db.prepare(`INSERT INTO messages (id,user_id,connection_id,platform,first_seen,last_seen,held,disappearing) VALUES (?,?,?,?,?,?,?,?)
+        ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen,held=CASE WHEN excluded.held=0 THEN 0 ELSE messages.held END,disappearing=CASE WHEN excluded.disappearing=1 THEN 1 ELSE messages.disappearing END`)
+        .run(id, connection.user_id, connection.id, connection.platform, now, now, e.kind === 'delete' || keepDisappearing ? 0 : 1, e.disappearing ? 1 : 0);
       db.prepare('INSERT INTO events (message_id,connection_id,event_uid,kind,occurred_at,received_at,payload,user_id,storage_bytes) VALUES (?,?,?,?,?,?,?,?,?)')
         .run(id, connection.id, uid, e.kind, e.occurredAt, now, payload, connection.user_id, bytes);
       db.prepare(`UPDATE messages SET version_count=version_count+?,edit_count=edit_count+?,
@@ -394,6 +399,7 @@ export function createStore(path, encryptionKey, options = {}) {
       db.prepare("UPDATE users SET last_active_at=? WHERE id=? AND (last_active_at IS NULL OR last_active_at < ?)").run(new Date().toISOString(), row.user_id, new Date(Date.now() - 3600_000).toISOString());
       return getUser(row.user_id);
     },
+    setKeepDisappearing(userId, keep) { db.prepare('UPDATE users SET keep_disappearing=? WHERE id=?').run(keep ? 1 : 0, userId); },
     setWatch(userId, patch) { db.prepare('UPDATE users SET watch_config=? WHERE id=?').run(JSON.stringify(mergeWatch(db.prepare('SELECT watch_config FROM users WHERE id=?').get(userId)?.watch_config, patch)), userId); },
     touch(userId) { db.prepare('UPDATE users SET last_active_at=? WHERE id=?').run(new Date().toISOString(), userId); },
     dormantUsers(days) {

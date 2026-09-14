@@ -13,8 +13,8 @@ function Bubble({ x, y, w, mine, children, className = '' }) {
 export function HowItWorks({ compact = false }) {
   return <section className="how-it-works" aria-labelledby="how-it-works-title">
     <div className="eyebrow">HOW IT WORKS</div>
-    <h2 id="how-it-works-title">Only the messages they deleted<span className="brand-dot">.</span></h2>
-    {!compact && <p>undelete.chat links to your own chat accounts, quietly watches new messages for a short window, and keeps only the ones the other person deleted. Everything else is discarded.</p>}
+    <h2 id="how-it-works-title">Only the messages that get erased<span className="brand-dot">.</span></h2>
+    {!compact && <p>undelete.chat links to your own chat accounts, quietly watches new messages for a short window, and keeps only the ones the other person deleted or set to disappear. Everything else is discarded.</p>}
     <div className="how-steps">
       <div className="how-step">
         <span className="how-step-number">1</span>
@@ -78,8 +78,8 @@ export function HowItWorks({ compact = false }) {
             </g>
           </svg>
         </div>
-        <h3>Deleted messages are undeleted</h3>
-        <p>When the platform reports a deletion, the message and any edits it had are moved into your archive. That is the only way a message is ever kept.</p>
+        <h3>Erased messages are undeleted</h3>
+        <p>When the platform reports a deletion, the message and any edits it had are moved into your archive. Messages sent with a disappearing timer are kept as they arrive. Nothing else is ever kept.</p>
       </div>
     </div>
   </section>;

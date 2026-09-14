@@ -32,3 +32,5 @@
 .native .topbar{padding-top:calc(env(safe-area-inset-top,0px) + 12px)}.native .sidebar{padding-top:calc(env(safe-area-inset-top,0px) + 29px)}.native .landing-nav{padding-top:calc(env(safe-area-inset-top,0px) + 14px)}.native .app-footer,.native .landing-footer{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 22px)}.native .modal{max-height:calc(90vh - env(safe-area-inset-top,0px))}
 /* Native shells: an opaque strip behind the status bar so scrolled content never shows through it. */
 .native body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:#f6f8f7;z-index:100;pointer-events:none}
+
+.status.disappearing{background:#eaf0fb;color:#3b5a9a;margin-left:6px}

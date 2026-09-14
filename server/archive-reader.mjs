@@ -25,8 +25,8 @@ export function createArchiveReader(db, crypt) {
 
   function stats(userId) {
     return { ...db.prepare(`SELECT count(*) AS total, coalesce(sum(edit_count>0),0) AS edited,
-      coalesce(sum(edit_count),0) AS edits, count(*) AS deleted,
-      coalesce(sum(saved),0) AS saved, coalesce(sum(version_count),0) AS versions FROM messages WHERE user_id=? AND held=0`).get(userId),
+      coalesce(sum(edit_count),0) AS edits, coalesce(sum(status='deleted'),0) AS deleted,
+      coalesce(sum(saved),0) AS saved, coalesce(sum(version_count),0) AS versions, coalesce(sum(disappearing),0) AS disappearing FROM messages WHERE user_id=? AND held=0`).get(userId),
       held: db.prepare('SELECT count(*) AS n FROM messages WHERE user_id=? AND held=1').get(userId).n };
   }
 
@@ -69,7 +69,7 @@ export function createArchiveReader(db, crypt) {
       }
     }
     return { id: row.id, platform: row.platform, connectionId: row.connection_id,
-      firstSeen: row.first_seen, lastSeen: row.last_seen, held: !!row.held, saved: !!row.saved, status: row.status,
+      firstSeen: row.first_seen, lastSeen: row.last_seen, held: !!row.held, disappearing: !!row.disappearing, saved: !!row.saved, status: row.status,
       authorName: meta?.authorName || 'Unknown sender', authorId: meta?.authorId || '',
       chatName: meta?.chatName || meta?.chatId || 'Unknown conversation', externalId: meta?.externalId || '',
       text: last?.text ?? '', attachments: last?.attachments || [],

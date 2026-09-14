@@ -298,7 +298,8 @@ export function createApp(store, config = {}) {
   }));
   app.patch('/api/settings', auth, (req, res) => {
     const input = z.object({ retentionDays: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(365), z.literal(0)]).optional(),
-      watch: watchSchema.optional() }).refine(v => v.retentionDays !== undefined || v.watch !== undefined, 'Choose a setting to change.').parse(req.body);
+      watch: watchSchema.optional(), keepDisappearing: z.boolean().optional() }).refine(v => v.retentionDays !== undefined || v.watch !== undefined || v.keepDisappearing !== undefined, 'Choose a setting to change.').parse(req.body);
+    if (input.keepDisappearing !== undefined) store.setKeepDisappearing(req.user.id, input.keepDisappearing);
     if (input.retentionDays !== undefined) store.db.prepare('UPDATE users SET retention_days=? WHERE id=?').run(input.retentionDays, req.user.id);
     if (input.watch !== undefined) store.setWatch(req.user.id, input.watch);
     lastPurge = 0; purge();
