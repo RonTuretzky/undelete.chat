@@ -7,6 +7,7 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync } from 'node
 import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
 import { serverOrigin, redeemCode, savePairedProfile } from './pairing.mjs';
+import { createEphemeralMemory } from './ephemeral.mjs';
 import { openQueue, deliverBatch } from './queue.mjs';
 import { eventSchema } from '../server/store.mjs';
 
@@ -86,11 +87,12 @@ if (command === 'relink') {
   console.log(`Session cleared. Now run: npm start -- run ${profile}`); rl.close(); process.exit(0);
 }
 const queue = openQueue(directory);
+const ephemeralMemory = createEphemeralMemory(queue);
 let state = { health: 'waiting', detail: 'Starting companion' }, flushing = false, stopped = false, stopAdapter, heartbeatTimer, flushTimer;
 let consecutiveFailures = 0, failedUntil = 0, capacityFailure = false;
 const health = (health, detail = '') => { if (capacityFailure && health !== 'error') return; const changed = state.health !== health; state = { health, detail }; if (changed) console.log(`${health}: ${detail}`); };
 async function stopForCapacity(error) { if (capacityFailure) return; capacityFailure = true; health('error', error.message); await heartbeat(); await shutdown(1); }
-const capture = input => { if (stopped || capacityFailure) return; try { const event = eventSchema.parse(input); if (!event.ephemeral) queue.add(event); } catch (error) { if (error.capacity) stopForCapacity(error); else health('error', 'An event could not be normalized. Update the companion.'); } };
+const capture = input => { if (stopped || capacityFailure) return; try { const event = ephemeralMemory.filter(eventSchema.parse(input)); if (event) queue.add(event); } catch (error) { if (error.capacity) stopForCapacity(error); else health('error', 'An event could not be normalized. Update the companion.'); } };
 async function heartbeat() {
   if (stopped) return;
   try {

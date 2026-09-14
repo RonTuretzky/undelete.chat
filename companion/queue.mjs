@@ -85,6 +85,7 @@ export function openQueue(directory, encryptionKey, options = {}) {
     usage() { return Object.fromEntries(db.prepare('SELECT kind,used_bytes FROM queue_usage').all().map(row => [row.kind, row.used_bytes])); },
     delete(key) { db.prepare('DELETE FROM metadata WHERE key=?').run(key); },
     clearPrefix(prefix) { db.prepare('DELETE FROM metadata WHERE substr(key,1,length(?))=?').run(prefix, prefix); },
+    countPrefix(prefix) { return db.prepare('SELECT count(*) n FROM metadata WHERE substr(key,1,length(?))=?').get(prefix, prefix).n; },
     prunePrefix(prefix, before) { db.prepare('DELETE FROM metadata WHERE substr(key,1,length(?))=? AND updated_at<?').run(prefix, prefix, before); },
     close() { db.close(); }
   };

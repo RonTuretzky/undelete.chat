@@ -26,7 +26,7 @@ Messages: for each watched message, the text, sender name, conversation name, pl
 
 Deletion markers: when you permanently remove a message from undelete.chat, a hashed marker is kept so a delayed delivery of the same message cannot bring it back. The marker contains no content.
 
-Notifications: if you turn on notifications on a device, we store that device’s push subscription (the push service URL and its encryption keys) so the server can send it a notification. Notifications say only that a deleted message was recovered, the platform, and a count; message content is never sent through the push service. Turning notifications off, or deleting your account, removes the subscription.
+Notifications: if you turn on notifications on a device, we store that device’s push subscription (the push service URL and its encryption keys) so the server can send it a notification. Notifications say only that a deleted message was recovered, the platform, and a count; message content is never sent through the push service. Turning notifications off, or deleting your account, removes the subscription. In the iPhone and Android apps the same applies to the device token that Apple or Google issue for notifications.
 
 Billing: if you subscribe, Stripe’s customer and subscription identifiers, the subscription status, and the current period end. Card numbers and billing addresses are entered on Stripe’s pages and never reach our server.
 

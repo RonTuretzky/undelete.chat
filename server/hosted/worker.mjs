@@ -4,9 +4,11 @@ import { randomUUID } from 'node:crypto';
 import { openQueue } from '../../companion/queue.mjs';
 import { eventSchema } from '../store.mjs';
 import { signalVault } from './signal-vault.mjs';
+import { createEphemeralMemory } from '../../companion/ephemeral.mjs';
 
 process.umask(0o077);
-let queue, stopAdapter, checkpoint, runtimeDirectory, started = false, stopped = false, paused = false, flushing = false;
+let queue, ephemeral, stopAdapter, checkpoint, runtimeDirectory, started = false, stopped = false, paused = false, flushing = false;
+let checkpointFailures = 0;
 let prompt, pingTimer, flushTimer, checkpointTimer, setupTimer, capacityStopping = false;
 const controller = new AbortController();
 const send = message => { if (process.connected) process.send(message, () => {}); };
@@ -48,8 +50,9 @@ async function start(input) {
   mkdirSync(runtimeDirectory, { recursive: true, mode: 0o700 });
   queue = openQueue(input.directory, input.key, { minimumFreeBytes: input.minimumFreeBytes });
   queue.retryRejected();
+  ephemeral = createEphemeralMemory(queue);
   const config = input.config || {};
-  pingTimer = setInterval(() => send({ type: 'ping', queued: queue.count(), rejected: queue.rejected() }), 5000);
+  pingTimer = setInterval(() => send({ type: 'ping', queued: queue.count(), rejected: queue.rejected(), ephemeral: ephemeral.count() }), 5000);
   flushTimer = setInterval(flush, 1000);
   setupTimer = setTimeout(() => { health('error', 'Sign-in expired. Choose Try again for a fresh code.'); shutdown(2); }, 10 * 60_000);
   const ctx = {
@@ -62,7 +65,7 @@ async function start(input) {
     showQR(value, expiresAt = Date.now() + 55_000) { send({ type: 'qr', value, expiresAt: new Date(expiresAt).toISOString() }); },
     capture(input) {
       if (stopped || paused || capacityStopping) return;
-      try { const event = eventSchema.parse(input); if (!event.ephemeral) queue.add(event); }
+      try { const event = ephemeral.filter(eventSchema.parse(input)); if (event) queue.add(event); }
       catch (error) {
         if (error.capacity) { capacityStop(error); throw error; }
         health('error', 'An event could not be processed. Please contact support.');
@@ -74,9 +77,16 @@ async function start(input) {
   if (input.platform === 'signal') {
     const vault = await signalVault(join(runtimeDirectory, 'signal-session'), queue);
     checkpoint = vault.checkpoint;
-    checkpointTimer = setInterval(() => checkpoint().catch(error => {
-      if (error.capacity) capacityStop(error);
-      else health('error', 'Signal session could not be saved. Please reconnect.');
+    // signal-cli writes its database continuously, so a single snapshot can
+    // collide with a write. Only three failures in a row are a real problem, and
+    // the next success clears the warning.
+    checkpointTimer = setInterval(() => checkpoint().then(() => {
+      if (checkpointFailures >= 3) health('connected', 'Signal linked device connected');
+      checkpointFailures = 0;
+    }).catch(error => {
+      if (error.capacity) return capacityStop(error);
+      if (++checkpointFailures === 3) health('error', 'Signal session could not be saved. Reconnecting if this continues.');
+      if (checkpointFailures >= 12) { health('error', 'Signal session could not be saved. Reconnecting.'); shutdown(1); }
     }), 5000);
   }
   const adapters = { telegram: 'startTelegram', signal: 'startSignal', whatsapp: 'startWhatsApp' };

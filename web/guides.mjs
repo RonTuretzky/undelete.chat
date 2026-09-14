@@ -497,7 +497,7 @@ export const guides = {
         "id": "account",
         "title": "Cannot sign in to undelete.chat",
         "paragraphs": [
-          "Keep your phone online at least every two weeks for WhatsApp and connected at least monthly for Signal; otherwise the platform logs out linked devices and the connection shows an error until you relink. Check your username and password. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
+          "A deleted message that shows no original content means undelete.chat never held that message: it arrived before the account was linked, the connection was offline at the time, or the chat uses disappearing messages, which are never kept. Keep your phone online at least every two weeks for WhatsApp and connected at least monthly for Signal; otherwise the platform logs out linked devices and the connection shows an error until you relink. Check your username and password. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
         ]
       }
     ]

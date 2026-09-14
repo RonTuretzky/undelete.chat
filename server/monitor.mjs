@@ -36,8 +36,11 @@ export function readQueueStatus(path) {
     db.exec('PRAGMA busy_timeout=250');
     const hasTime = db.prepare('PRAGMA table_info(queue)').all().some(c => c.name === 'queued_at');
     const oldest = db.prepare(`SELECT id,${hasTime ? 'queued_at' : '0 AS queued_at'} FROM queue WHERE error IS NULL ORDER BY id LIMIT 1`).get();
+    const hasMetadata = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='metadata'").get();
     return { pending: db.prepare('SELECT count(*) AS n FROM queue WHERE error IS NULL').get().n,
       rejected: db.prepare('SELECT count(*) AS n FROM queue WHERE error IS NOT NULL').get().n,
+      // Disappearing messages skipped by design; identifiers only. Explains missing originals.
+      ephemeral: hasMetadata ? db.prepare("SELECT count(*) AS n FROM metadata WHERE substr(key,1,10)='ephemeral:'").get().n : 0,
       oldestId: oldest?.id ?? null, oldestQueuedAt: oldest?.queued_at || null };
   } finally { db.close(); }
 }

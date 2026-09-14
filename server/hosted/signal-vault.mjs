@@ -1,4 +1,5 @@
 import { readdir, readFile, writeFile, mkdir, rm, stat } from 'node:fs/promises';
+const avatarCacheLimit = 8 * 1024 * 1024;
 import { join, relative, resolve } from 'node:path';
 import { DatabaseSync, backup } from 'node:sqlite';
 import { capacityError, MiB } from '../capacity.mjs';
@@ -42,5 +43,16 @@ export async function signalVault(directory, queue) {
     await visit(directory);
     queue.set('signal-session-files', files);
   }
-  return { checkpoint() { if (!pending) pending = snapshot().finally(() => { pending = null; }); return pending; } };
+  // signal-cli caches contact and group avatars beside the session. They are
+  // never part of the snapshot and live on tmpfs, so keep the cache small.
+  async function trimAvatars() {
+    const dir = join(directory, 'avatars');
+    let entries = []; try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    let total = 0; const files = [];
+    for (const entry of entries) { if (!entry.isFile()) continue; const info = await stat(join(dir, entry.name)); total += info.size; files.push({ path: join(dir, entry.name), size: info.size, mtime: info.mtimeMs }); }
+    if (total <= avatarCacheLimit) return;
+    files.sort((a, b) => a.mtime - b.mtime);
+    for (const file of files) { if (total <= avatarCacheLimit / 2) break; await rm(file.path, { force: true }); total -= file.size; }
+  }
+  return { checkpoint() { if (!pending) pending = snapshot().then(trimAvatars).finally(() => { pending = null; }); return pending; } };
 }
