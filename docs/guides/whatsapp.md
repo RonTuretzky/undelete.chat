@@ -10,7 +10,7 @@ Watches ordinary messages and their edits delivered to your linked device, and k
 
 Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept.
 
-> No view-once or disappearing messages, messages deleted before linking, messages that outlive the watch window, or attachment file downloads.
+> No view-once media, messages deleted before linking, messages that outlive the watch window, or attachment file downloads.
 
 <a id="before"></a>
 

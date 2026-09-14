@@ -10,7 +10,7 @@ Watches ordinary incoming messages, synced outgoing messages, and their edits re
 
 Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept.
 
-> No disappearing or view-once messages, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads.
+> No view-once media, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads.
 
 <a id="before"></a>
 

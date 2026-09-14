@@ -8,7 +8,8 @@ export function telegramEvent(m, kind, meta = {}) {
   const attachments = m.media ? [{ name: m.file?.name || (m.media.className === 'MessageMediaPhoto' ? 'Photo' : 'Attachment'), type: m.file?.mimeType || 'file' }] : [];
   return { eventId: eventId('telegram', channel || 'account', m.id, kind, occurredAt, text), kind, scope: channel ? `channel:${channel}` : 'account',
     externalId: String(m.id), chatId: meta.chatId || '', chatName: meta.chatName || '', authorId: m.senderId?.toString() || '', authorName: meta.authorName || '',
-    text, occurredAt, ephemeral: !!(m.ttlPeriod || m.media?.ttlSeconds), attachments };
+    // Self-destructing media must not be preserved under Telegram's API terms; auto-delete timers on chats are ordinary messages.
+    text, occurredAt, ephemeral: !!m.media?.ttlSeconds, disappearing: !!m.ttlPeriod, attachments };
 }
 
 export function signalEvent(envelope, resolve = id => id, remember = () => {}) {
@@ -30,7 +31,7 @@ export function signalEvent(envelope, resolve = id => id, remember = () => {}) {
     chatId, chatName: data.groupInfo?.name || (sent ? sent.destinationNumber || chatId : envelope.sourceName || chatId),
     authorId: author, authorName: sent ? 'You' : envelope.sourceName || envelope.sourceNumber || author,
     text: kind === 'delete' ? undefined : data.message || '', occurredAt,
-    ephemeral: !!(data.expiresInSeconds || data.viewOnce),
+    ephemeral: !!data.viewOnce, disappearing: !!data.expiresInSeconds,
     attachments: (data.attachments || []).map(a => ({ name: a.filename || 'Attachment', type: a.contentType || 'file', ...(typeof a.size === 'number' ? { size: a.size } : {}) })) };
 }
 
@@ -39,18 +40,21 @@ export function whatsappEvent(message, kind = 'create', now = new Date().toISOSt
   if (!key?.id || !key.remoteJid || key.remoteJid === 'status@broadcast') return null;
   let content = message.message;
   if (content?.protocolMessage || content?.reactionMessage || message.messageStubType && !content && kind !== 'delete') return null;
-  const ephemeral = !!(content?.ephemeralMessage || content?.viewOnceMessage || content?.viewOnceMessageV2 || content?.viewOnceMessageV2Extension);
-  if (ephemeral) return null;
+  if (content?.viewOnceMessage || content?.viewOnceMessageV2 || content?.viewOnceMessageV2Extension) return null;
+  // Disappearing-timer chats wrap the message; unwrap it and keep it like any other.
+  let disappearing = false;
+  if (content?.ephemeralMessage?.message) { content = content.ephemeralMessage.message; disappearing = true; }
   if (content?.editedMessage?.message) { content = content.editedMessage.message; kind = 'edit'; }
+  if (content?.ephemeralMessage?.message) { content = content.ephemeralMessage.message; disappearing = true; }
   if (content?.documentWithCaptionMessage?.message) content = content.documentWithCaptionMessage.message;
   const media = content?.imageMessage || content?.videoMessage || content?.audioMessage || content?.documentMessage || content?.stickerMessage;
-  if (content?.extendedTextMessage?.contextInfo?.expiration || media?.contextInfo?.expiration) return null;
+  if (content?.extendedTextMessage?.contextInfo?.expiration || media?.contextInfo?.expiration) disappearing = true;
   const text = content?.conversation ?? content?.extendedTextMessage?.text ?? media?.caption;
   if (kind !== 'delete' && text === undefined && !media) return null;
   const occurredAt = kind === 'delete' ? now : message.messageTimestamp ? timestamp(message.messageTimestamp) : now;
   return { eventId: eventId('whatsapp', key.remoteJid, key.id, kind, kind === 'delete' ? 'deleted' : occurredAt, text), kind,
     scope: key.remoteJid, externalId: key.id, chatId: key.remoteJid, chatName: message.chatName || key.remoteJid,
     authorId: key.participant || key.remoteJid, authorName: key.fromMe ? 'You' : message.pushName || key.participant || key.remoteJid,
-    text: kind === 'delete' ? undefined : text || '', occurredAt,
+    text: kind === 'delete' ? undefined : text || '', occurredAt, disappearing,
     attachments: media ? [{ name: media.fileName || (content.imageMessage ? 'Photo' : content.audioMessage ? 'Audio' : content.videoMessage ? 'Video' : 'Attachment'), type: media.mimetype || 'file' }] : [] };
 }

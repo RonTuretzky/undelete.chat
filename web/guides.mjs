@@ -16,7 +16,7 @@ export const platformGuides = {
       "iPhone: WhatsApp → Settings → Linked devices → Link a device. Android: WhatsApp → ⋮ → Linked devices → Link a device.",
       "Unlock your phone if asked, scan the code shown in undelete.chat, and approve the link. Wait for Connected."
     ],
-    "exclusions": "No view-once or disappearing messages, messages deleted before linking, messages that outlive the watch window, or attachment file downloads.",
+    "exclusions": "No view-once media, messages deleted before linking, messages that outlive the watch window, or attachment file downloads.",
     "resources": [
       {
         "label": "WhatsApp: link a device",
@@ -43,7 +43,7 @@ export const platformGuides = {
       "On your phone, open Telegram → Settings → Devices → Link Desktop Device. Scan the QR code shown in undelete.chat.",
       "If prompted, enter your Telegram two-step verification password in undelete.chat. Wait for Connected."
     ],
-    "exclusions": "No secret chats, self-destructing messages, historical backfill, messages that outlive the watch window, or attachment file downloads.",
+    "exclusions": "No secret chats, self-destructing media, historical backfill, messages that outlive the watch window, or attachment file downloads.",
     "resources": [
       {
         "label": "Telegram: application setup",
@@ -70,7 +70,7 @@ export const platformGuides = {
       "On your primary phone, open Signal → Settings (your profile) → Linked devices → Link a new device (or +).",
       "Scan the QR code shown in undelete.chat and approve the device named undelete.chat Cloud. Wait for Connected."
     ],
-    "exclusions": "No disappearing or view-once messages, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads.",
+    "exclusions": "No view-once media, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads.",
     "resources": [
       {
         "label": "Signal: linked devices",
@@ -183,7 +183,7 @@ export const guides = {
           "Watches ordinary messages and their edits delivered to your linked device, and keeps only the ones that are later deleted. Uses unofficial software, so WhatsApp changes or account restrictions can interrupt the watch.",
           "Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept."
         ],
-        "note": "No view-once or disappearing messages, messages deleted before linking, messages that outlive the watch window, or attachment file downloads."
+        "note": "No view-once media, messages deleted before linking, messages that outlive the watch window, or attachment file downloads."
       },
       {
         "id": "before",
@@ -281,7 +281,7 @@ export const guides = {
           "Watches ordinary cloud-chat messages and their edits, and keeps only the ones Telegram later reports as deleted. Telegram sometimes omits deletion notifications, so some deleted messages are missed.",
           "Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept."
         ],
-        "note": "No secret chats, self-destructing messages, historical backfill, messages that outlive the watch window, or attachment file downloads."
+        "note": "No secret chats, self-destructing media, historical backfill, messages that outlive the watch window, or attachment file downloads."
       },
       {
         "id": "before",
@@ -379,7 +379,7 @@ export const guides = {
           "Watches ordinary incoming messages, synced outgoing messages, and their edits received by the linked device, and keeps only the ones removed by a remote delete. signal-cli is unofficial and must stay current.",
           "Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept."
         ],
-        "note": "No disappearing or view-once messages, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads."
+        "note": "No view-once media, existing Signal Desktop database import, messages that outlive the watch window, or attachment file downloads."
       },
       {
         "id": "before",
@@ -497,7 +497,7 @@ export const guides = {
         "id": "account",
         "title": "Cannot sign in to undelete.chat",
         "paragraphs": [
-          "A deleted message that shows no original content means undelete.chat never held that message: it arrived before the account was linked, the connection was offline at the time, or the chat uses disappearing messages, which are never kept. Keep your phone online at least every two weeks for WhatsApp and connected at least monthly for Signal; otherwise the platform logs out linked devices and the connection shows an error until you relink. Check your username and password. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
+          "A deleted message that shows no original content means undelete.chat never held that message: it arrived before the account was linked, the connection was offline at the time, or it was view-once media, which is never kept. Messages in chats with a disappearing-messages timer are held and kept if deleted, like any other message. Keep your phone online at least every two weeks for WhatsApp and connected at least monthly for Signal; otherwise the platform logs out linked devices and the connection shows an error until you relink. Check your username and password. Password changes sign out other sessions. Use Forgot your password? with your saved recovery key. Successful recovery signs out previous sessions and gives you a replacement key. If you are signed in, Settings lets you create or replace a key after confirming your password. Without both the password and recovery key, contact the operator; access cannot be automatically restored."
         ]
       }
     ]

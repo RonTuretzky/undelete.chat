@@ -14,6 +14,8 @@ export const eventSchema = z.object({
   authorId: z.string().max(256).default(''), authorName: z.string().max(500).default(''),
   text: z.string().max(100_000).optional(), occurredAt: z.iso.datetime(),
   ephemeral: z.boolean().default(false),
+  // Sent in a chat with a disappearing-messages timer. Held and kept like any other message; shown with a tag.
+  disappearing: z.boolean().default(false),
   attachments: z.array(z.object({ name: z.string().max(500), type: z.string().max(100).default('file'), size: z.number().nonnegative().optional() })).max(50).default([])
 }).refine(e => e.kind === 'delete' || e.text !== undefined || e.attachments.length > 0, 'Message content is required.');
 

@@ -11,7 +11,9 @@ test('Telegram account-scoped IDs let chat-less deletes match private messages',
   const privateMessage = eventSchema.parse(telegramEvent({ id: 1, peerId: { userId: 'a' }, message: 'hello', date: Math.floor(now / 1000) }, 'create'));
   const channelMessage = eventSchema.parse(telegramEvent({ id: 1, peerId: { channelId: 987 }, message: 'hello', date: Math.floor(now / 1000) }, 'create'));
   assert.equal(privateMessage.scope, 'account'); assert.equal(channelMessage.scope, 'channel:987');
-  assert.equal(telegramEvent({ id: 1, peerId: {}, message: 'expires', date: Math.floor(now / 1000), ttlPeriod: 100 }, 'create').ephemeral, true);
+  const timed = telegramEvent({ id: 1, peerId: {}, message: 'expires', date: Math.floor(now / 1000), ttlPeriod: 100 }, 'create');
+  assert.equal(timed.ephemeral, false); assert.equal(timed.disappearing, true, 'auto-delete timers are held like any message');
+  assert.equal(telegramEvent({ id: 2, peerId: {}, message: '', date: Math.floor(now / 1000), media: { className: 'MessageMediaPhoto', ttlSeconds: 10 } }, 'create').ephemeral, true, 'self-destructing media stays excluded');
 });
 test('Signal resolves edit chains and remote deletes to the original message', () => {
   const aliases = new Map(); const resolve = id => aliases.get(id) || id; const remember = (a, b) => aliases.set(a, b);
@@ -25,8 +27,10 @@ test('Signal resolves edit chains and remote deletes to the original message', (
   const synced = signalEvent({ sourceUuid: 'self', timestamp: now, syncMessage: { sentMessage: { destinationUuid: 'bob', timestamp: now, message: 'sent' } } });
   assert.equal(synced.chatId, 'bob'); assert.equal(synced.authorName, 'You');
   assert.equal(signalEvent({ sourceUuid: 'a', dataMessage: { timestamp: now, message: 'secret', viewOnce: true } }).ephemeral, true);
+  const vanishing = signalEvent({ sourceUuid: 'a', dataMessage: { timestamp: now, message: 'timer', expiresInSeconds: 86400 } });
+  assert.equal(vanishing.ephemeral, false); assert.equal(vanishing.disappearing, true, 'disappearing-timer chats are held');
 });
-test('WhatsApp edit wrappers and revoke events keep stable IDs; receipts and ephemeral payloads are skipped', () => {
+test('WhatsApp edit wrappers and revoke events keep stable IDs; receipts and view-once payloads are skipped', () => {
   const key = { remoteJid: 'chat@s.whatsapp.net', id: 'abc', fromMe: false };
   const original = eventSchema.parse(whatsappEvent({ key, messageTimestamp: Math.floor(now / 1000), message: { conversation: 'first' } }));
   const edited = eventSchema.parse(whatsappEvent({ key, messageTimestamp: Math.floor(now / 1000) + 1, message: { editedMessage: { message: { conversation: 'second' } } } }));
@@ -34,8 +38,11 @@ test('WhatsApp edit wrappers and revoke events keep stable IDs; receipts and eph
   const deletion = eventSchema.parse(whatsappEvent({ key }, 'delete'));
   assert.equal(deletion.externalId, original.externalId); assert.equal(deletion.text, undefined);
   assert.equal(whatsappEvent({ key, message: { protocolMessage: { type: 1 } } }), null);
-  assert.equal(whatsappEvent({ key, message: { ephemeralMessage: { message: { conversation: 'secret' } } } }), null);
-  assert.equal(whatsappEvent({ key, message: { imageMessage: { caption: 'secret', contextInfo: { expiration: 86400 } } } }), null);
+  const wrapped = eventSchema.parse(whatsappEvent({ key, messageTimestamp: Math.floor(now / 1000), message: { ephemeralMessage: { message: { conversation: 'timer text' } } } }));
+  assert.equal(wrapped.text, 'timer text'); assert.equal(wrapped.disappearing, true); assert.equal(wrapped.externalId, original.externalId);
+  const expiring = whatsappEvent({ key, message: { imageMessage: { caption: 'photo', contextInfo: { expiration: 86400 } } } });
+  assert.equal(expiring.disappearing, true); assert.equal(expiring.attachments.length, 1);
+  assert.equal(whatsappEvent({ key, message: { viewOnceMessageV2: { message: { imageMessage: {} } } } }), null, 'view-once media stays excluded');
 });
 test('durable encrypted queue survives a restart and only removes individually acknowledged events', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'afterword-queue-test-')); t.after(() => rmSync(dir, { recursive: true, force: true }));

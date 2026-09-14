@@ -10,7 +10,7 @@ Watches ordinary cloud-chat messages and their edits, and keeps only the ones Te
 
 Every other message waits privately in the encrypted holding buffer for your watch window and is then discarded. Edits alone do not keep a message. Nothing that was never deleted is kept.
 
-> No secret chats, self-destructing messages, historical backfill, messages that outlive the watch window, or attachment file downloads.
+> No secret chats, self-destructing media, historical backfill, messages that outlive the watch window, or attachment file downloads.
 
 <a id="before"></a>
 
