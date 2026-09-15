@@ -69,7 +69,7 @@ A platform outage, expired linked device, or server interruption can still leave
 
 ## Where your data lives
 
-undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage.
+undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Messages waiting in the watch window and recovered messages are sealed to an archive key that only you hold, so the server cannot read them once stored; your password unlocks them on each device. Two things stay readable to the server: the linked platform session it needs to keep your account connected, and each message for the instant it arrives, before it is sealed. That last step is what keeps this short of end-to-end encryption.
 
 - [Privacy and retention](./privacy.md)
 

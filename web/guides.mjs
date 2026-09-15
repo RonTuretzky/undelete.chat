@@ -257,7 +257,7 @@ export const guides = {
         "id": "privacy",
         "title": "Where your data lives",
         "paragraphs": [
-          "undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+          "undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Messages waiting in the watch window and recovered messages are sealed to an archive key that only you hold, so the server cannot read them once stored; your password unlocks them on each device. Two things stay readable to the server: the linked platform session it needs to keep your account connected, and each message for the instant it arrives, before it is sealed. That last step is what keeps this short of end-to-end encryption."
         ],
         "links": [
           {
@@ -355,7 +355,7 @@ export const guides = {
         "id": "privacy",
         "title": "Where your data lives",
         "paragraphs": [
-          "undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+          "undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Messages waiting in the watch window and recovered messages are sealed to an archive key that only you hold, so the server cannot read them once stored; your password unlocks them on each device. Two things stay readable to the server: the linked platform session it needs to keep your account connected, and each message for the instant it arrives, before it is sealed. That last step is what keeps this short of end-to-end encryption."
         ],
         "links": [
           {
@@ -449,7 +449,7 @@ export const guides = {
         "id": "privacy",
         "title": "Where your data lives",
         "paragraphs": [
-          "undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Stored credentials, messages waiting in the watch window, and preserved deleted messages are encrypted at rest, but the server can decrypt them to run the service. This is not end-to-end encrypted cloud storage."
+          "undelete.chat stores the linked session on its server so the watch can continue while your devices are off. Messages waiting in the watch window and recovered messages are sealed to an archive key that only you hold, so the server cannot read them once stored; your password unlocks them on each device. Two things stay readable to the server: the linked platform session it needs to keep your account connected, and each message for the instant it arrives, before it is sealed. That last step is what keeps this short of end-to-end encryption."
         ],
         "links": [
           {
@@ -584,7 +584,7 @@ export const guides = {
         "id": "premium",
         "title": "Premium: trusted execution environments",
         "paragraphs": [
-          "On the standard plan, message content is encrypted at rest but the server holds the decryption key, so the people operating undelete.chat could technically read stored data. Premium is for people who need stronger guarantees: the collectors and the archive run inside a confidential-computing enclave (a trusted execution environment) with keys sealed to attested hardware. Operators, backups, and the hosting provider cannot decrypt the data.",
+          "On the standard plan, stored messages are sealed to a key only you hold and the server cannot read them, but the collector that keeps your account linked runs on the server and sees each message for the instant it arrives. Premium is for people who need that last step covered too: the collectors run inside a confidential-computing enclave (a trusted execution environment) with keys sealed to attested hardware, so operators, backups, and the hosting provider cannot see messages even at the moment of capture.",
           "Premium is arranged individually and can include dedicated capacity, more linked accounts, a longer watch window, priority support, and a written data-handling agreement. Email turetzkyron@gmail.com with the accounts you want to link and roughly how many people need it; expect a reply within two business days."
         ]
       },
@@ -608,7 +608,7 @@ export const guides = {
         "id": "service",
         "title": "The service",
         "paragraphs": [
-          "undelete.chat is operated by [Operator legal name] (“we”). It watches messages delivered to personal messaging accounts that you link, and keeps only the messages that are later deleted on the platform, together with the edits they had before deletion, in a private workspace for you to read, search, and export. Messages that are not deleted within your watch window are discarded and are never kept.",
+          "undelete.chat is operated by [Operator legal name] (“we”). It watches messages delivered to personal messaging accounts that you link, and keeps only the messages the platform erases: ones later deleted, and, unless you turn it off, ones sent with a disappearing-messages timer, together with the edits they had before deletion, in a private workspace for you to read, search, and export. Messages that are not deleted within your watch window are discarded and are never kept.",
           "undelete.chat is not affiliated with, endorsed by, or supported by Telegram, Signal, or WhatsApp. Linking a personal account uses that platform’s own device-linking or an unofficial method described in each platform guide. Some platforms restrict automated personal accounts; you are responsible for reviewing and complying with each platform’s terms, and you accept the risk of account limits or termination that a platform may impose."
         ]
       },
@@ -617,7 +617,7 @@ export const guides = {
         "title": "Your responsibilities",
         "paragraphs": [
           "You may only link accounts that belong to you, and you must have the right to keep the deleted messages the service preserves. Do not use undelete.chat to monitor another person without a lawful basis, and do not use it in a way that violates the law where you live or the rights of the people you communicate with.",
-          "Keep your password and recovery key private. You are responsible for activity in your workspace. We cannot restore access to an account whose password and recovery key are both lost."
+          "Keep your password and recovery key private. You are responsible for activity in your workspace. Your archive is sealed to a key that only your password or recovery key can unlock; we cannot restore access to an account, or read or recover its archive, when both are lost."
         ]
       },
       {

@@ -25,7 +25,7 @@ When the trial ends without a subscription, the watch pauses: hosted connections
 
 ## Premium: trusted execution environments
 
-On the standard plan, message content is encrypted at rest but the server holds the decryption key, so the people operating undelete.chat could technically read stored data. Premium is for people who need stronger guarantees: the collectors and the archive run inside a confidential-computing enclave (a trusted execution environment) with keys sealed to attested hardware. Operators, backups, and the hosting provider cannot decrypt the data.
+On the standard plan, stored messages are sealed to a key only you hold and the server cannot read them, but the collector that keeps your account linked runs on the server and sees each message for the instant it arrives. Premium is for people who need that last step covered too: the collectors run inside a confidential-computing enclave (a trusted execution environment) with keys sealed to attested hardware, so operators, backups, and the hosting provider cannot see messages even at the moment of capture.
 
 Premium is arranged individually and can include dedicated capacity, more linked accounts, a longer watch window, priority support, and a written data-handling agreement. Email turetzkyron@gmail.com with the accounts you want to link and roughly how many people need it; expect a reply within two business days.
 

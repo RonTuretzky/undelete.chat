@@ -14,7 +14,7 @@ md). The terminal instructions below apply to Telegram, Signal, and WhatsApp.
 6. Enter the short pairing code when the terminal asks. Each code works once and expires after ten minutes.
 7. Follow the platform sign-in or QR prompts. Keep the browser setup open until it confirms connection, then send your own test message in a covered conversation.
 
-Platform credentials and sessions stay on the computer running the companion. Your undelete.chat server can decrypt captured message content; the cloud archive is encrypted at rest, not end-to-end encrypted.
+Platform credentials and sessions stay on the computer running the companion. Captured content is sealed to the account's own archive key before it is stored; the server cannot read it afterwards, and it decrypts only on the owner's device.
 
 ## Step-by-step guides
 

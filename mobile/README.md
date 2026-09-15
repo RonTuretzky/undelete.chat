@@ -47,10 +47,10 @@ For a device test without the stores: `npx cap open ios` and run on a connected 
 ## Store listing
 
 - Name: undelete.chat. Subtitle / short description: They deleted it. You still have it.
-- Description: undelete.chat links to your own WhatsApp, Telegram, and Signal accounts and keeps the messages other people delete, with the edits they made before deleting. Nothing else is stored: recent messages are held only for a short watch window and discarded. Get a notification the moment a deleted message is recovered. Your archive is encrypted at rest, exportable, and yours to erase.
+- Description: undelete.chat links to your own WhatsApp, Telegram, and Signal accounts and keeps the messages other people delete, with the edits they made before deleting. Nothing else is stored: recent messages are held only for a short watch window and discarded. Get a notification the moment a deleted message is recovered. Your archive is sealed to a key only you hold, exportable, and yours to erase.
 - Category: Utilities (iOS), Tools (Android). Age rating: 17+ / Mature 17+ (user-generated content from private chats).
 - Privacy policy URL: https://undelete.chat/docs/privacy. Support URL: https://undelete.chat/docs. Marketing URL: https://undelete.chat.
-- App privacy (Apple) / Data safety (Google): collects account identifiers (username) and user content (messages, linked to the user) for app functionality only; no tracking, no third-party advertising; data is encrypted in transit and at rest; users can request deletion in-app (Settings → Delete account). Push tokens are collected for notifications.
+- App privacy (Apple) / Data safety (Google): collects account identifiers (username) and user content (messages, linked to the user) for app functionality only; no tracking, no third-party advertising; data is encrypted in transit, and stored messages are sealed to a user-held key the operator cannot open; users can request deletion in-app (Settings → Delete account). Push tokens are collected for notifications.
 - Screenshots: the app is the responsive web UI, so capture the deleted-messages list, a message history, Connections, and Settings on an iPhone 6.7-inch simulator and a Pixel-class emulator.
 
 ## Review notes (paste into the reviewer notes field)

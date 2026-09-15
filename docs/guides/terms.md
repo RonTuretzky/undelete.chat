@@ -6,7 +6,7 @@ The agreement that applies to every undelete.chat workspace.
 
 ## The service
 
-undelete.chat is operated by [Operator legal name] (“we”). It watches messages delivered to personal messaging accounts that you link, and keeps only the messages that are later deleted on the platform, together with the edits they had before deletion, in a private workspace for you to read, search, and export. Messages that are not deleted within your watch window are discarded and are never kept.
+undelete.chat is operated by [Operator legal name] (“we”). It watches messages delivered to personal messaging accounts that you link, and keeps only the messages the platform erases: ones later deleted, and, unless you turn it off, ones sent with a disappearing-messages timer, together with the edits they had before deletion, in a private workspace for you to read, search, and export. Messages that are not deleted within your watch window are discarded and are never kept.
 
 undelete.chat is not affiliated with, endorsed by, or supported by Telegram, Signal, or WhatsApp. Linking a personal account uses that platform’s own device-linking or an unofficial method described in each platform guide. Some platforms restrict automated personal accounts; you are responsible for reviewing and complying with each platform’s terms, and you accept the risk of account limits or termination that a platform may impose.
 
@@ -16,7 +16,7 @@ undelete.chat is not affiliated with, endorsed by, or supported by Telegram, Sig
 
 You may only link accounts that belong to you, and you must have the right to keep the deleted messages the service preserves. Do not use undelete.chat to monitor another person without a lawful basis, and do not use it in a way that violates the law where you live or the rights of the people you communicate with.
 
-Keep your password and recovery key private. You are responsible for activity in your workspace. We cannot restore access to an account whose password and recovery key are both lost.
+Keep your password and recovery key private. You are responsible for activity in your workspace. Your archive is sealed to a key that only your password or recovery key can unlock; we cannot restore access to an account, or read or recover its archive, when both are lost.
 
 <a id="payment"></a>
 
