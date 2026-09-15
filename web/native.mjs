@@ -42,3 +42,7 @@ export async function openExternal(url) {
   const browser = plugin('Browser');
   if (browser) await browser.open({ url }); else window.open(url, '_blank', 'noopener');
 }
+
+// Device mode (Android only): messages read from notifications, stored on the phone.
+export const deviceArchive = () => plugin('DeviceArchive');
+export const hasDeviceArchive = () => nativePlatform() === 'android' && !!deviceArchive();

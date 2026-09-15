@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Archive, ArrowDownToLine, ArrowLeft, ArrowRight, BellOff, Bookmark, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Clock3, Copy, Download, Ellipsis, FileText, History, Link2, ListFilter, LoaderCircle, LockKeyhole, LogOut, MessageCircle, MoreHorizontal, Pencil, Plus, Radio, Search, Settings2, ShieldCheck, Sparkles, Trash2, Unplug, X, Zap } from 'lucide-react';
+import { Smartphone, Archive, ArrowDownToLine, ArrowLeft, ArrowRight, BellOff, Bookmark, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Clock3, Copy, Download, Ellipsis, FileText, History, Link2, ListFilter, LoaderCircle, LockKeyhole, LogOut, MessageCircle, MoreHorizontal, Pencil, Plus, Radio, Search, Settings2, ShieldCheck, Sparkles, Trash2, Unplug, X, Zap } from 'lucide-react';
 import { MessageHistory } from './MessageHistory';
 import { ArchiveUsage } from './ArchiveUsage';
 import { demoMessages } from './demo';
@@ -12,7 +12,8 @@ import { PlanBanner, PlanCard } from './Billing';
 import { HowItWorks } from './HowItWorks';
 import { Landing } from './Landing';
 import { PhoneAppCard } from './PhoneApp';
-import { isNativeApp, onNativeNotificationTap } from './native.mjs';
+import { isNativeApp, onNativeNotificationTap, hasDeviceArchive } from './native.mjs';
+import { DeviceArchive } from './DeviceArchive';
 import { loadVaultSession, setupVault, unlockVault, rewrapForPassword, rewrapForRecoveryKey, recoverVault, clearVault } from './vaultSession.mjs';
 import { platformGuides } from './guides.mjs';
 
@@ -84,6 +85,7 @@ function App() {
   useEffect(() => {
     let alive = true;
     const status = '';
+    if (view === 'device') return;
     if (isDemo) {
       const q = debounced.toLowerCase();
       const rows = demo.filter(m => (!platform || m.platform === platform) && (!status || m.status === status) && (view !== 'saved' || m.saved) && `${m.authorName} ${m.chatName} ${m.versions.map(v => v.text).join(' ')}`.toLowerCase().includes(q));
@@ -118,8 +120,9 @@ function App() {
   async function saveMessage(m) { if (isDemo) setDemo(rows => rows.map(row => row.id === m.id ? { ...row, saved: !row.saved } : row)); else await perform(async () => { await api(`/messages/${m.id}`, { method: 'PATCH', body: { saved: !m.saved } }); reload(); }); }
   function exportArchive() { if (isDemo) { const url = URL.createObjectURL(new Blob([JSON.stringify({ sampleData: true, messages: demo }, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'undelete-demo.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('Sample archive exported.'); } else if (vault?.status === 'ready') { perform(async () => { const json = await api('/export'); const opened = await vault.decryptExport(json); const url = URL.createObjectURL(new Blob([JSON.stringify(opened, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'undelete-archive.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('Archive exported.'); }); } else if (vault && vault.status !== 'ready') setModal('unlock'); else window.location.assign('/api/export'); }
   const connected = connections.filter(c => !c.revoked && !c.paused && c.health === 'connected' && Date.now() - Date.parse(c.last_seen) < 90_000).length;
-  const title = { archive: 'Recovered messages', saved: 'Saved messages', connections: 'Your connections', settings: 'Workspace settings', docs: 'Help & guides' }[view] || 'Recovered messages';
-  const nav = [['archive', Trash2, 'Recovered messages'], ['saved', Bookmark, 'Saved']];
+  const deviceMode = hasDeviceArchive();
+  const title = { archive: 'Recovered messages', saved: 'Saved messages', device: 'On this phone', connections: 'Your connections', settings: 'Workspace settings', docs: 'Help & guides' }[view] || 'Recovered messages';
+  const nav = [['archive', Trash2, 'Recovered messages'], ['saved', Bookmark, 'Saved'], ...(deviceMode ? [['device', Smartphone, 'On this phone']] : [])];
   const watchDefaults = { whatsapp: { editHours: 1, deleteHours: 72 }, signal: { editHours: 48, deleteHours: 48 }, telegram: { editHours: 72, deleteHours: 720 } };
   const watch = user?.watch || watchDefaults;
   const hoursLabel = h => h < 24 ? `${h} hour${h === 1 ? '' : 's'}` : `${h / 24} day${h === 24 ? '' : 's'}`;
@@ -146,8 +149,9 @@ function App() {
         {!isDemo && vault && vault.status !== 'ready' && <div className="plan-banner" role="status"><LockKeyhole size={20}/><div><strong>{vault.status === 'setup' ? 'Seal your archive' : 'Archive locked on this device'}</strong><p>{vault.status === 'setup' ? 'Create the key that only you hold. It takes a moment.' : 'Enter your password once to read your sealed messages here.'}</p></div><button className="button secondary compact" onClick={() => setModal('unlock')}>{vault.status === 'setup' ? 'Set up' : 'Unlock'}<ArrowRight size={14}/></button></div>}
         {!isDemo && !['settings', 'docs'].includes(view) && <PlanBanner billing={billing} onManage={() => changeView('settings')}/>}
         {!isDemo && usage && !['settings', 'docs'].includes(view) && (usage.nearLimit || usage.captureBlocks.length > 0) && <ArchiveUsage compact usage={usage} onManage={() => changeView('settings')}/>}
-        {view !== 'docs' && <div className="page-heading"><div><div className="eyebrow">{view === 'connections' ? 'STAY CONNECTED' : view === 'settings' ? 'MAKE IT YOURS' : 'RECOVERED'}</div><h1>{title}<span>.</span></h1><p>{view === 'connections' ? 'Bring your conversations together, one account at a time.' : view === 'settings' ? 'You decide what stays, and for how long.' : view === 'saved' ? 'Keep the recovered messages you want to come back to.' : 'What they deleted or set to disappear, still here for you.'}</p></div><div className="heading-actions">{!['connections', 'settings', 'docs'].includes(view) && <button className="button secondary" onClick={exportArchive}><ArrowDownToLine size={16}/>Export</button>}<button className="button primary" onClick={() => openConnect()}><Plus size={17}/>Connect account</button></div></div>}
-        {!['connections', 'settings', 'docs'].includes(view) && <>
+        {view !== 'docs' && <div className="page-heading"><div><div className="eyebrow">{view === 'connections' ? 'STAY CONNECTED' : view === 'settings' ? 'MAKE IT YOURS' : view === 'device' ? 'DEVICE MODE' : 'RECOVERED'}</div><h1>{title}<span>.</span></h1><p>{view === 'connections' ? 'Bring your conversations together, one account at a time.' : view === 'settings' ? 'You decide what stays, and for how long.' : view === 'saved' ? 'Keep the recovered messages you want to come back to.' : view === 'device' ? 'Messages read from this phone’s notifications. They never leave the device.' : 'What they deleted or set to disappear, still here for you.'}</p></div><div className="heading-actions">{!['connections', 'settings', 'docs', 'device'].includes(view) && <button className="button secondary" onClick={exportArchive}><ArrowDownToLine size={16}/>Export</button>}<button className="button primary" onClick={() => openConnect()}><Plus size={17}/>Connect account</button></div></div>}
+        {view === 'device' && <DeviceArchive Modal={Modal} notify={notify}/>}
+        {!['connections', 'settings', 'docs', 'device'].includes(view) && <>
           <div className="stats-grid">{[[Trash2, 'Deleted messages', stats.deleted || 0, 'Recovered after deletion', 'orange'], [Clock3, 'Disappearing kept', stats.disappearing || 0, 'Set to vanish on a timer, kept here', 'blue'], [Radio, 'Being watched', isDemo ? 0 : stats.held || 0, `Held for ${watchRange} by platform, then discarded`, 'neutral']].map(([Icon, label, value, caption, color]) => <div className={`stat-card ${color}`} key={label}><div className="stat-top"><span>{label}</span><Icon size={18}/></div><div className="stat-value">{value.toLocaleString()}<Icon className="stat-watermark" size={43} aria-hidden="true"/></div><p>{caption}</p></div>)}</div>
           <section className="archive-panel" aria-label="Message archive">
             <div className="archive-toolbar"><div className="archive-title"><h2>{view === 'archive' ? 'All messages' : title}</h2><span className="count-pill">{total}</span></div><span className="subtle toolbar-caption"><LockKeyhole size={12}/>{isDemo ? 'Sample archive' : 'Private archive'}</span></div>

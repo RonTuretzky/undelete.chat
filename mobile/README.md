@@ -1,6 +1,6 @@
 # undelete.chat for iOS and Android
 
-Native apps for the App Store and Google Play, built with [Capacitor](https://capacitorjs.com). The apps load the live web app from `https://undelete.chat` inside a native web view, so sign-in stays first-party and every web release reaches phones immediately. What is native: the app icon and splash screen, push notifications for recovered deletions (APNs on iOS, Firebase Cloud Messaging on Android), the system browser for external pages, and store-safe billing (plans are shown, purchases happen on the website).
+Native apps for the App Store and Google Play, built with [Capacitor](https://capacitorjs.com). The apps load the live web app from `https://undelete.chat` inside a native web view, so sign-in stays first-party and every web release reaches phones immediately. What is native: device mode (a notification listener that keeps WhatsApp, Telegram, and Signal messages in an on-device database, exposed to the web app through the `DeviceArchive` plugin), the app icon and splash screen, push notifications for recovered deletions (APNs on iOS, Firebase Cloud Messaging on Android), the system browser for external pages, and store-safe billing (plans are shown, purchases happen on the website).
 
 Bundle identifier / application id: `chat.undelete.app`. Version `1.0.0` (build 1).
 
@@ -50,13 +50,13 @@ For a device test without the stores: `npx cap open ios` and run on a connected 
 - Description: undelete.chat links to your own WhatsApp, Telegram, and Signal accounts and keeps the messages other people delete, with the edits they made before deleting. Nothing else is stored: recent messages are held only for a short watch window and discarded. Get a notification the moment a deleted message is recovered. Your archive is sealed to a key only you hold, exportable, and yours to erase.
 - Category: Utilities (iOS), Tools (Android). Age rating: 17+ / Mature 17+ (user-generated content from private chats).
 - Privacy policy URL: https://undelete.chat/docs/privacy. Support URL: https://undelete.chat/docs. Marketing URL: https://undelete.chat.
-- App privacy (Apple) / Data safety (Google): collects account identifiers (username) and user content (messages, linked to the user) for app functionality only; no tracking, no third-party advertising; data is encrypted in transit, and stored messages are sealed to a user-held key the operator cannot open; users can request deletion in-app (Settings → Delete account). Push tokens are collected for notifications.
+- App privacy (Apple) / Data safety (Google): collects account identifiers (username) and user content (messages, linked to the user) for app functionality only; no tracking, no third-party advertising; data is encrypted in transit, and stored messages are sealed to a user-held key the operator cannot open; users can request deletion in-app (Settings → Delete account). Push tokens are collected for notifications. Device mode data stays on the device and is not collected.
 - Screenshots: the app is the responsive web UI, so capture the deleted-messages list, a message history, Connections, and Settings on an iPhone 6.7-inch simulator and a Pixel-class emulator.
 
 ## Review notes (paste into the reviewer notes field)
 
 - Demo account: create one in the app; registration is open and starts a free trial without a card. Reviewers can also use the demo at https://undelete.chat/demo without signing in.
-- Native functionality: push notifications for recovered deletions, home-screen presence, and system-browser handoff. Subscriptions are sold on the website only; the app displays the plan state and never links to external purchase.
+- Native functionality: device mode (Android notification listener storing messages on the phone only; requires the user to grant notification access in system settings, which the app requests through the standard settings screen), push notifications for recovered deletions, home-screen presence, and system-browser handoff. Subscriptions are sold on the website only; the app displays the plan state and never links to external purchase.
 - The app links to the user's own messaging accounts through those platforms' device-linking flows. It never posts, sends, or modifies messages. WhatsApp and Signal are accessed through linked-device clients; the in-app guides tell users about each platform's rules before they link.
 - Message content shown in the app is the user's own chat history. Notifications contain only a platform name and a count.
 

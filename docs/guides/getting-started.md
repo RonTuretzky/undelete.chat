@@ -21,6 +21,16 @@ Connect your accounts without installing anything on your computer. undelete.cha
 
 > The installed app is the same service; signing in on the phone shows the same archive as the website.
 
+<a id="device-mode"></a>
+
+## Device mode on Android: everything stays on the phone
+
+1. In the Android app open On this phone and choose Open notification access settings, then allow undelete.chat.
+2. From then on, messages that WhatsApp, Telegram, and Signal show as notifications are kept in a database on the phone. Nothing is uploaded, and no account is needed.
+3. When a sender deletes a message while its notification is still showing, the platform swaps the notification text for a deletion notice; undelete.chat keeps the original and marks it deleted.
+
+> Device mode only sees messages that produced a notification: muted chats, chats open on screen, and messages read elsewhere before the notification arrived are missed, and a deletion is only detected while the notification is still up. The cloud archive stays the complete option; the two modes work side by side.
+
 <a id="pair"></a>
 
 ## Scan once, watch in the cloud
