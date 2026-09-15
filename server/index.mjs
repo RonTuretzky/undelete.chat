@@ -55,7 +55,25 @@ const nativeConfig = nativePushConfig();
 const push = process.env.PUSH_NOTIFICATIONS === 'false' ? null : createPushService(store, { keys: loadVapidKeys(dir), subject: process.env.PUSH_SUBJECT || (origin.startsWith('https://') ? origin : 'mailto:hello@undelete.chat'), native: nativeConfig ? createNativePush(nativeConfig) : null });
 if (production && !nativeConfig) console.warn('Native push is not configured: the store apps will not receive notifications.');
 if (push) store.hooks.recovered = (userId, platform) => push.recovered(userId, platform);
-const app = createApp(store, { collectors, monitor, billing, push, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
+// Accounts that adopt zero-knowledge storage have their older records re-sealed
+// in small batches between requests until nothing readable remains.
+const vaultMigrator = (() => {
+  const queued = new Set(); let running = false;
+  async function run() {
+    if (running) return; running = true;
+    try {
+      for (const userId of [...queued]) {
+        let done = false, guard = 0;
+        while (!done && guard++ < 100_000) { done = store.migrateVault(userId); await new Promise(r => setImmediate(r)); }
+        queued.delete(userId);
+      }
+    } catch (error) { console.error('Vault migration failed:', error?.code || error?.name); }
+    finally { running = false; if (queued.size) setTimeout(run, 5000).unref(); }
+  }
+  return { schedule(userId) { queued.add(userId); setTimeout(run, 0).unref(); } };
+})();
+for (const userId of store.migratingVaults()) vaultMigrator.schedule(userId);
+const app = createApp(store, { collectors, monitor, billing, push, vaultMigrator, production, origin, origins: production ? [origin] : [origin, 'http://localhost:5178', 'http://127.0.0.1:5178', 'http://127.0.0.1:4318'], inviteCode: process.env.INVITE_CODE });
 const server = app.listen(Number(process.env.PORT || 4318), process.env.BIND_HOST || '127.0.0.1', () => console.log(`undelete.chat listening on port ${process.env.PORT || 4318}`));
 await collectors?.restore();
 const backups = production ? createBackupService(dir, { key, config: backupConfig, minimumFreeBytes: store.capacity.limits.minimumFreeBytes }) : null;

@@ -13,6 +13,7 @@ import { billingMessages, subscriptionError } from './billing.mjs';
 import { watchSchema, defaultWatch, platformLimits, editChoices, deleteChoices } from './watch.mjs';
 import { subscriptionSchema } from './push.mjs';
 import { nativeTokenSchema } from './native-push.mjs';
+import { setupSchema, wrappedSchema } from './vault.mjs';
 
 export function createApp(store, config = {}) {
   const app = express();
@@ -111,6 +112,20 @@ export function createApp(store, config = {}) {
   });
   app.get('/api/me', (req, res) => res.json({ user: req.user || null, inviteRequired: !!config.inviteCode, billing: req.user ? billingSummary(req.user.id) : { enabled: !!config.billing, trialDays: config.billing?.trialDays ?? null, priceLabel: config.billing?.priceLabel ?? null } }));
   app.get('/api/billing', auth, (req, res) => res.json({ billing: billingSummary(req.user.id) }));
+  // Zero-knowledge storage. The wrapped private key is only ever handed to the
+  // authenticated owner; the server cannot unwrap it.
+  app.get('/api/vault', auth, (req, res) => res.json({ vault: store.vaultRecord(req.user.id) }));
+  app.post('/api/vault/setup', auth, accountLimit, (req, res) => {
+    const input = setupSchema.parse(req.body);
+    if (!store.setupVault(req.user.id, input.publicKey, input.wrapped)) return res.status(409).json({ error: 'This account already has an archive key.' });
+    config.vaultMigrator?.schedule(req.user.id);
+    res.status(201).json({ vault: store.vaultRecord(req.user.id) });
+  });
+  app.post('/api/vault/rewrap', auth, accountLimit, (req, res) => {
+    const wrapped = wrappedSchema.parse(req.body?.wrapped);
+    if (!store.rewrapVault(req.user.id, wrapped)) return res.status(409).json({ error: 'This account has no archive key to rewrap.' });
+    res.json({ vault: store.vaultRecord(req.user.id) });
+  });
   app.get('/api/push', auth, (req, res) => res.json({ enabled: !!config.push, publicKey: config.push?.publicKey || null, native: config.push?.nativePlatforms || { ios: false, android: false },
     subscriptions: config.push ? store.pushSubscriptions(req.user.id).map(s => ({ endpoint: s.endpoint, createdAt: s.created_at })) : [],
     devices: config.push ? store.nativePushTokens(req.user.id).map(t => ({ platform: t.platform, createdAt: t.created_at })) : [] }));
@@ -162,7 +177,7 @@ export function createApp(store, config = {}) {
     const input = credentials.extend({ recoveryKey: z.string().regex(/^awr_[A-Za-z0-9_-]{43}$/) }).parse(req.body);
     const result = await store.recoverAccount(input.username, input.recoveryKey, input.password);
     if (!result) return res.status(403).json({ error: 'Username or recovery key is incorrect.' });
-    res.cookie('afterword', store.session(result.user.id), cookieOptions).json(result);
+    res.cookie('afterword', store.session(result.user.id), cookieOptions).json({ ...result, vault: store.vaultRecord(result.user.id) });
   });
   app.post('/api/auth/recovery-key', auth, accountLimit, async (req, res) => {
     const { password } = z.object({ password: z.string().max(128) }).parse(req.body);

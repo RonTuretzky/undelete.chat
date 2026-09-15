@@ -44,10 +44,10 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
       <p className="lede">Most archiving tools keep everything. undelete.chat is designed around the opposite promise.</p>
       <div className="pillars">
         <div className="pillar"><EyeOff size={22}/><h3>Only deleted messages are kept</h3><p>New messages are held privately only as long as the platform lets the sender delete them, plus a margin (three days for WhatsApp, two for Signal, longer for Telegram), and then discarded. If nobody deletes them, they are gone from undelete.chat too.</p></div>
-        <div className="pillar"><KeyRound size={22}/><h3>Encrypted, account by account</h3><p>Message content and linked sessions are encrypted at rest with keys bound to your account. Passwords are hashed with scrypt; there are no analytics or tracking cookies.</p></div>
+        <div className="pillar"><KeyRound size={22}/><h3>Sealed to a key only you hold</h3><p>Your device creates the archive key. The server seals each message as it arrives and cannot read it afterwards; operators, backups, and a stolen disk see only timestamps and counts.</p></div>
         <div className="pillar"><ShieldCheck size={22}/><h3>Yours to export or erase</h3><p>Export everything as JSON, remove single messages, disconnect an account, or delete your workspace in one click. No email required to sign up.</p></div>
       </div>
-      <p className="landing-fineprint">Read the full <a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>privacy policy</a>. Content is decrypted by the server to show it to you; this is not end-to-end encryption.</p>
+      <p className="landing-fineprint">Read the full <a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>privacy policy</a>. The server still sees each message in the moment it arrives, because the collector runs there; Premium moves that step into a hardware enclave.</p>
     </section>
     <section className="landing-section" id="pricing">
       <h2>Three ways to run undelete.chat<span className="brand-dot">.</span></h2>
@@ -62,7 +62,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
             <li><Check size={15}/>Adjustable watch window and retention</li>
             <li><Check size={15}/>Bookmarks, search across deleted messages, JSON export</li>
             <li><Check size={15}/>Hosted 24/7; nothing to install</li>
-            <li><Check size={15}/>Encrypted at rest; the service can decrypt to show you your archive</li>
+            <li><Check size={15}/>Archive sealed to a key only you hold</li>
           </ul>
           <button className="button primary full" onClick={onStart}>{trial ? `Start your ${trial}-day free trial` : 'Get started'}<ArrowRight size={16}/></button>
           {trial && <p className="landing-fineprint">{trial} days free, no card on file. Cancel any time from Settings.</p>}
@@ -88,7 +88,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
           <ul>
             <li><Check size={15}/>Everything in Standard</li>
             <li><Check size={15}/>Collectors and archive inside a confidential-computing enclave with remote attestation you can verify</li>
-            <li><Check size={15}/>Keys sealed to the enclave; no operator, backup, or provider image can decrypt your data</li>
+            <li><Check size={15}/>Even the moment of capture happens inside the enclave, out of the operator's reach</li>
             <li><Check size={15}/>Dedicated capacity, more linked accounts, and a longer watch window on request</li>
             <li><Check size={15}/>Priority support and a written data-handling agreement</li>
           </ul>
@@ -109,7 +109,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
         <details><summary>Are photos, voice notes, and files kept?</summary><p>Only their names and types. File bodies and view-once media are never stored. Messages in chats with a disappearing timer are kept as they arrive, because the platform will erase them; you can switch that off.</p></details>
         <details><summary>Can I run it myself?</summary><p>Yes. The whole service is open source under the AGPL-3.0 licence, with a Docker Compose deployment, encrypted storage, backups, and monitoring built in. Self-hosting means you hold the archive key, apply updates, and accept the platform risks yourself. The README on GitHub walks through it.</p></details>
         <details><summary>What does Premium with trusted execution environments add?</summary><p>On the Standard plan the server holds the key that decrypts your archive, so operators could technically read stored content. Premium runs the collectors and the archive inside a confidential-computing enclave: keys are sealed to attested hardware, memory is encrypted by the CPU, and neither operators, backups, nor the hosting provider can read your data. Email {inquiryEmail} to discuss it.</p></details>
-        <details><summary>Who can read my messages?</summary><p>Content is encrypted at rest, and the server decrypts it only to show it to you. The people operating the server could technically access stored data, so this is not end-to-end encryption. The privacy policy spells out exactly what is stored and for how long.</p></details>
+        <details><summary>Who can read my messages?</summary><p>Only you. Stored messages are sealed to a key created on your device and unlocked by your password; the server cannot open them, and neither can backups or operators. The one thing the server does see is each message as it arrives from the platform, because the collector that keeps your account linked runs there. Lose both your password and your recovery key and the archive is gone for good.</p></details>
       </div>
     </section>
     <section className="landing-final">

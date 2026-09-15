@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { setImmediate as yieldTurn } from 'node:timers/promises';
+import { isSealed } from './vault.mjs';
 
 const rank = "CASE kind WHEN 'create' THEN 0 WHEN 'edit' THEN 1 ELSE 2 END";
 const eventOrder = `occurred_at, ${rank}, id`;
@@ -14,7 +15,9 @@ export function createArchiveReader(db, crypt) {
       PRIMARY KEY(read_id,message_id)
     );
     CREATE INDEX temp.archive_selection_order ON archive_selection(read_id,position);`);
-  const open = (row, event) => ({ ...crypt.open(event.payload, `${row.user_id}:${row.id}:${event.event_uid}`), receivedAt: event.received_at, sequence: event.id });
+  // Sealed records are returned as envelopes; only the owner's device can open them.
+  const open = (row, event) => ({ ...(isSealed(event.payload) ? { sealed: { payload: event.payload, uid: event.event_uid }, kind: event.kind, occurredAt: event.occurred_at } : crypt.open(event.payload, `${row.user_id}:${row.id}:${event.event_uid}`)), receivedAt: event.received_at, sequence: event.id });
+  const vaulted = userId => !!db.prepare('SELECT vault_public_key FROM users WHERE id=?').get(userId)?.vault_public_key;
 
   function snapshot(row) {
     const current = db.prepare('SELECT * FROM messages WHERE id=? AND user_id=? AND held=0').get(row.id, row.user_id);
@@ -58,6 +61,12 @@ export function createArchiveReader(db, crypt) {
     const lastEvent = db.prepare(`SELECT * FROM events WHERE message_id=? AND id<=? AND kind!='delete'
       ORDER BY occurred_at DESC, ${rank} DESC, id DESC LIMIT 1`).get(row.id, maxSequence);
     const last = lastEvent && open(row, lastEvent);
+    if (last?.sealed || (!lastEvent && isSealed(db.prepare('SELECT payload FROM events WHERE message_id=? LIMIT 1').get(row.id)?.payload))) {
+      const first = db.prepare(`SELECT * FROM events WHERE message_id=? AND id<=? ORDER BY ${eventOrder} LIMIT 1`).get(row.id, maxSequence);
+      return { id: row.id, platform: row.platform, connectionId: row.connection_id, firstSeen: row.first_seen, lastSeen: row.last_seen, held: !!row.held, disappearing: !!row.disappearing, saved: !!row.saved, status: row.status,
+        sealed: true, latest: last?.sealed || null, meta: first ? { payload: first.payload, uid: first.event_uid } : null,
+        authorName: '', authorId: '', chatName: '', externalId: '', text: '', attachments: [], originalMissing: row.version_count === row.edit_count, versionCount: row.version_count };
+    }
     let meta = last?.authorName || last?.chatName ? last : null;
     if (!meta) {
       for await (const event of events(row, { ...options, maxSequence, reverse: true })) {
@@ -111,8 +120,15 @@ export function createArchiveReader(db, crypt) {
     const query = String(options.q || '').slice(0, 300).toLowerCase();
     const offset = Number.isSafeInteger(options.offset) && options.offset > 0 ? options.offset : 0;
     const { where, params } = filters(userId, options);
-    const readId = query ? randomUUID() : null;
+    const clientSearch = query && vaulted(userId);
+    const readId = query && !clientSearch ? randomUUID() : null;
     try {
+      if (clientSearch) {
+        const rows = db.prepare(`SELECT m.* FROM messages m WHERE ${where} ORDER BY m.last_seen DESC,m.id LIMIT 5000`).all(...params);
+        const messages = [];
+        for (const row of rows) { signal?.throwIfAborted(); const current = snapshot(row); if (current) messages.push(await summary(current.row, { signal, maxSequence: current.maxSequence })); if (messages.length % 50 === 0) await yieldTurn(); }
+        return { messages, total: messages.length, stats: stats(userId), clientSearch: true };
+      }
       if (query) {
         // Scan by immutable ID. New deliveries that change last_seen cannot
         // make a message disappear from the scan or appear twice.

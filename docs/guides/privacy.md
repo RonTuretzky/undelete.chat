@@ -8,7 +8,7 @@ What undelete.chat stores, why, for how long, and who can see it.
 
 undelete.chat watches the personal messaging accounts you link and keeps only messages that the platform erases: ones later deleted, and, unless you turn it off, ones sent with a disappearing-messages timer. Every other message is held privately for a per-platform watch window and then discarded. The defaults follow each platform’s own deletion limit plus a margin: three days for WhatsApp, two days for Signal, and thirty days for Telegram, which allows deletion at any time. Edits are recorded for one hour, two days, and three days respectively. Both windows are adjustable in Settings. Nothing you did not link is watched, and nothing that was never deleted is kept beyond that window.
 
-Message content is encrypted at rest with a key held by the server. The server can decrypt your messages to show them to you; this is not end-to-end encryption, and the people who operate the server could technically read stored content. We do not sell, share, analyse, or use message content for anything other than showing it to you.
+Stored messages are sealed to a key that only you hold. Your device creates the key pair; the server keeps the public half and a copy of the private half wrapped under your password and your recovery key, which it cannot open. The server seals each message as it arrives and cannot read it afterwards, so operators, backups, and anyone who takes the database see only timestamps, platforms, and counts. What the server still sees is each message in the moment it arrives from the platform, because the collector that keeps your account linked runs on the server; that is the one step short of end-to-end encryption, and the Premium tier moves it into a hardware enclave. If you lose both your password and your recovery key, nobody can recover your archive.
 
 This policy was last updated on September 11, 2026. It applies to the hosted service at undelete.chat.
 
@@ -22,7 +22,7 @@ Sessions: a hash of each browser session token with its expiry. The only cookie 
 
 Connections: the platform, the name you gave each linked account, its status, and timestamps. For hosted connections, the platform login session your phone approved (for example a WhatsApp or Signal linked-device session, or a Telegram session) is stored encrypted so the connection keeps running while your computer is off. Each connection has its own encryption key derived from the server key; workers never see other users’ sessions.
 
-Messages: for each watched message, the text, sender name, conversation name, platform identifiers, timestamps, and attachment names and types. File bodies, images, voice notes, and view-once media are never stored. Messages in chats with a disappearing-messages timer are archived as soon as they arrive, because the platform will erase them; you can turn this off in Settings so they are kept only if deleted. Reactions, link previews, pins, and formatting-only changes are not recorded. Held messages that are not deleted within your watch window are removed automatically. Deleted messages are kept with every edit they had before deletion until you remove them or your retention period ends.
+Messages: for each watched message, the text, sender name, conversation name, and attachment names and types, all sealed to your key so the server cannot read them, plus platform identifiers and timestamps in the clear. File bodies, images, voice notes, and view-once media are never stored. Messages in chats with a disappearing-messages timer are archived as soon as they arrive, because the platform will erase them; you can turn this off in Settings so they are kept only if deleted. Reactions, link previews, pins, and formatting-only changes are not recorded. Held messages that are not deleted within your watch window are removed automatically. Deleted messages are kept with every edit they had before deletion until you remove them or your retention period ends.
 
 Deletion markers: when you permanently remove a message from undelete.chat, a hashed marker is kept so a delayed delivery of the same message cannot bring it back. The marker contains no content.
 
@@ -68,7 +68,7 @@ No other third party receives data. We do not use analytics, error-tracking, ema
 
 ## How it is protected
 
-All traffic uses HTTPS with HSTS. Message content and platform sessions are encrypted with AES-256-GCM, bound to the owning account so records cannot be moved between accounts. Passwords use salted scrypt and are never stored in clear text. Session and connection tokens are stored only as SHA-256 digests.
+All traffic uses HTTPS with HSTS. Message content and platform sessions are encrypted with AES-256-GCM, bound to the owning account so records cannot be moved between accounts. Passwords use salted scrypt and are never stored in clear text; the password additionally unlocks your archive key on your device, and is never sent for that purpose. Session and connection tokens are stored only as SHA-256 digests.
 
 The application runs as an unprivileged user in a read-only container with all Linux capabilities dropped. Each hosted collector is a separate process that receives only its own connection’s derived key. Administrative access to the server is limited to the operator’s SSH key.
 

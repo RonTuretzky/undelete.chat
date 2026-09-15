@@ -93,7 +93,7 @@ export const guides = {
           "Choose Start free. Use a username and a password of at least 8 characters. No email address is needed.",
           "Open Connections and choose an account. WhatsApp, Telegram, and Signal use hosted phone linking."
         ],
-        "note": "The signed-out preview contains sample deleted messages. Your own archive starts empty and stays empty until a message you are watching is deleted. Save the one-time recovery key shown after registration in your password manager. Use Forgot your password? on the sign-in screen to reset your password with that key."
+        "note": "The signed-out preview contains sample deleted messages. Your own archive starts empty and stays empty until a message you are watching is deleted or set to disappear. Your device creates an archive key that only you hold; the server seals every recovered message to it and cannot read them. Your password unlocks the key on each device, and the one-time recovery key shown after registration unlocks it if you forget the password. Save that key in your password manager: if you lose both, nobody can recover your archive."
       },
       {
         "id": "phone",

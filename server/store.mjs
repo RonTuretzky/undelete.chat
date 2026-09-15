@@ -5,6 +5,7 @@ import { cipher, hash, token, passwordHash } from './crypto.mjs';
 import { createArchiveReader } from './archive-reader.mjs';
 import { createArchiveCapacity, eventBytes, MESSAGE_BYTES } from './archive-capacity.mjs';
 import { resolveWatch, mergeWatch, defaultWatch } from './watch.mjs';
+import { isSealed, sealTo, contentHash } from './vault.mjs';
 
 export const platforms = ['telegram', 'signal', 'whatsapp'];
 const short = z.string().min(1).max(256);
@@ -107,6 +108,10 @@ export function createStore(path, encryptionKey, options = {}) {
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'watch_config')) db.exec('ALTER TABLE users ADD COLUMN watch_config TEXT');
   // Messages the platform will erase on a timer are archived immediately unless the owner turns this off.
   if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'keep_disappearing')) db.exec('ALTER TABLE users ADD COLUMN keep_disappearing INTEGER NOT NULL DEFAULT 1');
+  // Zero-knowledge storage: the account's public key, its private key wrapped
+  // under password and recovery key, and the migration state of older records.
+  for (const name of ['vault_public_key', 'vault_wrapped', 'vault_state']) if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} TEXT`);
+  if (!db.prepare('PRAGMA table_info(events)').all().some(c => c.name === 'content_hash')) db.exec('ALTER TABLE events ADD COLUMN content_hash TEXT');
   // Only deleted messages belong to the archive. Anything else is a held
   // message in the watch buffer; this also converts pre-existing archives.
   db.prepare("UPDATE messages SET held=1 WHERE status!='deleted' AND held=0").run();
@@ -143,7 +148,9 @@ export function createStore(path, encryptionKey, options = {}) {
   db.prepare("UPDATE connections SET revoked=1,token_hash=NULL,health='error',detail='Discord is no longer supported.' WHERE platform='discord' AND revoked=0").run();
   const capacity = createArchiveCapacity(db, path, options);
   const hooks = {};
-  const getUser = id => { const row = db.prepare('SELECT id,username,created_at,retention_days,watch_config,keep_disappearing,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id); if (!row) return row; const { watch_config, ...user } = row; return { ...user, keep_disappearing: !!row.keep_disappearing, watch: resolveWatch(watch_config) }; };
+  const getUser = id => { const row = db.prepare('SELECT id,username,created_at,retention_days,watch_config,keep_disappearing,vault_state,recovery_hash IS NOT NULL AS recovery_enabled FROM users WHERE id=?').get(id); if (!row) return row; const { watch_config, ...user } = row; return { ...user, keep_disappearing: !!row.keep_disappearing, vault: row.vault_state || 'none', watch: resolveWatch(watch_config) }; };
+  // Sealed records come back as opaque envelopes for the owner's device to open.
+  const openEvent = (row, e) => isSealed(e.payload) ? { sealed: { payload: e.payload, uid: e.event_uid }, kind: e.kind, occurredAt: e.occurred_at } : crypt.open(e.payload, `${row.user_id}:${row.id}:${e.event_uid}`);
   const connections = user => db.prepare(`SELECT id,platform,name,created_at,last_seen,connected_at,paused,revoked,health,detail,queued,paired_at,collector,capacity_reason,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=0) AS message_count,
     (SELECT count(*) FROM messages WHERE connection_id=connections.id AND held=1) AS held_count,
@@ -151,7 +158,7 @@ export function createStore(path, encryptionKey, options = {}) {
     FROM connections WHERE user_id=? ORDER BY created_at`).all(user);
   function details(row) {
     const versions = db.prepare('SELECT * FROM events WHERE message_id=? ORDER BY occurred_at, CASE kind WHEN \'create\' THEN 0 WHEN \'edit\' THEN 1 ELSE 2 END, id').all(row.id)
-      .map(e => ({ ...crypt.open(e.payload, `${row.user_id}:${row.id}:${e.event_uid}`), receivedAt: e.received_at, sequence: e.id }));
+      .map(e => ({ ...openEvent(row, e), receivedAt: e.received_at, sequence: e.id }));
     const contents = versions.filter(v => v.kind !== 'delete');
     const last = contents.at(-1);
     const meta = [...contents].reverse().find(v => v.authorName || v.chatName) || versions[0];
@@ -192,15 +199,18 @@ export function createStore(path, encryptionKey, options = {}) {
         // Platforms also report reactions, link previews, pins, and formatting
         // as edits. A version whose text and attachments match the current one
         // carries no new content, so it is acknowledged without being recorded.
-        const latest = db.prepare('SELECT event_uid,kind,payload FROM events WHERE message_id=? ORDER BY occurred_at DESC,id DESC LIMIT 1').get(id);
+        const latest = db.prepare('SELECT event_uid,kind,payload,content_hash FROM events WHERE message_id=? ORDER BY occurred_at DESC,id DESC LIMIT 1').get(id);
         if (latest && latest.kind !== 'delete') {
-          const current = crypt.open(latest.payload, `${connection.user_id}:${id}:${latest.event_uid}`);
-          if ((current.text ?? '') === (e.text ?? '') && JSON.stringify(current.attachments || []) === JSON.stringify(e.attachments || [])) {
-            db.exec('COMMIT'); return { ignored: true, reason: 'unchanged', id };
-          }
+          // The keyed digest compares content without reading it; older rows
+          // without a digest are compared by decryption where that is possible.
+          const unchanged = latest.content_hash ? latest.content_hash === contentHash(encryptionKey, e)
+            : !isSealed(latest.payload) && (() => { const current = crypt.open(latest.payload, `${connection.user_id}:${id}:${latest.event_uid}`); return (current.text ?? '') === (e.text ?? '') && JSON.stringify(current.attachments || []) === JSON.stringify(e.attachments || []); })();
+          if (unchanged) { db.exec('COMMIT'); return { ignored: true, reason: 'unchanged', id }; }
         }
       }
-      const payload = crypt.seal(e, `${connection.user_id}:${id}:${uid}`), bytes = eventBytes(payload, uid);
+      const vaultKey = db.prepare('SELECT vault_public_key FROM users WHERE id=?').get(connection.user_id)?.vault_public_key;
+      const context = `${connection.user_id}:${id}:${uid}`;
+      const payload = vaultKey ? sealTo(vaultKey, e, context) : crypt.seal(e, context), bytes = eventBytes(payload, uid);
       capacity.assertRoom(connection.user_id, bytes + (existing ? 0 : MESSAGE_BYTES));
       // A message enters the archive only when the platform deletes it. Until
       // then it is held privately and discarded after the owner's watch window.
@@ -210,8 +220,8 @@ export function createStore(path, encryptionKey, options = {}) {
       db.prepare(`INSERT INTO messages (id,user_id,connection_id,platform,first_seen,last_seen,held,disappearing) VALUES (?,?,?,?,?,?,?,?)
         ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen,held=CASE WHEN excluded.held=0 THEN 0 ELSE messages.held END,disappearing=CASE WHEN excluded.disappearing=1 THEN 1 ELSE messages.disappearing END`)
         .run(id, connection.user_id, connection.id, connection.platform, now, now, e.kind === 'delete' || keepDisappearing ? 0 : 1, e.disappearing ? 1 : 0);
-      db.prepare('INSERT INTO events (message_id,connection_id,event_uid,kind,occurred_at,received_at,payload,user_id,storage_bytes) VALUES (?,?,?,?,?,?,?,?,?)')
-        .run(id, connection.id, uid, e.kind, e.occurredAt, now, payload, connection.user_id, bytes);
+      db.prepare('INSERT INTO events (message_id,connection_id,event_uid,kind,occurred_at,received_at,payload,user_id,storage_bytes,content_hash) VALUES (?,?,?,?,?,?,?,?,?,?)')
+        .run(id, connection.id, uid, e.kind, e.occurredAt, now, payload, connection.user_id, bytes, e.kind === 'delete' ? null : contentHash(encryptionKey, e));
       db.prepare(`UPDATE messages SET version_count=version_count+?,edit_count=edit_count+?,
         status=CASE WHEN status='deleted' OR ?='delete' THEN 'deleted'
           WHEN status='edited' OR ?='edit' THEN 'edited' ELSE 'captured' END WHERE id=?`)
@@ -399,6 +409,40 @@ export function createStore(path, encryptionKey, options = {}) {
       db.prepare("UPDATE users SET last_active_at=? WHERE id=? AND (last_active_at IS NULL OR last_active_at < ?)").run(new Date().toISOString(), row.user_id, new Date(Date.now() - 3600_000).toISOString());
       return getUser(row.user_id);
     },
+    vaultRecord(userId) {
+      const row = db.prepare('SELECT vault_public_key,vault_wrapped,vault_state FROM users WHERE id=?').get(userId);
+      return row ? { state: row.vault_state || 'none', publicKey: row.vault_public_key || null, wrapped: row.vault_wrapped ? JSON.parse(row.vault_wrapped) : null } : null;
+    },
+    setupVault(userId, publicKey, wrapped) {
+      const result = db.prepare("UPDATE users SET vault_public_key=?,vault_wrapped=?,vault_state='migrating' WHERE id=? AND vault_public_key IS NULL").run(publicKey, JSON.stringify(wrapped), userId);
+      return result.changes === 1;
+    },
+    rewrapVault(userId, wrapped) { return db.prepare('UPDATE users SET vault_wrapped=? WHERE id=? AND vault_public_key IS NOT NULL').run(JSON.stringify(wrapped), userId).changes === 1; },
+    // Re-seals records written before the account had a key. Runs in bounded
+    // batches so it never stalls ingest; returns true when nothing is left.
+    migrateVault(userId, { batch = 200 } = {}) {
+      const user = db.prepare('SELECT vault_public_key,vault_state FROM users WHERE id=?').get(userId);
+      if (!user?.vault_public_key) return true;
+      const rows = db.prepare(`SELECT e.id,e.event_uid,e.payload,e.message_id,e.kind FROM events e WHERE e.user_id=? AND substr(e.payload,1,3)!='v1.' ORDER BY e.id LIMIT ?`).all(userId, batch);
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        for (const e of rows) {
+          const context = `${userId}:${e.message_id}:${e.event_uid}`;
+          const value = crypt.open(e.payload, context);
+          const sealed = sealTo(user.vault_public_key, value, context);
+          const before = db.prepare('SELECT storage_bytes FROM events WHERE id=?').get(e.id).storage_bytes, after = eventBytes(sealed, e.event_uid);
+          db.prepare('UPDATE events SET payload=?,content_hash=?,storage_bytes=? WHERE id=?').run(sealed, e.kind === 'delete' ? null : contentHash(encryptionKey, value), after, e.id);
+          // Usage triggers cover inserts and deletes only; keep the accounting exact for the larger envelope.
+          db.prepare('UPDATE users SET archive_bytes=archive_bytes+? WHERE id=?').run(after - before, userId);
+          db.prepare('UPDATE archive_usage SET used_bytes=used_bytes+? WHERE id=1').run(after - before);
+        }
+        const remaining = db.prepare(`SELECT count(*) AS n FROM events WHERE user_id=? AND substr(payload,1,3)!='v1.'`).get(userId).n;
+        if (!remaining) db.prepare("UPDATE users SET vault_state='active' WHERE id=?").run(userId);
+        db.exec('COMMIT');
+        return !remaining;
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
+    },
+    migratingVaults() { return db.prepare("SELECT id FROM users WHERE vault_state='migrating'").all().map(r => r.id); },
     setKeepDisappearing(userId, keep) { db.prepare('UPDATE users SET keep_disappearing=? WHERE id=?').run(keep ? 1 : 0, userId); },
     setWatch(userId, patch) { db.prepare('UPDATE users SET watch_config=? WHERE id=?').run(JSON.stringify(mergeWatch(db.prepare('SELECT watch_config FROM users WHERE id=?').get(userId)?.watch_config, patch)), userId); },
     touch(userId) { db.prepare('UPDATE users SET last_active_at=? WHERE id=?').run(new Date().toISOString(), userId); },

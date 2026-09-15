@@ -7,7 +7,7 @@ const temp = mkdtempSync(join(tmpdir(), 'afterword-package-'));
 const dir = join(temp, 'afterword-companion');
 mkdirSync(join(dir, 'server'), { recursive: true });
 cpSync('companion', join(dir, 'companion'), { recursive: true, filter: source => !source.split(/[\\/]/).includes('node_modules') });
-for (const f of ['crypto.mjs', 'store.mjs', 'archive-reader.mjs', 'archive-capacity.mjs', 'capacity.mjs', 'watch.mjs']) cpSync(join('server', f), join(dir, 'server', f));
+for (const f of ['crypto.mjs', 'store.mjs', 'archive-reader.mjs', 'archive-capacity.mjs', 'capacity.mjs', 'watch.mjs', 'vault.mjs']) cpSync(join('server', f), join(dir, 'server', f));
 for (const f of ['package.json', 'package-lock.json']) cpSync(join('companion', f), join(dir, f));
 cpSync('docs/COMPANION.md', join(dir, 'README.md'));
 cpSync('docs/guides', join(dir, 'guides'), { recursive: true });
