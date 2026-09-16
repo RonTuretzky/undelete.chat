@@ -28,3 +28,4 @@ mobile/ios/DerivedData
 mobile/*.ipa
 mobile/*.aab
 mobile/build
+mobile/capacitor.cloud.config.backup.json

@@ -336,6 +336,8 @@ export function createApp(store, config = {}) {
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
   // The service worker must be revalidated on every load so deploys reach installed apps promptly.
   app.get('/sw.js', (_req, res, next) => { res.set('Cache-Control', 'no-cache'); res.set('Service-Worker-Allowed', '/'); next(); });
+  // Sideloadable phone-only app and its checksum, uploaded by the deploy script when built.
+  app.use('/downloads', express.static(resolve('downloads'), { index: false, maxAge: '1h', setHeaders: res => res.set('X-Content-Type-Options', 'nosniff') }));
   app.use(express.static(resolve('dist'), { index: false, maxAge: '1h' }));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
   app.use((error, _req, res, _next) => {

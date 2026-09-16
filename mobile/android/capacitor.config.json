@@ -1,0 +1,37 @@
+{
+  "appId": "chat.undelete.app",
+  "appName": "undelete.chat",
+  "webDir": "www",
+  "server": {
+    "url": "https://undelete.chat",
+    "cleartext": false,
+    "allowNavigation": [
+      "undelete.chat",
+      "checkout.stripe.com",
+      "billing.stripe.com"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#f6f8f7"
+  },
+  "android": {
+    "backgroundColor": "#f6f8f7",
+    "allowMixedContent": false,
+    "adjustMarginsForEdgeToEdge": "force"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "LIGHT",
+      "backgroundColor": "#f6f8f7"
+    },
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 800,
+      "backgroundColor": "#f6f8f7",
+      "splashFullScreen": false,
+      "splashImmersive": false
+    }
+  }
+}

@@ -17,6 +17,7 @@ services:
       # spending the server's RAM on executable library copies; no sessions
       # are stored in this cache. The supervisor clears each worker's files.
       - signal-native-cache:/run/signal-native
+      - /opt/afterword/downloads:/app/downloads:ro
     ports:
       - '127.0.0.1:4318:4318'
     security_opt:

@@ -4,6 +4,11 @@ Native apps for the App Store and Google Play, built with [Capacitor](https://ca
 
 Bundle identifier / application id: `chat.undelete.app`. Version `1.0.0` (build 1).
 
+## Editions
+
+- **Cloud app** (`chat.undelete.app`, flavour `cloud`): loads undelete.chat, offers the cloud archive and device mode. Built by `scripts/build-android.sh` (Play bundle) and the iOS script.
+- **Phone-only app** (`chat.undelete.app.local`, flavour `local`): bundles the web interface from `../dist`, contains only device mode, never contacts a server, and has no account. Built by `scripts/build-android-local.sh` into a signed APK that the deploy script publishes at `https://undelete.chat/downloads/undelete-phone-only.apk`. Both editions install side by side. Android only; iOS has no notification-reading API.
+
 ## Layout
 
 - `ios/App` — Xcode project (Swift Package Manager). Push entitlement, background mode, and the App Delegate hooks are configured.

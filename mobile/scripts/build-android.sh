@@ -11,5 +11,5 @@ export UNDELETE_KEY_ALIAS="$(python3 -c "import json;print(json.load(open('$CONF
 export UNDELETE_KEY_PASSWORD="$(python3 -c "import json;print(json.load(open('$CONFIG'))['key_password'])")"
 [ -f android/app/google-services.json ] || echo "Note: android/app/google-services.json is absent, so this build has no push notifications."
 npx cap sync android
-cd android && ./gradlew --quiet bundleRelease
-ls -la app/build/outputs/bundle/release/app-release.aab
+cd android && ./gradlew --quiet bundleCloudRelease
+ls -la app/build/outputs/bundle/cloudRelease/app-cloud-release.aab

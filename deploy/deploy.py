@@ -90,6 +90,14 @@ with tempfile.TemporaryDirectory(prefix='afterword-deploy-') as tmp:
     subprocess.run(['scp', *ssh_options, str(archive), target + ':/opt/afterword/source.tar.gz'], check=True)
     remote('tar -xzf /opt/afterword/source.tar.gz -C /opt/afterword && rm /opt/afterword/source.tar.gz')
 subprocess.run(['scp', *ssh_options, str(env_path), target + ':/opt/afterword/deploy/.env'], check=True)
+apk = root / 'mobile' / 'android' / 'app' / 'build' / 'outputs' / 'apk' / 'local' / 'release' / 'app-local-release.apk'
+if apk.exists():
+    # The phone-only Android edition is offered as a download; publish it with its checksum.
+    import hashlib
+    digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+    remote('install -d -m 755 /opt/afterword/downloads')
+    subprocess.run(['scp', *ssh_options, str(apk), target + ':/opt/afterword/downloads/undelete-phone-only.apk'], check=True)
+    remote('printf "%s  undelete-phone-only.apk\n" ' + shlex.quote(digest) + ' > /opt/afterword/downloads/undelete-phone-only.apk.sha256 && chmod 644 /opt/afterword/downloads/*')
 remote('chmod 600 /opt/afterword/deploy/.env && cd /opt/afterword && docker compose -f deploy/compose.yaml up -d --build')
 # Every deploy leaves the previous image and build layers behind; without this the disk fills over months.
 remote('docker image prune -f >/dev/null && docker builder prune -f --keep-storage 1GB >/dev/null && docker system df --format "{{.Type}} {{.Size}} reclaimable={{.Reclaimable}}" | head -1', capture=True)

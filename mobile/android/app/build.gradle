@@ -26,6 +26,23 @@ android {
             }
         }
     }
+    // Two editions from one project: the cloud app loads undelete.chat and
+    // offers both modes; the phone-only edition bundles the interface, never
+    // contacts a server, and installs alongside the cloud app.
+    flavorDimensions += "edition"
+    productFlavors {
+        cloud {
+            dimension "edition"
+            resValue "string", "app_name", "undelete.chat"
+            resValue "string", "title_activity_main", "undelete.chat"
+        }
+        local {
+            dimension "edition"
+            applicationIdSuffix ".local"
+            resValue "string", "app_name", "undelete.chat phone-only"
+            resValue "string", "title_activity_main", "undelete.chat phone-only"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false

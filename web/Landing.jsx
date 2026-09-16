@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Check, Cpu, EyeOff, Github, KeyRound, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, Cpu, EyeOff, Github, KeyRound, Mail, ShieldCheck, Smartphone } from 'lucide-react';
 import { HowItWorks } from './HowItWorks';
 import { platformGuides, platformOrder } from './guides.mjs';
 import './Landing.css';
@@ -50,8 +50,8 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
       <p className="landing-fineprint">Read the full <a href="/docs/privacy" onClick={e => go(e, '/docs/privacy')}>privacy policy</a>. The server still sees each message in the moment it arrives, because the collector runs there; Premium moves that step into a hardware enclave.</p>
     </section>
     <section className="landing-section" id="pricing">
-      <h2>Three ways to run undelete.chat<span className="brand-dot">.</span></h2>
-      <p className="lede">Start with the standard plan in a minute, run it yourself for free, or choose Premium when your messages must stay unreadable even to the people running the servers.</p>
+      <h2>Four ways to run undelete.chat<span className="brand-dot">.</span></h2>
+      <p className="lede">Start with the standard plan in a minute, keep everything on your phone with the phone-only app, run the whole service yourself, or choose Premium when even the moment of capture must be out of anyone else’s reach.</p>
       <div className="pricing tiers">
         <div className="price-card">
           <div className="eyebrow">STANDARD</div>
@@ -66,6 +66,20 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
           </ul>
           <button className="button primary full" onClick={onStart}>{trial ? `Start your ${trial}-day free trial` : 'Get started'}<ArrowRight size={16}/></button>
           {trial && <p className="landing-fineprint">{trial} days free, no card on file. Cancel any time from Settings.</p>}
+        </div>
+        <div className="price-card selfhost">
+          <div className="eyebrow">PHONE-ONLY</div>
+          <div className="price">Free<small>Android, no server</small></div>
+          <p className="premium-lede"><Smartphone size={16}/>An app that reads the notifications WhatsApp, Telegram, and Signal show on your phone and keeps the messages in a database on the phone. No account, no sign-in, no server, no network.</p>
+          <ul>
+            <li><Check size={15}/>Catches deletions while the notification is still showing</li>
+            <li><Check size={15}/>Keeps edits as versions</li>
+            <li><Check size={15}/>Nothing ever leaves the phone; revoke access in Android settings any time</li>
+            <li><Check size={15}/>Misses muted chats, open chats, and messages read elsewhere first</li>
+            <li><Check size={15}/>Works with the phone off the internet</li>
+          </ul>
+          <a className="button secondary full" href="/downloads/undelete-phone-only.apk"><Smartphone size={16}/>Download for Android<ArrowRight size={16}/></a>
+          <p className="landing-fineprint">Sideload: allow installs from your browser when Android asks. Verify with the <a href="/downloads/undelete-phone-only.apk.sha256">SHA-256 checksum</a>. Play Store listing to follow.</p>
         </div>
         <div className="price-card selfhost">
           <div className="eyebrow">SELF-HOST</div>
@@ -107,6 +121,7 @@ export function Landing({ billing, onStart, onSignIn, onDemo, onGuide, Platform 
         <details><summary>Does the other person know?</summary><p>undelete.chat appears on your account as a linked device, exactly like a desktop app. Nothing is sent to the other person, and nothing changes in the conversation.</p></details>
         <details><summary>What about messages I delete myself?</summary><p>Deletions on your own messages are captured the same way if the platform reports them to linked devices. You can remove anything from undelete.chat permanently at any time.</p></details>
         <details><summary>Are photos, voice notes, and files kept?</summary><p>Only their names and types. File bodies and view-once media are never stored. Messages in chats with a disappearing timer are kept as they arrive, because the platform will erase them; you can switch that off.</p></details>
+        <details><summary>Is there a version that never touches a server?</summary><p>Yes, the phone-only Android app. It reads the notifications your messaging apps show and keeps the messages in a database on the phone, with no account and no network. Deletions are caught when the platform rewords a notification that is still showing, which WhatsApp does reliably; Telegram and Signal usually withdraw the notification instead, so detection there is weaker. The cloud archive sees every message the platforms deliver; the phone-only app sees only what produced a notification. The regular Android app includes both modes.</p></details>
         <details><summary>Can I run it myself?</summary><p>Yes. The whole service is open source under the AGPL-3.0 licence, with a Docker Compose deployment, encrypted storage, backups, and monitoring built in. Self-hosting means you hold the archive key, apply updates, and accept the platform risks yourself. The README on GitHub walks through it.</p></details>
         <details><summary>What does Premium with trusted execution environments add?</summary><p>On the Standard plan stored messages are already sealed to a key only you hold, but the collector that keeps your account linked runs on the server and sees each message for the instant it arrives. Premium runs the collectors inside a confidential-computing enclave: keys are sealed to attested hardware, memory is encrypted by the CPU, and neither operators, backups, nor the hosting provider can see messages even at capture. Email {inquiryEmail} to discuss it.</p></details>
         <details><summary>Who can read my messages?</summary><p>Only you. Stored messages are sealed to a key created on your device and unlocked by your password; the server cannot open them, and neither can backups or operators. The one thing the server does see is each message as it arrives from the platform, because the collector that keeps your account linked runs there. Lose both your password and your recovery key and the archive is gone for good.</p></details>

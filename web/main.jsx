@@ -14,6 +14,7 @@ import { Landing } from './Landing';
 import { PhoneAppCard } from './PhoneApp';
 import { isNativeApp, onNativeNotificationTap, hasDeviceArchive } from './native.mjs';
 import { DeviceArchive } from './DeviceArchive';
+import { LocalApp } from './LocalApp';
 import { loadVaultSession, setupVault, unlockVault, rewrapForPassword, rewrapForRecoveryKey, recoverVault, clearVault } from './vaultSession.mjs';
 import { platformGuides } from './guides.mjs';
 
@@ -65,7 +66,7 @@ function App() {
   // After the key is set up, older records are re-sealed in the background; refresh the state until that finishes.
   useEffect(() => { if (vault?.record?.state !== 'migrating') return; const timer = setInterval(() => api('/vault').then(d => { if (d.vault.state !== 'migrating') setVault(v => v && { ...v, record: d.vault }); }).catch(() => {}), 5000); return () => clearInterval(timer); }, [vault?.record?.state]);
   useEffect(() => {
-    if ('serviceWorker' in navigator && window.location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+    if ('serviceWorker' in navigator && window.location.protocol === 'https:' && !isNativeApp()) navigator.serviceWorker.register('/sw.js').catch(() => {});
     const params = new URLSearchParams(window.location.search);
     if (params.get('source')) { const wanted = params.get('view'); window.history.replaceState({}, '', window.location.pathname); if (wanted === 'connections') { setLanding(false); setView('connections'); } else setLanding(false); }
   }, []);
@@ -189,4 +190,6 @@ function App() {
     {notice && <div className="toast" role="status"><Check size={17}/>{notice}</div>}
   </>;
 }
-createRoot(document.getElementById('root')).render(<App/>);
+// The phone-only edition bundles this interface inside the app and never loads it from a server.
+const phoneOnly = isNativeApp() && !/(^|\.)undelete\.chat$/.test(window.location.hostname);
+createRoot(document.getElementById('root')).render(phoneOnly ? <LocalApp/> : <App/>);

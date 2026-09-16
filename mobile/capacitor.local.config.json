@@ -1,0 +1,32 @@
+{
+  "appId": "chat.undelete.app.local",
+  "appName": "undelete.chat phone-only",
+  "webDir": "../dist",
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#f6f8f7"
+  },
+  "android": {
+    "backgroundColor": "#f6f8f7",
+    "allowMixedContent": false,
+    "adjustMarginsForEdgeToEdge": "force"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "LIGHT",
+      "backgroundColor": "#f6f8f7"
+    },
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 800,
+      "backgroundColor": "#f6f8f7",
+      "splashFullScreen": false,
+      "splashImmersive": false
+    }
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  }
+}
